@@ -90,6 +90,15 @@ export const test = base.extend<{
 
     electronApp: async ({ fixture }, use) => {
         const tempUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-filetree-load-child-ud-'));
+        // Isolate the VoiceTree home per spec. The per-project VTD child keeps its
+        // owner-records, spawn lock and tmux socket under $VOICETREE_HOME_PATH
+        // (default $HOME/.voicetree). Without a fresh home, that daemon state
+        // leaks across specs/runs: a stale owner-record pointing at an already
+        // dead daemon stalls the next spec's ensureVtDaemonForProject, so graph
+        // sync never starts and the write-path node never loads — a flake no wait
+        // budget can fix. Isolating the home (the daemon-state analogue of the
+        // per-spec --user-data-dir above) makes each launch start from clean state.
+        const tempVoicetreeHome = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-filetree-load-child-home-'));
         await fs.writeFile(path.join(tempUserData, 'voicetree-config.json'), JSON.stringify({
             lastDirectory: fixture.projectPath,
             projectConfig: {
@@ -109,16 +118,9 @@ export const test = base.extend<{
 
         const electronApp = await electron.launch({
             args: [
+                // getStableElectronRenderingFlags() adds the hidden-window
+                // anti-throttling switches because this fixture runs MINIMIZE_TEST=1.
                 ...getStableElectronRenderingFlags(),
-                // These specs minimize/hide the window (MINIMIZE_TEST=1). Without
-                // these switches Chromium throttles a hidden renderer's timers and
-                // suspends its render loop, so the projected graph never finishes
-                // hydrating into cytoscape and the setup waits time out. Keeping the
-                // background renderer at full speed is required to drive a hidden
-                // e2e window deterministically.
-                '--disable-background-timer-throttling',
-                '--disable-renderer-backgrounding',
-                '--disable-backgrounding-occluded-windows',
                 path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
                 `--user-data-dir=${tempUserData}`,
             ],
@@ -128,6 +130,7 @@ export const test = base.extend<{
                 HEADLESS_TEST: '1',
                 MINIMIZE_TEST: '1',
                 VOICETREE_PERSIST_STATE: '1',
+                VOICETREE_HOME_PATH: tempVoicetreeHome,
             },
             timeout: 15000,
         });
@@ -169,6 +172,7 @@ export const test = base.extend<{
             ]);
         }
         await fs.rm(tempUserData, { recursive: true, force: true });
+        await fs.rm(tempVoicetreeHome, { recursive: true, force: true });
     },
 
     appWindow: async ({ electronApp, fixture }, use) => {
