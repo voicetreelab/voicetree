@@ -11,6 +11,11 @@ import { getSubfoldersWithModifiedAt, isValidSubdirectory } from '@/shell/edge/m
 import { stopDaemonGraphSync } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-watch-sync'
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import {
+    setWriteFolderPathThroughDaemon,
+    removeReadPathThroughDaemon,
+    refreshMainGraphFromDaemon,
+} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
+import {
     getStartupProjectHint,
     openProject,
 } from './openProject'
@@ -135,33 +140,47 @@ export async function getWriteFolderPath(): Promise<O.Option<FilePath>> {
     }
 }
 
+/**
+ * Create a fresh dated voicetree folder, make it the sole loaded folder, and
+ * point new-node creation at it ("New voicetree" button).
+ *
+ * Clean-slate semantics: switching the write folder to the new (empty) dated
+ * folder demotes the previous write folder to a read path; we then unload every
+ * remaining read path (the demoted previous write folder AND any folders that
+ * were loaded as reads). The result is a graph showing only the freshly created
+ * voicetree — the user starts from a blank canvas rather than carrying the
+ * previous project's nodes across.
+ *
+ * The write switch and each unload go through the canonical folder-state
+ * mutators (`setWriteFolderPathThroughDaemon` / `removeReadPathThroughDaemon`),
+ * which drive the daemon's session folder-state transitions and push the
+ * updated projected graph to the renderer.
+ */
 export async function createDatedVoiceTreeFolder(): Promise<{
     success: boolean
     path?: string
     error?: string
 }> {
     try {
-        const previousProjectState: ProjectState = await getProjectState()
-        const watchedDir: string = previousProjectState.projectRoot
+        const watchedDir: string = (await getProjectState()).projectRoot
         const newPath: string = await createDatedSubfolder(watchedDir)
-        await callDaemon(async (client) => {
-            await client.addReadPath(newPath)
-            return await client.setWriteFolderPath(newPath)
-        })
 
-        // Re-point the Python text-to-tree server at the new dated write folder, so
-        // voice/typed text lands in the freshly created folder rather than the old one.
-        // (The daemon's own notify no-ops — see openProject / setWriteFolderPathThroughDaemon.)
-        getCallbacks().notifyWriteDirectory?.(newPath)
+        // Make the new dated folder the write folder. This loads it and demotes
+        // the previous write folder into the read paths (also re-points the
+        // Python text-to-tree server at the new folder via notifyWriteDirectory).
+        await setWriteFolderPathThroughDaemon(newPath)
 
-        if (
-            previousProjectState.writeFolderPath
-            && previousProjectState.writeFolderPath !== newPath
-            && previousProjectState.writeFolderPath !== watchedDir
-        ) {
-            await callDaemon((client) => client.removeReadPath(previousProjectState.writeFolderPath)).catch(() => undefined)
+        // Unload everything else: every read path other than the new write
+        // folder — which now includes the demoted previous write folder and any
+        // previously loaded read folders — leaving the new voicetree alone.
+        const stateAfterSwitch: ProjectState = await getProjectState()
+        for (const readPath of stateAfterSwitch.readPaths) {
+            if (readPath !== stateAfterSwitch.writeFolderPath) {
+                await removeReadPathThroughDaemon(readPath)
+            }
         }
 
+        await refreshMainGraphFromDaemon()
         return { success: true, path: newPath }
     } catch (error) {
         const message: string = error instanceof Error ? error.message : String(error)
