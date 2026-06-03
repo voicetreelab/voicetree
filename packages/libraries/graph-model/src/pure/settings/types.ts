@@ -91,6 +91,23 @@ export interface HookSettings {
 export const DEFAULT_SUBGRAPH_WARN_THRESHOLD: number = 4;
 export const DEFAULT_SUBGRAPH_ERROR_THRESHOLD: number = 6;
 
+/**
+ * Default fan-out cap for the create_graph `child_count_limit` gate. A node with
+ * more than this many children reads as an unstructured star rather than a tree,
+ * so create_graph blocks (overridable) until the agent nests the children.
+ */
+export const DEFAULT_MAX_CHILDREN_PER_NODE: number = 4;
+
+/**
+ * Default thresholds for the create_graph `graph_complexity_limit` gate, applied
+ * to the L∞ complexity score (see graphComplexity.ts) of the destination-folder
+ * component after the batch lands. `warn` surfaces a non-blocking nudge; `block`
+ * (≈ the 'heavy' rating boundary of 1.0) blocks creation, overridable with a
+ * rationale.
+ */
+export const DEFAULT_COMPLEXITY_WARN_SCORE: number = 0.7;
+export const DEFAULT_COMPLEXITY_BLOCK_SCORE: number = 1.0;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -143,6 +160,25 @@ export interface VTSettings {
      * agent splits the cluster into a sub-folder or justifies the exception (default: 6).
      */
     readonly subgraphErrorThreshold?: number;
+    /**
+     * Max children a single node may have before create_graph blocks (overridable
+     * with a rationale). Keeps the graph a navigable tree instead of a wide star
+     * (default: 4).
+     */
+    readonly maxChildrenPerNode?: number;
+    /**
+     * Graph-complexity warn score: when the destination-folder component's L∞
+     * complexity score reaches this, create_graph returns a non-blocking warning
+     * (default: 0.7).
+     */
+    readonly complexityWarnScore?: number;
+    /**
+     * Graph-complexity block score: when the destination-folder component's L∞
+     * complexity score reaches this, create_graph blocks (overridable with a
+     * rationale) so the agent restructures the cluster (default: 1.0, the 'heavy'
+     * rating boundary).
+     */
+    readonly complexityBlockScore?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */

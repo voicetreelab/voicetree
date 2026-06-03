@@ -188,6 +188,12 @@
 // `src/`), not new coupling. Mirrors the existing sanctioned real-daemon-booting
 // leaves `voicetree-bootcamp -> graph-db-client: 1` and `vt-daemon ->
 // graph-db-client: 1`. Should not grow.
+//
+// 2026-06-03: the create_graph child_count_limit + graph_complexity_limit gates:
+//   vt-daemon -> graph-tools: 7 -> 8 (+1 computeGraphComplexity, the same
+//     measure `vt graph complexity` runs, applied to the destination cluster)
+//   vt-daemon -> graph-model: 24 -> 27 (+3 the gates' tunable settings defaults
+//     DEFAULT_MAX_CHILDREN_PER_NODE / _COMPLEXITY_WARN_SCORE / _COMPLEXITY_BLOCK_SCORE)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
     'daemon-test-harness -> graph-db-client': 2,
@@ -321,13 +327,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
-    'vt-daemon -> graph-model': 24,
+    'vt-daemon -> graph-model': 27,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
     // in webapp's process).
     'vt-daemon -> graph-state': 3,
-    'vt-daemon -> graph-tools': 7,
+    'vt-daemon -> graph-tools': 8,
     'vt-daemon -> observability': 10,
     'vt-daemon -> paths': 4,
     'vt-daemon -> voicetree-graph-validation': 1,
