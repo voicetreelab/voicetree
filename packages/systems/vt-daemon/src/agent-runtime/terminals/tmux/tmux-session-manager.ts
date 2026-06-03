@@ -130,7 +130,15 @@ async function createSessionOnly(
         '-s',
         sessionName,
         ...envArgs,
-        command,
+        // Strip the control-server handle from the pane. Every vt agent runs in
+        // a pane on the SHARED vt tmux control server and tmux sets
+        // $TMUX/$TMUX_PANE pointing at it, so a bare `tmux kill-server` (or any
+        // un-scoped `tmux kill-*`) run INSIDE a pane tears down the whole fleet
+        // at once — the exact incident this guards against. Unsetting them makes
+        // an in-pane tmux fall back to its own default socket; the daemon
+        // addresses the control server via explicit `-S` from outside, so
+        // relay/attach is intact.
+        `unset TMUX TMUX_PANE; ${command}`,
     ])
     return {pid: parsePid(result.stdout, sessionName)}
 }
