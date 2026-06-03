@@ -1,42 +1,45 @@
 /**
- * Spawn-time injection of the canonical `vt` CLI manual into each
- * agent's AGENT_PROMPT.
+ * Spawn-time `vt` CLI discovery for AGENT_PROMPT.
  *
- * External coding agents discover the VoiceTree tools by reading the
- * manual section spawning splices into their AGENT_PROMPT. The manual
- * is rendered live from `TOOL_SPECS` in `@vt/vt-daemon-protocol` — no
- * filesystem read, no markdown parsing — so any change to the canonical
- * spec data lands in newly spawned agents on the next spawn.
- *
- * Design points:
- * - The essentials slice is injected by default (`tier: 'essentials'`),
- *   keeping the AGENT_PROMPT compact. Full reference is discoverable
- *   via `vt manual <verb>`.
- * - The injected content is delimited by sentinels so a reader can tell
- *   where the user's prompt ends and the manual begins.
- * - The function is idempotent: a second call with the same env-vars
- *   map returns the input unchanged (the sentinel scan short-circuits).
+ * The default prompt templates already include a concise <VT_CLI> block.
+ * Custom prompts may omit it, so spawning appends a short progressive-
+ * retrieval pointer instead of copying rendered manual sections into every
+ * spawned agent prompt.
  */
 
-import * as daemonProtocol from '@vt/vt-daemon-protocol'
+import {TOOL_SPECS, type ToolSpec} from '@vt/vt-daemon-protocol'
 
-const SECTION_HEADER: string = '<vt_cli_manual>'
-const SECTION_FOOTER: string = '</vt_cli_manual>'
+const SECTION_HEADER: string = '<VT_CLI>'
+const SECTION_FOOTER: string = '</VT_CLI>'
+const LEGACY_MANUAL_HEADER: string = '<vt_cli_manual>'
 
 /**
- * Pure: returns a new env-var map with the essentials slice of the
- * CLI manual appended to `AGENT_PROMPT`. Idempotent — calling twice
- * does not nest the section.
+ * Pure: returns a new env-var map with a concise CLI discovery block
+ * appended to `AGENT_PROMPT` when one is not already present.
  */
-export function appendCliManualToAgentPrompt(
+export function appendCliDiscoveryToAgentPrompt(
     envVars: Record<string, string>,
 ): Record<string, string> {
     const current: string = envVars.AGENT_PROMPT ?? ''
-    if (current.includes(SECTION_HEADER)) return envVars
+    if (current.includes(SECTION_HEADER) || current.includes(LEGACY_MANUAL_HEADER)) return envVars
 
-    const body: string = daemonProtocol.renderManual(daemonProtocol.TOOL_SPECS, {tier: 'essentials'}).trimEnd()
+    const body: string = renderAgentCliDiscovery()
     if (body.length === 0) return envVars
 
     const block: string = `\n\n${SECTION_HEADER}\n${body}\n${SECTION_FOOTER}\n`
     return {...envVars, AGENT_PROMPT: current + block}
+}
+
+function renderAgentCliDiscovery(): string {
+    const essentials: string = TOOL_SPECS
+        .filter((spec: ToolSpec): boolean => spec.tier === 'essentials')
+        .map((spec: ToolSpec): string => `- \`${spec.cliVerb}\`: ${spec.summary}`)
+        .join('\n')
+
+    return [
+        'VoiceTree is the shared graph/mindmap and agent-coordination layer for this task. Use the `vt` CLI (available on PATH) whenever you need to interact with that layer: list or spawn agents, create progress nodes, read unseen graph updates, send messages, or look up tool syntax. Do normal shell, file, and git work directly.',
+        'Use `vt manual` for the full reference or `vt manual <verb>` for one tool section.',
+        'Common verbs:',
+        essentials,
+    ].join('\n').trimEnd()
 }
