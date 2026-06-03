@@ -126,12 +126,6 @@ export const CONTEXT_ALLOWANCES: readonly ContextAllowance[] = [
     // matches, so it is a separate follow-up. Scoped to the quoted literal so
     // only the identity value is exempt — stray prose "mcp"/"MCP" still fails.
     {context: '\'mcp\'', category: 'daemon-tool-layer', reason: 'persisted/runtime-compared owner+caller identity literal — deferred follow-up (needs vtd.owner.json migration + CallerKind audit)'},
-    // TEMPORARY: a single historical rationale comment in a coupling-budget
-    // file still names the removed `configureMcpServer` symbol. Budget files
-    // must be committed in isolation (baseline-commit-isolation gate), so the
-    // comment reword lands in its own follow-up commit; this allowance is
-    // removed immediately after.
-    {context: 'configureMcpServer', category: 'daemon-tool-layer', reason: 'TEMP: historical reference in a coupling-budget rationale comment — reworded in the next commit, then this allowance is dropped'},
 
     // --- client-machinery (scattered product/lib identifiers) --------------
     {context: 'mcpPort', category: 'client-machinery', reason: 'daemon port discovery field — later purge pass'},
