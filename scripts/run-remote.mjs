@@ -10,17 +10,11 @@
 //   VT_REMOTE_EXEC=1 recursion guard: skip routing, just exec locally
 //
 // Routing by cwd:
-//   * main checkout → remote devbox (mutagen `vt-remote` session ↔
-//     /root/vtrepo-synced). The remote .git/index IS synced (see
-//     mutagen-vt-remote.yml), so commands see the same staged tree as local
-//     git — this is what lets pre-commit route to the devbox.
-//   * linked worktree → LOCAL execution. A worktree's git identity lives in the
-//     MAIN repo's `.git/worktrees/<name>` admin dir, which mutagen-vt-remote.yml
-//     deliberately ignores (its entries name Mac-absolute paths). So the devbox
-//     has no resolvable git for a worktree, and any routed `git` there fails
-//     `fatal: not a git repository`. Running the worktree's command on the Mac
-//     — where it has a valid local `.git` pointer and its own installed deps —
-//     is correct and self-contained. CI on the PR remains the merge gate.
+//   * main checkout → remote devbox via `vt-remote` ↔ /root/vtrepo-synced.
+//   * linked worktree → remote devbox via `vt-wts`/`vt-wts-synced` ↔
+//     /root/vt-wts-synced. Worktree git metadata is machine-local, so
+//     run-remote materializes the devbox-side `.git` pointer/admin files before
+//     executing the command.
 
 import {readFileSync, existsSync, readdirSync} from 'node:fs'
 import {spawn, execFile, execFileSync} from 'node:child_process'
@@ -139,13 +133,11 @@ function resolveSyncContext(cwd = process.cwd()) {
 
 // Decide where a command runs. Pure + total over the host-present cases so it
 // is unit-testable; the recursion-guard and no-argv short-circuits stay in
-// main(). A linked-worktree cwd routes LOCAL (the devbox has no resolvable git
-// for worktrees — see the header); the main checkout routes REMOTE.
+// main().
 function resolveExecutionTarget({host, syncContext}) {
   if (!host) return {kind: 'local', reason: 'no-remote-host'}
   if (syncContext === null) return {kind: 'error', reason: 'cwd-outside-sync-roots'}
-  if (syncContext.kind === 'worktree') return {kind: 'local', reason: 'worktree-runs-local'}
-  return {kind: 'remote', reason: 'main-checkout'}
+  return {kind: 'remote', reason: syncContext.kind}
 }
 
 function runLocal(cmd, args) {
@@ -243,6 +235,52 @@ async function flushMutagenSession(session) {
     const msg = (e.stderr || e.message || '').toString().trim()
     throw new Error(`mutagen sync flush ${session} failed: ${msg}`)
   }
+}
+
+// On remote, cwd is either `/root/vtrepo-synced/...` (main) or
+// `/root/vt-wts-synced/<name>/...` (worktree). Return the worktree root only
+// for the latter. Pure.
+function remoteWorktreeRoot(remoteCwd, remoteWtsRoot = REMOTE_WTS_ROOT) {
+  const rel = ppath.relative(remoteWtsRoot, remoteCwd)
+  if (rel.startsWith('..')) return null
+  const parts = rel.split('/')
+  if (!parts[0]) return null
+  return ppath.join(remoteWtsRoot, parts[0])
+}
+
+// Materialize devbox-side git metadata for a synced linked worktree.
+//
+// The Mac worktree's `.git` file is machine-specific and may be absent on the
+// devbox. Before running tests remotely, create a devbox-correct `.git` pointer
+// and a minimal admin dir under the synced main repo. We also export GIT_* vars
+// so long-running commands stay stable even if a later Mutagen cycle removes or
+// rewrites the pointer file.
+function remoteWorktreeGitSetupScript(remoteCwd, {
+  remoteRoot = REMOTE_ROOT,
+  remoteWtsRoot = REMOTE_WTS_ROOT,
+} = {}) {
+  const worktreeRoot = remoteWorktreeRoot(remoteCwd, remoteWtsRoot)
+  if (worktreeRoot === null) return ':'
+
+  const worktreeName = ppath.basename(worktreeRoot)
+  const mainRepoDirName = ppath.basename(remoteRoot)
+  const adminDir = ppath.join(remoteRoot, '.git', 'worktrees', worktreeName)
+  const worktreeGitFile = ppath.join(worktreeRoot, '.git')
+  const adminGitdirFile = ppath.join(adminDir, 'gitdir')
+  const adminCommondirFile = ppath.join(adminDir, 'commondir')
+  const adminHeadFile = ppath.join(adminDir, 'HEAD')
+  const adminIndexFile = ppath.join(adminDir, 'index')
+  const commonGitDir = ppath.join(remoteRoot, '.git')
+
+  return [
+    `mkdir -p ${shq(adminDir)}`,
+    `printf '%s\\n' ${shq(`gitdir: ../../${mainRepoDirName}/.git/worktrees/${worktreeName}`)} > ${shq(worktreeGitFile)}`,
+    `[ -f ${shq(adminGitdirFile)} ] || printf '%s\\n' ${shq(`../../../../${ppath.basename(remoteWtsRoot)}/${worktreeName}/.git`)} > ${shq(adminGitdirFile)}`,
+    `[ -f ${shq(adminCommondirFile)} ] || printf '%s\\n' '../..' > ${shq(adminCommondirFile)}`,
+    `[ -f ${shq(adminHeadFile)} ] || printf '%s\\n' ${shq(`ref: refs/heads/${worktreeName}`)} > ${shq(adminHeadFile)}`,
+    `{ [ -f ${shq(adminIndexFile)} ] || GIT_INDEX_FILE=${shq(adminIndexFile)} git --git-dir=${shq(commonGitDir)} read-tree ${shq(`refs/heads/${worktreeName}`)} 2>/dev/null || true; }`,
+    `export GIT_COMMON_DIR=${shq(commonGitDir)} GIT_DIR=${shq(adminDir)} GIT_WORK_TREE=${shq(worktreeRoot)}`,
+  ].join(' && ')
 }
 
 // Inventory of worktree names known to the local repo.
@@ -395,6 +433,7 @@ function runRemote(host, cmd, args, syncContext) {
 
   const remoteScript = [
     `cd ${shq(remoteCwd)}`,
+    remoteWorktreeGitSetupScript(remoteCwd),
     `export ${RECURSION_GUARD}=1`,
     `node ${shq(guardRemotePath)}`,
     `exec ${quotedCmd}`,
@@ -436,13 +475,6 @@ async function main() {
       `cwd ${process.cwd()} is outside both the main checkout and ${WORKTREE_SIBLING_DIR_NAME}/; cannot route to remote.`,
     )
   }
-  if (target.kind === 'local') {
-    // worktree cwd: the devbox has no resolvable git for linked worktrees, so
-    // run on the Mac (valid local git + installed deps). CI gates the PR.
-    process.stderr.write(`[run-remote] worktree cwd → running locally (devbox has no git for linked worktrees; CI gates the PR)\n`)
-    runLocal(cmd, args)
-    return
-  }
   process.stderr.write(`[run-remote] routing to ${host} via '${syncContext.session}' (reconciling worktrees…)\n`)
   await reconcileRemoteWorktrees({host})
   const mutagenListOutput = await readMutagenSession(syncContext.session)
@@ -476,6 +508,8 @@ export {
   resolveExecutionTarget,
   remoteHostFromEnvironment,
   resolveSyncContext,
+  remoteWorktreeGitSetupScript,
+  remoteWorktreeRoot,
   localMainCheckoutRoot,
   localWtsRoot,
   synchronizationMode,
