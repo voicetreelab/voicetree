@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-# vt-pr — the reviewed path (D8). Commit (optional), push the feature branch,
-# and open a PR against the integration branch via gh. Slower on purpose (CI +
-# review); use vt-land for quick solo changes.
+# vt-pr — commit (optional), push the current branch, and open a PR against the
+# shared integration branch (`dev`) via gh. This is how work integrates in the
+# per-machine-branch model: you push your branch and open a PR to dev.
 #
-# The branch push is --no-verify: the gate for reviewed work is the PR's CI
-# (measures-budget-gate runs on pull_request), not the local tier<=1 pre-push
-# hook. That hook ships the worktree to the VM via run-remote and cannot work
-# for a Mac-authored worktree anyway (mutagen reverts the worktree's `.git`
-# pointer on the VM), so bypassing it is what makes vt-pr work from a Mac
-# worktree. CI still gates the merge.
+# The push is --no-verify: the gate for reviewed work is the PR's CI
+# (measures-budget-gate runs on pull_request), not the local pre-push tier hook
+# (which ships the tree to the VM via run-remote and is unreliable from a synced
+# worktree). CI still gates the merge.
 #
 # Usage:
-#   vt-pr ["message"]               # PR against the worktree's upstream (else dev-manu)
+#   vt-pr ["message"]               # PR the current branch against dev
 #   vt-pr --onto <branch> ["msg"]   # PR against an explicit base branch
 set -euo pipefail
 
@@ -37,23 +35,20 @@ while [ $# -gt 0 ]; do
 done
 msg="${positional[0]:-}"
 
-require_worktree
-[ -n "$onto" ] || onto="$(default_onto)"
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "vt-pr: not inside a git repository" >&2; exit 1; }
+[ -n "$onto" ] || onto="$(integration_branch)"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 
 if [ "$branch" = "$onto" ]; then
-  echo "vt-pr: HEAD is on '$onto' (the base of the PR) — create the worktree on a feature branch instead" >&2
+  echo "vt-pr: HEAD is on '$onto' (the base of the PR) — switch to a feature branch first (git switch -c <name>)" >&2
   exit 1
 fi
 
 # Stage EVERYTHING (git add -A) — tracked edits AND brand-new files — so a PR
-# that introduces a new file does the obvious thing. (`git commit -am` staged
-# only tracked edits, silently dropping new files — the same footgun vt-land
-# already fixed.) git-ignored files are excluded by git add -A.
+# that introduces a new file does the obvious thing. git-ignored files are
+# excluded by git add -A.
 if [ -n "$(git status --porcelain)" ] && [ -n "$msg" ]; then
   git add -A
-  # --no-verify: the pre-commit hook routes to the VM via run-remote (broken for
-  # a Mac-authored worktree); CI on the PR is the real gate. See the header note.
   git commit --no-verify -m "$msg"
 elif [ -n "$(git status --porcelain)" ]; then
   echo "vt-pr: uncommitted changes present — commit them first, or pass a message: vt-pr \"msg\"" >&2

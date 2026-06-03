@@ -2,10 +2,9 @@
 # Configure machine-local laptop (Mac) env for remote dev routing.
 #
 # Default run: writes VT_REMOTE_HOST + VT_DEV_ROLE=mac.
-# With --configure-base: ALSO turns the Mac base ($VT_BASE_DIR, default the repo
-# root this script lives in) into a read-only fast-forward cache of origin,
-# creates the daily worktree, installs the dev-flow commands + the launchd sync
-# timer. Must run AFTER git-gate is on PATH. See common/configure-base.sh.
+# With --configure-checkout: ALSO puts the Mac checkout ($VT_BASE_DIR, default the
+# repo root this script lives in) on its own writable branch ($VT_DEV_BRANCH, set
+# in ~/.env) and installs the dev-flow commands. See common/configure-checkout.sh.
 
 set -euo pipefail
 
@@ -14,10 +13,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 REPO_ENV_FILE="$REPO_ROOT/.env"
 HOME_ENV_FILE="$HOME/.env"
 
-CONFIGURE_BASE=0
+CONFIGURE_CHECKOUT=0
 for arg in "$@"; do
   case "$arg" in
-    --configure-base) CONFIGURE_BASE=1 ;;
+    --configure-checkout) CONFIGURE_CHECKOUT=1 ;;
     *) echo "setup-laptop-env.sh: unknown arg: $arg" >&2; exit 64 ;;
   esac
 done
@@ -40,8 +39,8 @@ fi
 echo "setup-laptop-env: $REPO_ENV_FILE has VT_REMOTE_HOST=$VT_REMOTE_HOST"
 echo "setup-laptop-env: $HOME_ENV_FILE has VT_DEV_ROLE=mac and VT_REMOTE_HOST=$VT_REMOTE_HOST"
 
-# --- single-source base configuration (opt-in; needs git-gate on PATH) -------
-if [ "$CONFIGURE_BASE" = "1" ]; then
+# --- put the checkout on its writable machine branch (opt-in) ----------------
+if [ "$CONFIGURE_CHECKOUT" = "1" ]; then
   VT_BASE_DIR="${VT_BASE_DIR:-$REPO_ROOT}" \
-    bash "$SCRIPT_DIR/../common/configure-base.sh"
+    bash "$SCRIPT_DIR/../common/configure-checkout.sh"
 fi

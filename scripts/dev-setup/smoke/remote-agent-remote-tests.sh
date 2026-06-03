@@ -16,9 +16,8 @@ if [ "$ROLE" != "remote" ]; then
 fi
 
 WT_NAME="wt-smoke-remote-$(date +%Y%m%d%H%M%S)-$$"
-# Remote/dev-box worktrees live under the plain (suffix-less) root — matches
-# VT_WORKTREE_ROOT and the git-gate default. An absolute path here lands at the
-# same place even if git-gate placement rewrites it (basename is preserved).
+# Remote/dev-box worktrees live under the plain (suffix-less) root, the default
+# VT_WORKTREE_ROOT that vt-worktree and the app use.
 REMOTE_WTS_ROOT="${VT_WORKTREE_ROOT:-/root/vt-wts}"
 WT_PATH="$REMOTE_WTS_ROOT/$WT_NAME"
 

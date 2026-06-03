@@ -3,9 +3,12 @@
 #
 # Wires up the laptop side: writes VT_REMOTE_HOST to .env and ~/.env,
 # marks this machine as the Mac dev role, verifies SSH, bootstraps the VM's
-# base checkout (a real GitHub clone), provisions tooling on it, and — under the
-# single-source model — configures that base as a read-only fast-forward cache
-# of origin (NOT a full-repo mutagen replica). Also routes git hooks.
+# checkout (a real GitHub clone), provisions tooling on it, and puts that
+# checkout on its own writable machine branch. Also routes git hooks.
+#
+# Per-machine-branch model: each machine owns ONE writable branch ($VT_DEV_BRANCH,
+# set in ~/.env; default the safe non-shared `dev-new`); integration is a PR to the
+# shared `dev` branch. There is no read-only base, no branch pinning, no sync daemon.
 #
 # The old vt-remote full-repo mutagen session is retired; the kept syncs (vt-wts-synced
 # worktree mirror + the health-dashboard data) are created separately via
@@ -19,15 +22,10 @@
 # Usage:
 #   VT_REMOTE_HOST=root@1.2.3.4 bash scripts/dev-setup/remote/install.sh
 #   VT_REMOTE_HOST=root@1.2.3.4 bash scripts/dev-setup/remote/install.sh --skip-pre-seed
-#   VT_REMOTE_HOST=root@1.2.3.4 VT_GIT_GATE_PASS=secret bash scripts/dev-setup/remote/install.sh
 #
 # Flags:
 #   --skip-pre-seed   skip the devbox-side `git clone` optimization
 #                     (mutagen will then push the entire working tree on first sync)
-#
-# Env (optional):
-#   VT_GIT_GATE_PASS  password for git-gate on the devbox (else installed without one)
-#   VT_SKIP_GIT_GATE  set to 1 to skip installing git-gate entirely
 
 set -euo pipefail
 
@@ -48,8 +46,8 @@ done
 
 : "${VT_REMOTE_HOST:?set VT_REMOTE_HOST=root@<your-devbox-host> before running (see --help)}"
 
-# Single-source model: the VM's own base checkout is the read-only ff cache (no
-# more /root/vtrepo-synced full-repo mutagen replica). Provision into it.
+# The VM gets its own normal writable checkout at $REMOTE_DIR (no more
+# /root/vtrepo-synced full-repo mutagen replica). Provision into it.
 REMOTE_DIR="${VT_BASE_DIR:-/root/vtrepo}"
 REPO_URL="${REPO_URL:-https://github.com/voicetreelab/voicetree-public.git}"
 ENV_FILE="$REPO_ROOT/.env"
@@ -91,20 +89,16 @@ else
   step "pre-seeding $VT_REMOTE_HOST:$REMOTE_DIR at branch $BRANCH"
   ssh "$VT_REMOTE_HOST" "
     set -e
-    # git-gate (installed later in this script) shadows git with a PATH shim that
-    # blocks branch switches. This trusted installer must switch branches
-    # non-interactively, so resolve the real git and use it for checkout.
-    real_git=\$(PATH=/usr/bin:/bin command -v git)
     if [ -d $REMOTE_DIR/.git ]; then
       echo '  (devbox already has a clone — fetching + checkout $BRANCH)'
       cd $REMOTE_DIR
       git fetch origin
-      \"\$real_git\" checkout $BRANCH
+      git checkout $BRANCH
       git pull --ff-only origin $BRANCH || true
     else
       git clone $REPO_URL $REMOTE_DIR
       cd $REMOTE_DIR
-      \"\$real_git\" checkout $BRANCH
+      git checkout $BRANCH
     fi
     git submodule update --init
   " || fail "pre-seed failed. Re-run with --skip-pre-seed to push via mutagen instead."
@@ -199,10 +193,10 @@ ssh "$VT_REMOTE_HOST" "
 " || fail "code-search tools install failed"
 ok "ast-grep, ck, cgcli on PATH (cgcli needs node_modules; resolves per-worktree)"
 
-# NOTE: the vt-remote full-repo mutagen session is RETIRED under the single-source
-# model — the VM base ($REMOTE_DIR) is a read-only ff cache of origin, configured
-# below after git-gate. The kept syncs (vt-wts-synced + the two health-dashboard data
-# sessions) are created on demand via vt-remote.sh, not here.
+# NOTE: the vt-remote full-repo mutagen session is RETIRED — the VM checkout
+# ($REMOTE_DIR) is a normal writable clone on its own machine branch, configured
+# below. The kept syncs (vt-wts-synced + the two health-dashboard data sessions)
+# are created on demand via vt-remote.sh, not here.
 
 step "setting up standalone brain checkouts"
 bash "$SCRIPT_DIR/vt-remote.sh" brain-setup \
@@ -218,58 +212,34 @@ step "routing git hooks through scripts/hooks"
 git -C "$REPO_ROOT" config core.hooksPath scripts/hooks
 ok "core.hooksPath = scripts/hooks"
 
-step "installing git-gate on $VT_REMOTE_HOST (destructive-git gate + worktree admission/auto-deps)"
-# git-gate shadows `git` with a wrapper that (a) gates destructive subcommands
-# behind a password and (b) on `git worktree add` runs the admission check and
-# auto-installs deps under the role's sibling worktree dir. The password is
-# operator-supplied via VT_GIT_GATE_PASS so no secret lives in the repo; without
-# it the gate falls back to its built-in default. Set VT_SKIP_GIT_GATE=1 to skip.
-if [ "${VT_SKIP_GIT_GATE:-0}" = "1" ]; then
-  ok "git-gate skipped (VT_SKIP_GIT_GATE=1)"
-elif [ -n "${VT_GIT_GATE_PASS:-}" ]; then
-  ssh "$VT_REMOTE_HOST" "GIT_GATE_SETUP_PASS=$(printf %q "$VT_GIT_GATE_PASS") bash $REMOTE_DIR/scripts/dev-setup/git-gate/install.sh" \
-    || fail "git-gate install failed"
-  ok "git-gate installed (password set from VT_GIT_GATE_PASS)"
+# --- put the VM checkout on its own writable machine branch ------------------
+# Switch $REMOTE_DIR to $VT_DEV_BRANCH (machine-local, set in ~/.env; default the
+# safe non-shared `dev-new`) and install the dev-flow commands (vt-sync / vt-pr /
+# vt-worktree). Skip with VT_SKIP_CHECKOUT_CONFIG=1.
+if [ "${VT_SKIP_CHECKOUT_CONFIG:-0}" = "1" ]; then
+  ok "VM checkout branch configuration skipped (VT_SKIP_CHECKOUT_CONFIG=1)"
 else
-  ssh "$VT_REMOTE_HOST" "bash $REMOTE_DIR/scripts/dev-setup/git-gate/install.sh --no-password" \
-    || fail "git-gate install failed"
-  ok "git-gate installed (no password — pass VT_GIT_GATE_PASS to set one)"
-fi
-
-# --- single-source base configuration (D3 ordering: AFTER git-gate) ----------
-# Now that git-gate is on the VM's PATH, convert the VM base into a read-only
-# fast-forward cache of origin: pin the base branch, create the daily worktree,
-# install the dev-flow commands + the systemd sync timer. configure-base.sh
-# supplies VT_SYNC=1 to its own gated git so the read-only guard lets the pin
-# through. Skip with VT_SKIP_BASE_CONFIG=1.
-if [ "${VT_SKIP_BASE_CONFIG:-0}" = "1" ]; then
-  ok "VM base configuration skipped (VT_SKIP_BASE_CONFIG=1)"
-else
-  step "configuring VM base $REMOTE_DIR as a read-only fast-forward cache of origin"
-  ssh "$VT_REMOTE_HOST" "VT_BASE_DIR=$(printf %q "$REMOTE_DIR") bash $REMOTE_DIR/scripts/dev-setup/remote/setup-devbox-env.sh --configure-base" \
-    || fail "VM base configuration failed (resolve unpushed commits / dirty tree on $REMOTE_DIR, then re-run)"
-  ok "VM base pinned to origin; daily worktree + dev-flow commands + sync timer installed"
+  step "putting VM checkout $REMOTE_DIR on its own writable machine branch"
+  ssh "$VT_REMOTE_HOST" "VT_BASE_DIR=$(printf %q "$REMOTE_DIR") bash $REMOTE_DIR/scripts/dev-setup/remote/setup-devbox-env.sh --configure-checkout" \
+    || fail "VM checkout configuration failed (commit/stash changes on $REMOTE_DIR, then re-run)"
+  ok "VM checkout on its machine branch; dev-flow commands installed"
 fi
 
 cat <<MSG
 
-✔ remote routing installed (single-source base model).
+✔ remote routing installed (per-machine-branch model).
 
 Next:
   - check brain checkout:    bash scripts/dev-setup/remote/vt-remote.sh brain-status
-  - configure THIS Mac base: bash scripts/dev-setup/remote/setup-laptop-env.sh --configure-base
-                             (run after git-gate is installed on the Mac)
+  - configure THIS Mac:      bash scripts/dev-setup/remote/setup-laptop-env.sh --configure-checkout
   - kept syncs (create as needed):
       bash scripts/dev-setup/remote/vt-remote.sh vt-wts-create
       bash scripts/dev-setup/remote/vt-remote.sh csv-history-create
       bash scripts/dev-setup/remote/vt-remote.sh reports-create
-  - git-gate:                installed; new shells route git through it. Set/rotate the
-                             password with  VT_GIT_GATE_PASS=<pw> bash scripts/dev-setup/remote/install.sh
-                             (or skip entirely with VT_SKIP_GIT_GATE=1).
 
 One-time teardown of the retired full-repo replica (run on the Mac, once):
   mutagen sync terminate vt-remote     # stop the old /root/vtrepo-synced mirror
   # then, on the VM, the old replica dir /root/vtrepo-synced can be removed once
-  # you have confirmed /root/vtrepo is the live base.
+  # you have confirmed /root/vtrepo is the live checkout.
 
 MSG
