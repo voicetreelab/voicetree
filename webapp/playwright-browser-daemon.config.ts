@@ -16,9 +16,9 @@ const WEB_PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 const baseURL = `http://127.0.0.1:${WEB_PORT}`;
 
 export default defineConfig({
-  testDir: './e2e-tests/playwright-browser/daemon_integration',
-  globalSetup: './e2e-tests/playwright-browser/daemon_integration/globalSetup.ts',
-  globalTeardown: './e2e-tests/playwright-browser/daemon_integration/globalTeardown.ts',
+  testDir: './e2e-tests/playwright-browser/critical_for_verification/daemon_integration',
+  globalSetup: './e2e-tests/playwright-browser/critical_for_verification/daemon_integration/globalSetup.ts',
+  globalTeardown: './e2e-tests/playwright-browser/critical_for_verification/daemon_integration/globalTeardown.ts',
   // One daemon set, one tmux server — serialize so parallel terminals can't
   // muddy the round-trip assertions.
   fullyParallel: false,

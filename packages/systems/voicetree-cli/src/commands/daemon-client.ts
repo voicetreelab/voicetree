@@ -59,6 +59,29 @@ interface ResolvedClient {
     readonly token: string
 }
 
+function dropDaemonUrlOverride(env: Record<string, string | undefined>): Record<string, string | undefined> {
+    const next: Record<string, string | undefined> = {...env}
+    delete next.VOICETREE_DAEMON_URL
+    return next
+}
+
+async function buildProjectDiscoveredClientAfterEnvUrlFailure(
+    failedClient: ResolvedClient,
+    env: Record<string, string | undefined>,
+    cwd: string,
+): Promise<ResolvedClient | null> {
+    if (failedClient.endpoint.source !== 'env_url') return null
+
+    let fallback: ResolvedClient
+    try {
+        fallback = await buildResolvedClient(dropDaemonUrlOverride(env), cwd)
+    } catch {
+        return null
+    }
+
+    return fallback.endpoint.url === failedClient.endpoint.url ? null : fallback
+}
+
 async function buildResolvedClient(
     env: Record<string, string | undefined>,
     cwd: string,
@@ -222,9 +245,19 @@ export async function callDaemon(
     const env: Record<string, string | undefined> = process.env
     const cwd: string = process.cwd()
     const timeoutMs: number = getTimeoutMs(env)
-    const client: ResolvedClient = await buildResolvedClient(env, cwd)
+    let client: ResolvedClient = await buildResolvedClient(env, cwd)
 
-    let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
+    let outcome: PostOutcome
+    try {
+        outcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
+    } catch (error) {
+        if (!(error instanceof DaemonUnreachable)) throw error
+        const fallbackClient: ResolvedClient | null =
+            await buildProjectDiscoveredClientAfterEnvUrlFailure(client, env, cwd)
+        if (fallbackClient === null) throw error
+        client = fallbackClient
+        outcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
+    }
 
     if (outcome.kind === 'auth_required') {
         const freshToken: string = await loadToken(client.tokenProjectPath, client.tokenFilePath)

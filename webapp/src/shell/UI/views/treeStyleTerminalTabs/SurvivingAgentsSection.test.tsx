@@ -169,27 +169,10 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
         consoleError.mockRestore();
     });
 
-    it('renders foreign-project attach rows as kill-only', () => {
-        const foreign: RecoverableAgentSession = makeAttachable({
-            sessionName: 'vt-bbbbbbbbbb-Beth',
-            terminalId: 'Beth',
-            hash: 'bbbbbbbbbb',
-            classification: 'foreign-project',
-            attachable: false,
-            agentName: 'Beth',
-            projectRoot: '/project/other',
-        });
-        const {container, onKill} = renderSection([foreign]);
-
-        const row: Element | null = container.querySelector('[data-terminal-id="Beth"]');
-        expect(row).not.toBeNull();
-        expect(within(row as HTMLElement).getByText('Foreign project')).toBeTruthy();
-        expect(within(row as HTMLElement).queryByRole('button', {name: /attach/i})).toBeNull();
-
-        fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /kill beth/i}));
-
-        expect(onKill).toHaveBeenCalledWith('vt-bbbbbbbbbb-Beth');
-    });
+    // Foreign-project panes are filtered upstream in discovery (non-goal:
+    // cross-project recovery — see discoverRecoverableAgentSessions and the
+    // fix-resume design). The section therefore never receives a foreign row,
+    // so there is no UI behavior to assert for them here.
 });
 
 describe('SurvivingAgentsSection — resume capability rows', () => {

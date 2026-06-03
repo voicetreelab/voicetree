@@ -10,6 +10,8 @@ import {
   parseSessionConnectivity,
   reconcileRemoteWorktrees,
   remoteWorktreeListingScript,
+  remoteWorktreeGitSetupScript,
+  remoteWorktreeRoot,
   resolveExecutionTarget,
   synchronizationMode,
 } from './run-remote.mjs'
@@ -35,11 +37,11 @@ test('rejects bidirectional mutagen modes before remote execution', () => {
   )
 })
 
-test('routes a linked-worktree cwd to LOCAL execution (the devbox has no git metadata for worktrees)', () => {
+test('routes a linked-worktree cwd to REMOTE execution when a host is configured', () => {
   const worktreeCtx = {kind: 'worktree', session: 'vt-wts', localRoot: '/x/vt-wts', remoteRoot: '/root/vt-wts-synced'}
   assert.deepEqual(
     resolveExecutionTarget({host: 'root@box', syncContext: worktreeCtx}),
-    {kind: 'local', reason: 'worktree-runs-local'},
+    {kind: 'remote', reason: 'worktree'},
   )
 })
 
@@ -47,7 +49,7 @@ test('routes a main-checkout cwd to REMOTE execution when a host is configured',
   const mainCtx = {kind: 'main', session: 'vt-remote', localRoot: '/x/vtrepo', remoteRoot: '/root/vtrepo-synced'}
   assert.deepEqual(
     resolveExecutionTarget({host: 'root@box', syncContext: mainCtx}),
-    {kind: 'remote', reason: 'main-checkout'},
+    {kind: 'remote', reason: 'main'},
   )
 })
 
@@ -154,6 +156,26 @@ test('remote listing script asks for both worktree dirs and tolerates missing di
   assert.match(script, /echo ===WT===/)
   assert.match(script, /ls -1 '\/root\/vtrepo-synced\/\.git\/worktrees' 2>\/dev\/null \|\| true/)
   assert.match(script, /ls -1 '\/root\/vt-wts-synced' 2>\/dev\/null \|\| true/)
+})
+
+test('detects the remote worktree root under the synced worktree mirror', () => {
+  assert.equal(
+    remoteWorktreeRoot('/root/vt-wts-synced/wt-one/packages/foo'),
+    '/root/vt-wts-synced/wt-one',
+  )
+  assert.equal(remoteWorktreeRoot('/root/vtrepo-synced/packages/foo'), null)
+})
+
+test('builds remote worktree git setup script for synced worktree commands', () => {
+  const script = remoteWorktreeGitSetupScript('/root/vt-wts-synced/wt-one/packages/foo')
+  assert.match(script, /mkdir -p '\/root\/vtrepo-synced\/\.git\/worktrees\/wt-one'/)
+  assert.match(script, /gitdir: \.\.\/\.\.\/vtrepo-synced\/\.git\/worktrees\/wt-one/)
+  assert.match(script, /ref: refs\/heads\/wt-one/)
+  assert.match(script, /GIT_INDEX_FILE='\/root\/vtrepo-synced\/\.git\/worktrees\/wt-one\/index'/)
+  assert.match(script, /export GIT_COMMON_DIR='\/root\/vtrepo-synced\/\.git'/)
+  assert.match(script, /GIT_DIR='\/root\/vtrepo-synced\/\.git\/worktrees\/wt-one'/)
+  assert.match(script, /GIT_WORK_TREE='\/root\/vt-wts-synced\/wt-one'/)
+  assert.equal(remoteWorktreeGitSetupScript('/root/vtrepo-synced/packages/foo'), ':')
 })
 
 // --- Reconciler orchestrator: integration with injected ssh boundary -----

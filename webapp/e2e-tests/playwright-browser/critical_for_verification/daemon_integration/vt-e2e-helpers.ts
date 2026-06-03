@@ -20,9 +20,10 @@ import {type Page} from '@playwright/test'
 const HERE: string = dirname(fileURLToPath(import.meta.url))
 
 // Cross-process handoff written by globalSetup, read here in worker processes.
-// Under webapp/test-results (already gitignored). daemon_integration is three
-// levels below webapp: daemon_integration → playwright-browser → e2e-tests → webapp.
-export const DAEMON_CONFIG_FILE: string = join(HERE, '../../../test-results/daemon-config.json')
+// Under webapp/test-results (already gitignored). daemon_integration is four
+// levels below webapp: daemon_integration -> critical_for_verification ->
+// playwright-browser -> e2e-tests -> webapp.
+export const DAEMON_CONFIG_FILE: string = join(HERE, '../../../../test-results/daemon-config.json')
 
 export interface BrowserDaemonTestConfig {
   readonly vtdUrl: string

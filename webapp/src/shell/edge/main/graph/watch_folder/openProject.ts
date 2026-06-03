@@ -12,7 +12,7 @@ import {
 import type { ProjectConfig } from '@vt/graph-model/settings'
 import type { OpenProjectResponse } from '@vt/graph-db-client'
 
-import { markLoadTiming, startLoadTiming } from '@/shell/edge/main/observability/diagnostics/loadTiming'
+import { markLoadTiming, startLoadTiming, type LoadTimingSession } from '@/shell/edge/main/observability/diagnostics/loadTiming'
 import { getStartupFolderOverride } from '@/shell/edge/main/runtime/electron/startup/startup-folder-override'
 import type { TerminalRecord } from '@vt/vt-daemon-client'
 
@@ -125,7 +125,7 @@ export async function openProject(rawProjectRoot: string): Promise<OpenProjectRe
         throw new Error(`Path is not a directory: ${projectRoot}`)
     }
 
-    startLoadTiming(projectRoot)
+    const loadTiming: LoadTimingSession = startLoadTiming(projectRoot)
     pushToRenderer('project:switching', { path: projectRoot })
 
     try {
@@ -191,16 +191,16 @@ export async function openProject(rawProjectRoot: string): Promise<OpenProjectRe
             log.warn('[openProject] Failed to set up .voicetree/ defaults:', error)
         })
 
-        markLoadTiming('main:daemon-open-project-start')
+        markLoadTiming(loadTiming, 'main:daemon-open-project-start')
         const owner = await setActiveProjectAndEnsureDaemon(projectRoot)
         // The owner-aware spawn already opened the project at startup using
         // the saved writeFolderPath. This call is the idempotent confirmation
         // that returns the daemon's authoritative `OpenProjectResponse`.
         const response = await owner.client.openProject(projectRoot, { writeFolderPath })
-        markLoadTiming('main:daemon-open-project-end')
+        markLoadTiming(loadTiming, 'main:daemon-open-project-end')
 
         await startDaemonGraphSync(projectRoot)
-        markLoadTiming('main:daemon-graph-sync-started')
+        markLoadTiming(loadTiming, 'main:daemon-graph-sync-started')
         await saveLastDirectory(projectRoot)
 
         const watchingStartedInfo = {

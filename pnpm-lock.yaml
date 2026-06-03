@@ -1078,6 +1078,9 @@ importers:
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../packages/systems/graph-db-client
+      '@vt/graph-db-server':
+        specifier: '*'
+        version: link:../packages/systems/graph-db-server
       '@vt/graph-model':
         specifier: '*'
         version: link:../packages/libraries/graph-model

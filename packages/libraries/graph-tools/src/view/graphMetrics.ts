@@ -22,6 +22,16 @@ export interface GraphMetrics {
 // ── Tarjan SCC (iterative) ─────────────────────────────────────────────────────
 
 export function computeSCC(nodeIds: readonly string[], edges: readonly EdgePair[]): number {
+    return computeSCCComponents(nodeIds, edges).length
+}
+
+/**
+ * Tarjan SCC (iterative) returning the member list of every strongly connected
+ * component. `computeSCC` is the count-only wrapper; callers that need
+ * component *sizes* — e.g. the cycle pillar, which counts non-trivial SCCs of
+ * size > 1 — use this directly.
+ */
+export function computeSCCComponents(nodeIds: readonly string[], edges: readonly EdgePair[]): string[][] {
     const adj = new Map<string, string[]>()
     for (const n of nodeIds) adj.set(n, [])
     for (const {src, tgt} of edges) {
@@ -32,7 +42,7 @@ export function computeSCC(nodeIds: readonly string[], edges: readonly EdgePair[
     const onStack = new Set<string>()
     const tarjanStack: string[] = []
     let idx = 0
-    let sccCount = 0
+    const components: string[][] = []
     for (const start of nodeIds) {
         if (index.has(start)) continue
         const workStack: {v: string; childIdx: number}[] = [{v: start, childIdx: 0}]
@@ -57,14 +67,15 @@ export function computeSCC(nodeIds: readonly string[], edges: readonly EdgePair[
                     lowlink.set(parent.v, Math.min(lowlink.get(parent.v)!, lowlink.get(frame.v)!))
                 }
                 if (lowlink.get(frame.v) === index.get(frame.v)) {
-                    sccCount++
+                    const component: string[] = []
                     let w: string
-                    do { w = tarjanStack.pop()!; onStack.delete(w) } while (w !== frame.v)
+                    do { w = tarjanStack.pop()!; onStack.delete(w); component.push(w) } while (w !== frame.v)
+                    components.push(component)
                 }
             }
         }
     }
-    return sccCount
+    return components
 }
 
 // ── k-core decomposition (bucket-sort, O(V+E)) ───────────────────────────────
@@ -169,7 +180,13 @@ export function computeAllMetrics(nodeIds: readonly string[], edges: readonly Ed
 
 // ── Project scanning ────────────────────────────────────────────────────────────
 
-export function computeMetricsFromProject(projectRoot: string): GraphMetrics {
+/**
+ * Scan a project root into a directed graph: node ids (relative paths of every
+ * markdown file) and the directed wikilink edges between them. Shared by
+ * `computeMetricsFromProject` and the graph-complexity command so both score
+ * the identical graph.
+ */
+export function loadProjectGraph(projectRoot: string): {nodeIds: string[]; edges: EdgePair[]} {
     const root = path.resolve(projectRoot)
     const mdFiles = scanMarkdownFiles(root)
     const structureNodes = new Map<string, StructureNode>()
@@ -187,5 +204,10 @@ export function computeMetricsFromProject(projectRoot: string): GraphMetrics {
             if (target && target !== id) edges.push({src: id, tgt: target})
         }
     }
-    return computeAllMetrics([...structureNodes.keys()], edges)
+    return {nodeIds: [...structureNodes.keys()], edges}
+}
+
+export function computeMetricsFromProject(projectRoot: string): GraphMetrics {
+    const {nodeIds, edges} = loadProjectGraph(projectRoot)
+    return computeAllMetrics(nodeIds, edges)
 }

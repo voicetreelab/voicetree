@@ -3,6 +3,7 @@ import {getCachedTerminalRecords} from '@/shell/edge/main/agent/terminals/termin
 import {
     buildQuitTmuxSessionPromptModel,
     getActiveTmuxSessionSummaries,
+    type QuitTmuxSessionDecision,
     type QuitTmuxSessionPromptModel,
     type QuitTmuxSessionSummary,
 } from './quit-tmux-session-prompt'
@@ -46,27 +47,27 @@ function getQuitDialogParentWindow(): BrowserWindow | undefined {
 
 async function showActiveSessionsAcknowledgement(
     activeSessions: readonly QuitTmuxSessionSummary[],
-): Promise<void> {
+): Promise<QuitTmuxSessionDecision> {
     // Post-BF-376: tmux sessions are daemon-owned and outlive a webapp quit
     // by design — the daemon's parent-pid watchdog plus the orphan reaper at
-    // next startup are the bounded cleanup paths. We still surface the
-    // "running agents" notice so the user knows their work persists, but no
-    // policy is enforced from webapp anymore.
+    // next startup are the bounded cleanup paths. The prompt now only asks
+    // whether to continue the quit, because webapp no longer owns session stop.
     const model: QuitTmuxSessionPromptModel = buildQuitTmuxSessionPromptModel(activeSessions)
     const options = {
         type: model.type,
         title: model.title,
         message: model.message,
         detail: model.detail,
-        buttons: ['Quit'],
-        defaultId: 0,
-        cancelId: 0,
+        buttons: model.buttons,
+        defaultId: model.defaultId,
+        cancelId: model.cancelId,
         noLink: model.noLink,
     }
     const parentWindow: BrowserWindow | undefined = getQuitDialogParentWindow()
-    await (parentWindow
+    const result: Electron.MessageBoxReturnValue = await (parentWindow
         ? dialog.showMessageBox(parentWindow, options)
         : dialog.showMessageBox(options))
+    return model.choices[result.response] ?? 'cancel'
 }
 
 function handleBeforeQuit(deps: QuitLifecycleDeps, state: QuitLifecycleState, event: Electron.Event): void {
@@ -88,15 +89,19 @@ function handleBeforeQuit(deps: QuitLifecycleDeps, state: QuitLifecycleState, ev
     if (state.quitPromptInProgress) return
 
     state.quitPromptInProgress = true
-    deps.setIsQuitting(true)
     void (async (): Promise<void> => {
         try {
-            await showActiveSessionsAcknowledgement(activeSessions)
+            const decision: QuitTmuxSessionDecision = await showActiveSessionsAcknowledgement(activeSessions)
+            if (decision === 'cancel') {
+                deps.setIsQuitting(false)
+                return
+            }
+            deps.setIsQuitting(true)
             runQuitCleanup(deps)
-        } finally {
             state.quitCleanupCompleted = true
-            state.quitPromptInProgress = false
             app.quit()
+        } finally {
+            state.quitPromptInProgress = false
         }
     })()
 }

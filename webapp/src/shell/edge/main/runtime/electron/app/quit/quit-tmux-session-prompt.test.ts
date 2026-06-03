@@ -1,7 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {
     buildQuitTmuxSessionPromptModel,
-    cleanupPolicyForQuitTmuxDecision,
     getActiveTmuxSessionSummaries,
 } from './quit-tmux-session-prompt'
 
@@ -41,7 +40,7 @@ describe('quit tmux session prompt', () => {
         ])
     })
 
-    it('builds a native dialog model that maps buttons to cleanup decisions', () => {
+    it('builds a native dialog model that preserves an accidental-quit escape hatch', () => {
         const model = buildQuitTmuxSessionPromptModel([
             {
                 terminalId: 'Ben',
@@ -51,12 +50,12 @@ describe('quit tmux session prompt', () => {
             },
         ])
 
-        expect(model.message).toBe('Keep tmux running in the background?')
+        expect(model.message).toBe('Quit Voicetree?')
         expect(model.detail).toContain('Name: Architecture task | Agent: Claude Sonnet | Mode: interactive')
-        expect(model.buttons).toEqual(['Keep Running', 'Stop Sessions', 'Cancel Quit'])
-        expect(model.choices).toEqual(['preserve', 'terminate', 'cancel'])
-        expect(cleanupPolicyForQuitTmuxDecision(model.choices[0])).toEqual({tmuxSessions: 'preserve'})
-        expect(cleanupPolicyForQuitTmuxDecision(model.choices[1])).toEqual({tmuxSessions: 'terminate'})
-        expect(cleanupPolicyForQuitTmuxDecision(model.choices[2])).toBeNull()
+        expect(model.detail).toContain('Running agents will stay available for reattachment after Voicetree quits.')
+        expect(model.buttons).toEqual(['Quit', 'Cancel Quit'])
+        expect(model.choices).toEqual(['quit', 'cancel'])
+        expect(model.defaultId).toBe(0)
+        expect(model.cancelId).toBe(1)
     })
 })

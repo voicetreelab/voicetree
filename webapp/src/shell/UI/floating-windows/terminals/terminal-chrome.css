@@ -250,6 +250,11 @@
   color: var(--muted-foreground);
   font: 10px/1.4 monospace;
   pointer-events: none;
+  /* Render the status pill at 50% size, scaled uniformly (font, padding,
+     border, radius) from its bottom-right corner so it stays pinned to the
+     same right/bottom anchor rather than drifting inward. */
+  transform: scale(0.5);
+  transform-origin: right bottom;
 }
 
 .terminal-relay-status.connected {

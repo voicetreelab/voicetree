@@ -12,9 +12,9 @@ describe('appendPersonaToAgentPrompt', () => {
         expect(out.AGENT_PROMPT).toContain('</silicon_valley_persona>');
     });
 
-    it('treats unset mode as on (Silicon Valley is the default)', () => {
+    it('is a no-op when mode is unset (off by default — the user opts in)', () => {
         const out = appendPersonaToAgentPrompt(BASE, 'Gilfoyle', {});
-        expect(out.AGENT_PROMPT).toContain('Bertram Gilfoyle');
+        expect(out).toBe(BASE);
     });
 
     it('resolves the persona through a collision-suffixed name', () => {

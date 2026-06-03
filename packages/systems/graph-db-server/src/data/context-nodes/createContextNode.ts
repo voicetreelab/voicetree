@@ -13,6 +13,10 @@ import {
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
+import {
+    graphVisibleForContext,
+    readCollapsedFolderIdsForContext,
+} from './contextFolderVisibility'
 
 type ContextNodeClock = {
     readonly now: () => number
@@ -85,23 +89,28 @@ export async function createContextNode(
         writeFolderPath || undefined
     )
 
+    const visibleGraph: Graph = graphVisibleForContext(currentGraph, readCollapsedFolderIdsForContext())
+    const traversalGraph: Graph = visibleGraph.nodes[resolvedParentNodeId] !== undefined
+        ? visibleGraph
+        : currentGraph
+
     // 2. PURE: Extract subgraph within distance
     const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.contextNodeMaxDistance
 
     const parentNode: GraphNode = currentGraph.nodes[resolvedParentNodeId]
     const validSemanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
-        ? semanticNodeIds.filter((nodeId: NodeIdAndFilePath): boolean => currentGraph.nodes[nodeId] !== undefined)
+        ? semanticNodeIds.filter((nodeId: NodeIdAndFilePath): boolean => traversalGraph.nodes[nodeId] !== undefined)
         : []
 
     // Get subgraph - union if we have semantic results, otherwise distance-only
     const subgraph: Graph = validSemanticNodeIds.length > 0
         ? getUnionSubgraphByDistance(
-            currentGraph,
+            traversalGraph,
             [resolvedParentNodeId, ...validSemanticNodeIds],
             maxDistance
         )
-        : getSubgraphByDistance(currentGraph, resolvedParentNodeId, maxDistance)
+        : getSubgraphByDistance(traversalGraph, resolvedParentNodeId, maxDistance)
 
     // 3. PURE: Convert subgraph to ASCII visualization
     // Make edges bidirectional so parents are shown as "children" in the tree.

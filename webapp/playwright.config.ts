@@ -13,6 +13,7 @@ const browserTestBaseURL = `http://127.0.0.1:${browserTestPort}`;
 export default defineConfig({
   // Tier 2: curated browser subsystem verification.
   testDir: './e2e-tests/playwright-browser/critical_for_verification',
+  testIgnore: '**/daemon_integration/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

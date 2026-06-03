@@ -146,6 +146,7 @@
     "@vt/app-config": "*",
     "@vt/daemon-test-harness": "*",
     "@vt/graph-db-client": "*",
+    "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",

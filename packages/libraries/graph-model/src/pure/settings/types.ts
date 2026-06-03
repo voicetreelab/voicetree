@@ -112,7 +112,7 @@ export interface VTSettings {
     readonly emptyFolderTemplate?: string;
     /** Enable VIM keybindings in markdown editors */
     readonly vimMode?: boolean;
-    /** Silicon Valley mode: name agents after Silicon Valley characters and inject a matching persona into their prompt. On by default. */
+    /** Silicon Valley mode: name agents after Silicon Valley characters and inject a matching persona into their prompt. Off by default — the user opts in. */
     readonly siliconValleyMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
     readonly hotkeys?: HotkeySettings;

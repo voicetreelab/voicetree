@@ -13,6 +13,7 @@ import {
     createNewNodeNoParent,
     fromCreateChildToUpsertNode
 } from "@vt/graph-model/graph";
+import {resolveNewNodeWriteDir} from "@/shell/edge/UI-edge/graph/actions/resolveNewNodeWriteDir";
 import {deleteNodeSimple} from "@vt/graph-model/graph";
 import {applyGraphDeltaToGraph} from "@vt/graph-model/graph";
 import type {Core} from 'cytoscape';
@@ -135,10 +136,14 @@ export async function createNewChildNodeFromUI(
 
 export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
+    clickedFolderId?: string,
 ): Promise<NodeIdAndFilePath> {
     // Get write path (absolute) for new node creation
     const writeFolderPathOption: O.Option<string> | undefined = await window.hostAPI?.main.getWriteFolderPath();
     const writeFolderPath: string = writeFolderPathOption ? O.getOrElse(() => '')(writeFolderPathOption) : '';
+
+    // Prefer the folder the user clicked inside; fall back to the project write folder.
+    const targetFolderPath: string = resolveNewNodeWriteDir(clickedFolderId, writeFolderPath);
 
     // Get current graph for collision detection
     const currentGraph: Graph | undefined = await window.hostAPI?.main.getGraph();
@@ -147,7 +152,7 @@ export async function createNewEmptyOrphanNodeFromUI(
         throw new Error("Cannot create node: graph not available");
     }
 
-    const {newNode, graphDelta} = createNewNodeNoParent(pos, writeFolderPath, currentGraph);
+    const {newNode, graphDelta} = createNewNodeNoParent(pos, targetFolderPath, currentGraph);
 
     // Register pending auto-pin so the new node opens in edit mode
     requestAutoPinOnCreation(newNode.absoluteFilePathIsID);
