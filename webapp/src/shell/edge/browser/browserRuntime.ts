@@ -285,8 +285,13 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             callVtdRpc(vtdUrl, vtdToken, 'getHeadlessAgentOutput', req as Record<string, unknown>),
         listUnclaimedTmuxSessions: () =>
             callVtdRpc(vtdUrl, vtdToken, 'listUnclaimedTmuxSessions', {}),
+        // Browser-mode has no main-process push channel, so "refresh" is simply a
+        // re-list: the store consumes the returned sessions directly. VTD registers
+        // `listUnclaimedTmuxSessions` (Electron's refresh wrapper calls the same
+        // route) — there is no `refreshUnclaimedTmuxSessions` route, so the old
+        // verbatim name threw `Unknown method` on every 10s poll.
         refreshUnclaimedTmuxSessions: () =>
-            callVtdRpc(vtdUrl, vtdToken, 'refreshUnclaimedTmuxSessions', {}),
+            callVtdRpc(vtdUrl, vtdToken, 'listUnclaimedTmuxSessions', {}),
         attachUnclaimedTmuxSession: (req: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'attachUnclaimedTmuxSession', req as Record<string, unknown>),
         killUnclaimedTmuxSession: (req: unknown) =>
