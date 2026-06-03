@@ -36,6 +36,15 @@ import {
     vtdUndo,
     vtdWriteMarkdownFile,
     vtdWritePositions,
+    vtdGetFolderTreeSync,
+    vtdGetAvailableFolders,
+    vtdGetDirectoryTree,
+    vtdCreateSubfolder,
+    vtdCreateDatedVoiceTreeFolder,
+    vtdGetStarredFolders,
+    vtdAddStarredFolder,
+    vtdRemoveStarredFolder,
+    vtdCopyNodeToFolder,
 } from './vtdGraphClient'
 import {createBrowserTerminalRuntime} from './browserTerminal'
 import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
@@ -77,6 +86,33 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
     // is a full snapshot (not a delta), so re-emitting is idempotent.
     async function resnapshotGraph(): Promise<void> {
         emit('graph:projectedGraphUpdate', await vtdGetProjectedGraph(vtdUrl, vtdToken))
+    }
+
+    // Folder-tree push (browser parity with Electron's syncRendererFromDaemon).
+    // VTD owns FS, so the browser PULLS the folder-tree payload and replays it
+    // into the renderer stores through the SAME `ui:call` seam the Electron main
+    // process uses — `setupUIRpcHandler` dispatches each to uiAPIHandler. Pulled
+    // on project:ready and after every folder/path mutation the adapter performs
+    // (external FS changes still flow live via the graph stream; the sidebar
+    // tree refreshes on the next path action). Best-effort: a failed pull logs
+    // and leaves the last-good tree rather than throwing into the caller.
+    function pushUi(funcName: string, arg: unknown): void {
+        emit('ui:call', null, funcName, [arg])
+    }
+    async function refreshFolderTrees(): Promise<void> {
+        try {
+            const p = await vtdGetFolderTreeSync(vtdUrl, vtdToken)
+            pushUi('syncProjectState', {
+                readPaths: p.readPaths,
+                writeFolderPath: p.writeFolderPath,
+                starredFolders: p.starredFolders,
+            })
+            if (p.rootTree) pushUi('syncFolderTree', p.rootTree)
+            pushUi('syncStarredFolderTrees', p.starredTrees)
+            pushUi('syncExternalFolderTrees', p.externalTrees)
+        } catch (err) {
+            console.error('[browserRuntime] folder-tree refresh failed:', err)
+        }
     }
 
     // ── VTD /events WS — the ONE long-lived stream ───────────────────────────
@@ -157,6 +193,9 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         openProject: async (path: string) => {
             const {projectState, initialProjectedGraph} = await vtdOpenProject(vtdUrl, vtdToken)
             emit('project:ready', {path: path || projectPath, sessionId: currentSessionId})
+            // Prime the folder-tree sidebar + project-path stores for the freshly
+            // opened project (Electron does this on every renderer sync).
+            void refreshFolderTrees()
             return {projectState, sessionId: currentSessionId, initialProjectedGraph}
         },
         getStartupProjectHint: () => Promise.resolve({kind: 'open-folder', projectPath}),
@@ -179,15 +218,22 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             const ps = await vtdGetProject(vtdUrl, vtdToken)
             return ps.writeFolderPath ? O.some(ps.writeFolderPath) : O.none
         },
-        setWriteFolderPath: (path: string) => vtdSetWriteFolderPath(vtdUrl, vtdToken, path),
+        setWriteFolderPath: (path: string) =>
+            vtdSetWriteFolderPath(vtdUrl, vtdToken, path).finally(() => void refreshFolderTrees()),
         addReadPath: (p: unknown) =>
-            callVtdRpc(vtdUrl, vtdToken, 'addReadPath', p as Record<string, unknown>),
+            callVtdRpc(vtdUrl, vtdToken, 'addReadPath', p as Record<string, unknown>)
+                .finally(() => void refreshFolderTrees()),
         removeReadPath: (p: unknown) =>
-            callVtdRpc(vtdUrl, vtdToken, 'removeReadPath', p as Record<string, unknown>),
-        getAvailableFoldersForSelector: () => Promise.resolve([]),
-        createDatedVoiceTreeFolder: () => Promise.resolve(''),
-        createSubfolder: () => Promise.resolve(''),
-        getDirectoryTree: () => Promise.resolve(null),
+            callVtdRpc(vtdUrl, vtdToken, 'removeReadPath', p as Record<string, unknown>)
+                .finally(() => void refreshFolderTrees()),
+        getAvailableFoldersForSelector: (searchQuery: string) =>
+            vtdGetAvailableFolders(vtdUrl, vtdToken, searchQuery),
+        createDatedVoiceTreeFolder: () =>
+            vtdCreateDatedVoiceTreeFolder(vtdUrl, vtdToken).finally(() => void refreshFolderTrees()),
+        createSubfolder: (parentPath: string, folderName: string) =>
+            vtdCreateSubfolder(vtdUrl, vtdToken, parentPath, folderName).finally(() => void refreshFolderTrees()),
+        getDirectoryTree: (rootPath: string, maxDepth?: number) =>
+            vtdGetDirectoryTree(vtdUrl, vtdToken, rootPath, maxDepth),
         getBackendPort: () => Promise.resolve(0),
         getVoicetreeHomePath: () => Promise.resolve(''),
         getDaemonUrl: () => Promise.resolve(vtdUrl),
@@ -243,14 +289,23 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         runAgentOnSelectedNodes: () => Promise.resolve(),
         syncRendererSessionStateWithDaemon: () => Promise.resolve(),
 
-        // Browser-unsupported native operations
+        // Project selection / switching — GATED via the `projectSwitching`
+        // capability (the UI hides the "← Back to projects" entry). Browser-mode
+        // VTD is launched per-project (`vt webapp --project X`); the browser talks
+        // to exactly one daemon and cannot spawn another, so switching projects is
+        // a launcher concern, not serveable by the gateway. The pickers throw as
+        // loud defence-in-depth (the control is hidden, so they're unreachable).
         showFolderPicker: () => unsupported('showFolderPicker'),
         createNewProject: () => unsupported('createNewProject'),
-        scanForProjects: () => Promise.resolve([]),
-        getDefaultSearchDirectories: () => Promise.resolve([]),
+        scanForProjects: () => unsupported('scanForProjects'),
+        getDefaultSearchDirectories: () => unsupported('getDefaultSearchDirectories'),
+        removeProject: () => unsupported('removeProject'),
+        // Kept total: both are on the project-open hot path (App.openProjectForProject
+        // looks up metadata via loadProjects, then records via saveProject). The
+        // browser has no recents store, so loadProjects yields none → the caller
+        // falls back to a directory-derived project, and saveProject is a no-op.
         loadProjects: () => Promise.resolve([]),
         saveProject: () => Promise.resolve(),
-        removeProject: () => Promise.resolve(),
         saveClipboardImage: () => unsupported('saveClipboardImage'),
         readImageAsDataUrl: () => unsupported('readImageAsDataUrl'),
         checkMicrophonePermission: () => Promise.resolve('denied' as const),
@@ -261,11 +316,15 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         generateWorktreeName: () => Promise.resolve(''),
         removeWorktree: () => unsupported('removeWorktree'),
         getRemoveWorktreeCommand: () => Promise.resolve(''),
-        getStarredFolders: () => Promise.resolve([]),
-        addStarredFolder: () => Promise.resolve(),
-        removeStarredFolder: () => Promise.resolve(),
-        isStarred: () => Promise.resolve(false),
-        copyNodeToFolder: () => Promise.resolve(),
+        getStarredFolders: () => vtdGetStarredFolders(vtdUrl, vtdToken),
+        addStarredFolder: (folderPath: string) =>
+            vtdAddStarredFolder(vtdUrl, vtdToken, folderPath).finally(() => void refreshFolderTrees()),
+        removeStarredFolder: (folderPath: string) =>
+            vtdRemoveStarredFolder(vtdUrl, vtdToken, folderPath).finally(() => void refreshFolderTrees()),
+        isStarred: (folderPath: string) =>
+            vtdGetStarredFolders(vtdUrl, vtdToken).then((folders) => folders.includes(folderPath)),
+        copyNodeToFolder: (nodeId: string, targetFolderPath: string) =>
+            vtdCopyNodeToFolder(vtdUrl, vtdToken, nodeId, targetFolderPath),
         listWorkflows: () => Promise.resolve([]),
         readSkillFile: () => Promise.resolve(''),
         readSkillFileSummary: () => Promise.resolve(''),

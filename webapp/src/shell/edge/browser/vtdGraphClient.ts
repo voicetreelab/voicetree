@@ -32,6 +32,13 @@ import {
     type GraphActivateView,
     type GraphCloneView,
     type GraphDeleteView,
+    type GraphGetFolderTreeSync,
+    type GraphGetAvailableFolders,
+    type GraphGetDirectoryTree,
+    type GraphCreateSubfolder,
+    type GraphCreateDatedVoiceTreeFolder,
+    type GraphGetStarredFolders,
+    type GraphCopyNodeToFolder,
 } from '@vt/vt-daemon-protocol'
 import type {GraphDelta, Position} from '@vt/graph-model/graph'
 import {callVtdRpc} from './vtdRpc'
@@ -108,3 +115,41 @@ export const vtdCloneView = (
 
 export const vtdDeleteView = (u: string, t: string, viewId: string): Promise<GraphDeleteView.Response> =>
     callVtdRpc<GraphDeleteView.Response>(u, t, GRAPH_GATEWAY_METHODS.deleteView, {viewId})
+
+// ── Folders (daemon-served folder browser) ──────────────────────────────────
+export const vtdGetFolderTreeSync = (u: string, t: string): Promise<GraphGetFolderTreeSync.Response> =>
+    callVtdRpc<GraphGetFolderTreeSync.Response>(u, t, GRAPH_GATEWAY_METHODS.getFolderTreeSync, {})
+
+export const vtdGetAvailableFolders = (
+    u: string, t: string, searchQuery: string,
+): Promise<GraphGetAvailableFolders.Response> =>
+    callVtdRpc<GraphGetAvailableFolders.Response>(u, t, GRAPH_GATEWAY_METHODS.getAvailableFolders, {searchQuery})
+
+export const vtdGetDirectoryTree = (
+    u: string, t: string, rootPath: string, maxDepth?: number,
+): Promise<GraphGetDirectoryTree.Response> =>
+    callVtdRpc<GraphGetDirectoryTree.Response>(u, t, GRAPH_GATEWAY_METHODS.getDirectoryTree, {rootPath, maxDepth})
+
+export const vtdCreateSubfolder = (
+    u: string, t: string, parentPath: string, folderName: string,
+): Promise<GraphCreateSubfolder.Response> =>
+    callVtdRpc<GraphCreateSubfolder.Response>(u, t, GRAPH_GATEWAY_METHODS.createSubfolder, {parentPath, folderName})
+
+export const vtdCreateDatedVoiceTreeFolder = (
+    u: string, t: string,
+): Promise<GraphCreateDatedVoiceTreeFolder.Response> =>
+    callVtdRpc<GraphCreateDatedVoiceTreeFolder.Response>(u, t, GRAPH_GATEWAY_METHODS.createDatedVoiceTreeFolder, {})
+
+export const vtdGetStarredFolders = (u: string, t: string): Promise<GraphGetStarredFolders.Response> =>
+    callVtdRpc<GraphGetStarredFolders.Response>(u, t, GRAPH_GATEWAY_METHODS.getStarredFolders, {})
+
+export const vtdAddStarredFolder = (u: string, t: string, folderPath: string): Promise<void> =>
+    callVtdRpc<void>(u, t, GRAPH_GATEWAY_METHODS.addStarredFolder, {folderPath})
+
+export const vtdRemoveStarredFolder = (u: string, t: string, folderPath: string): Promise<void> =>
+    callVtdRpc<void>(u, t, GRAPH_GATEWAY_METHODS.removeStarredFolder, {folderPath})
+
+export const vtdCopyNodeToFolder = (
+    u: string, t: string, nodeId: string, targetFolderPath: string,
+): Promise<GraphCopyNodeToFolder.Response> =>
+    callVtdRpc<GraphCopyNodeToFolder.Response>(u, t, GRAPH_GATEWAY_METHODS.copyNodeToFolder, {nodeId, targetFolderPath})
