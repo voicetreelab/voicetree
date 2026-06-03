@@ -20,6 +20,13 @@ export interface RuntimeCapabilities {
     readonly clipboardImages: boolean
     /** Persisting edited settings back to disk: saveSettings. */
     readonly settingsPersistence: boolean
+    /**
+     * Switching the active project at runtime: the project-selection screen and
+     * its "← Back to projects" entry. Native only — browser-mode VTD is launched
+     * per-project (`vt webapp --project X`) and the browser talks to exactly one
+     * daemon it cannot replace, so switching is a launcher concern.
+     */
+    readonly projectSwitching: boolean
 }
 
 export const ELECTRON_CAPABILITIES: RuntimeCapabilities = {
@@ -27,6 +34,7 @@ export const ELECTRON_CAPABILITIES: RuntimeCapabilities = {
     worktrees: true,
     clipboardImages: true,
     settingsPersistence: true,
+    projectSwitching: true,
 }
 
 export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
@@ -34,6 +42,7 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     worktrees: false,
     clipboardImages: false,
     settingsPersistence: false,
+    projectSwitching: false,
 }
 
 /**
