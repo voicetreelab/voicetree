@@ -333,13 +333,9 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon -> voicetree-graph-validation': 1,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
     // refactor (PR #137 + follow-up), vt-daemon-protocol owns TOOL_SPECS plus
-    // the manual renderer + the [From:] wrapper. The daemon now imports four
-    // distinct value symbols and only four: `TOOL_SPECS` (catalog.ts iterates
-    // it to bind handlers; cliManualInjection.ts re-uses it for the spawn
-    // essentials slice), `renderManual` (cliManualInjection.ts), `buildFromPrefixedMessage`
-    // (sendMessageTool.ts), and one terminal-registry constant. The earlier
-    // shape of "14 individual *_SPEC constants" was an over-export of
-    // implementation detail; those are no longer in the protocol barrel.
+    // the [From:] wrapper and terminal/graph protocol constants. The daemon
+    // imports `TOOL_SPECS` for catalog binding and concise spawn CLI discovery;
+    // rendered manual sections stay behind `vt manual`.
     // 2026-06-02 [PR #229]: 4 -> 5. vt-daemon consumes the published graph.*
     // gateway RPC contract from vt-daemon-protocol (+1 value symbol).
     'vt-daemon -> vt-daemon-protocol': 5,
