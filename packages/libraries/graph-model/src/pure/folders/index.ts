@@ -16,10 +16,9 @@ export {
 } from './transforms';
 
 export {
-    buildFolderTreeSyncProjection,
-    externalFoldersOf,
+    projectFolderTreeSync,
     resolveAvailableFolders,
     type FolderProjectState,
     type FolderTreeSyncProjection,
-    type FolderScan,
+    type ScanFolder,
 } from './projections';

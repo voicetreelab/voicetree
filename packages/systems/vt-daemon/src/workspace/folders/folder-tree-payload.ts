@@ -12,11 +12,9 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import type { Stats } from 'fs'
 import {
-    buildFolderTreeSyncProjection,
-    externalFoldersOf,
+    projectFolderTreeSync,
     resolveAvailableFolders,
     type FolderProjectState,
-    type FolderScan,
     type FolderTreeSyncProjection,
 } from '@vt/graph-model/folders'
 import type { AbsolutePath, AvailableFolderItem, DirectoryEntry } from '@vt/graph-model/folders'
@@ -102,16 +100,18 @@ export async function isPathWithinAllowlist(
  * of file paths present in the graph (used to flag in-graph files); callers pass
  * `Object.keys(graph.nodes)`.
  *
- * Each scan is failure-isolated (a single unreadable folder yields `null` for
- * that tree, never a rejection) and the three groups run concurrently, so total
- * latency is the slowest scan rather than their sum. The pure assembly of those
- * scans into the tree payload is `buildFolderTreeSyncProjection`.
+ * Each scan is failure-isolated here (a single unreadable folder yields `null`
+ * for that tree, never a rejection); `projectFolderTreeSync` owns the scan
+ * orchestration (which folders, run concurrently so total latency is the
+ * slowest scan rather than their sum) and the pure assembly into the payload.
+ * This module supplies only the injected `scanFolder` effect and the live
+ * starred-folder list.
  */
 export async function buildFolderTreeSyncPayload(
     projectState: FolderTreeProjectState,
     graphFilePaths: ReadonlySet<string>,
 ): Promise<FolderTreeSyncPayload> {
-    const scanFor = async (folder: string, maxDepth?: number): Promise<DirectoryEntry | null> => {
+    const scanFolder = async (folder: string, maxDepth?: number): Promise<DirectoryEntry | null> => {
         try {
             return maxDepth === undefined
                 ? await getDirectoryTree(folder)
@@ -122,29 +122,7 @@ export async function buildFolderTreeSyncPayload(
     }
 
     const starredFolders: readonly string[] = await getStarredFolders()
-    const externalFolders: readonly string[] = externalFoldersOf(projectState)
-
-    const [rootScan, starredEntries, externalEntries]: [
-        DirectoryEntry | null,
-        readonly (DirectoryEntry | null)[],
-        readonly (DirectoryEntry | null)[],
-    ] = await Promise.all([
-        scanFor(projectState.projectRoot),
-        Promise.all(starredFolders.map((folder) => scanFor(folder, 3))),
-        Promise.all(externalFolders.map((folder) => scanFor(folder, 3))),
-    ])
-
-    const starredScans: readonly FolderScan[] = starredFolders.map((folder, i) => ({ folder, entry: starredEntries[i] }))
-    const externalScans: readonly FolderScan[] = externalFolders.map((folder, i) => ({ folder, entry: externalEntries[i] }))
-
-    return buildFolderTreeSyncProjection(
-        rootScan,
-        starredScans,
-        externalScans,
-        projectState,
-        starredFolders,
-        graphFilePaths,
-    )
+    return projectFolderTreeSync(projectState, starredFolders, graphFilePaths, scanFolder)
 }
 
 /**

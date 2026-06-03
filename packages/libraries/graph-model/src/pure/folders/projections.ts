@@ -12,7 +12,9 @@
  *
  * Purity is preserved by INJECTING the filesystem effect as a callback: the
  * edge owns every `fs` read (and its allowlist/validity gating); these
- * functions own only the pure parse → route → project composition.
+ * functions own only the pure parse → route → project composition, plus the
+ * scan ORCHESTRATION (which folders to scan, and assembling the results) — the
+ * edge supplies one `scanFolder`/`scanSubfolders` effect and nothing else.
  */
 
 import path from 'path';
@@ -48,14 +50,14 @@ export interface FolderTreeSyncProjection {
 }
 
 /**
- * A directory scan paired with the folder path it was taken at. `entry` is the
- * recursive listing (or `null` when the scan failed / the folder was
- * unreadable, which yields no tree for that folder rather than an error).
+ * A recursive directory listing for one folder, paired with that folder path.
+ * `scanFolder` returns `null` when the scan failed / the folder was unreadable,
+ * which yields no tree for that folder rather than an error.
  */
-export interface FolderScan {
-    readonly folder: string;
-    readonly entry: DirectoryEntry | null;
-}
+export type ScanFolder = (
+    folder: string,
+    maxDepth?: number,
+) => Promise<DirectoryEntry | null>;
 
 /** Loaded paths = the write folder followed by every distinct read path. */
 function loadedPathsOf(projectState: FolderProjectState): readonly string[] {
@@ -66,23 +68,39 @@ function loadedPathsOf(projectState: FolderProjectState): readonly string[] {
 }
 
 /**
- * Assemble the full folder-tree sidebar payload from already-scanned directory
- * listings. The edge performs (and failure-isolates) every FS scan, then hands
- * the root/starred/external scans here; this brands paths, derives the external
- * read-path set, and runs `buildFolderTree` over each scan.
+ * Build the full folder-tree sidebar payload — root tree, starred-folder trees,
+ * external read-path trees — for one project state. This OWNS the whole tree
+ * projection: it derives which external read-paths to scan, runs the injected
+ * `scanFolder` effect over the root + starred + external folders concurrently
+ * (each failure-isolated by the edge's `scanFolder`), brands the write-folder
+ * path, and assembles every successful scan with `buildFolderTree`.
  *
- * Which folders the edge must scan is itself a pure decision — `externalFoldersOf`
- * returns the external read paths so the edge knows what to scan before calling
- * this with the results.
+ * The edge supplies ONLY `scanFolder` (the one place `fs` and its
+ * allowlist/validity gating live) and the live `starredFolders` /
+ * `graphFilePaths` it already holds; it never has to know which folders are
+ * "external" or how the trees are assembled.
  */
-export function buildFolderTreeSyncProjection(
-    rootScan: DirectoryEntry | null,
-    starredScans: readonly FolderScan[],
-    externalScans: readonly FolderScan[],
+export async function projectFolderTreeSync(
     projectState: FolderProjectState,
     starredFolders: readonly string[],
     graphFilePaths: ReadonlySet<string>,
-): FolderTreeSyncProjection {
+    scanFolder: ScanFolder,
+): Promise<FolderTreeSyncProjection> {
+    const externalFolders: readonly string[] = getExternalReadPaths(
+        projectState.readPaths,
+        projectState.projectRoot,
+    );
+
+    const [rootScan, starredEntries, externalEntries]: [
+        DirectoryEntry | null,
+        readonly (DirectoryEntry | null)[],
+        readonly (DirectoryEntry | null)[],
+    ] = await Promise.all([
+        scanFolder(projectState.projectRoot),
+        Promise.all(starredFolders.map((folder: string) => scanFolder(folder, 3))),
+        Promise.all(externalFolders.map((folder: string) => scanFolder(folder, 3))),
+    ]);
+
     const loadedPaths: Set<string> = new Set<string>([
         ...projectState.readPaths,
         projectState.writeFolderPath,
@@ -92,26 +110,24 @@ export function buildFolderTreeSyncProjection(
     const treeOf = (entry: DirectoryEntry | null): FolderTreeNode | null =>
         entry === null ? null : buildFolderTree(entry, loadedPaths, writeFolderPath, graphFilePaths);
 
-    const collectTrees = (scans: readonly FolderScan[]): Record<string, FolderTreeNode> => {
+    const collectTrees = (
+        folders: readonly string[],
+        entries: readonly (DirectoryEntry | null)[],
+    ): Record<string, FolderTreeNode> => {
         const trees: Record<string, FolderTreeNode> = {};
-        for (const scan of scans) {
-            const tree: FolderTreeNode | null = treeOf(scan.entry);
-            if (tree !== null) trees[scan.folder] = tree;
-        }
+        folders.forEach((folder: string, i: number) => {
+            const tree: FolderTreeNode | null = treeOf(entries[i] ?? null);
+            if (tree !== null) trees[folder] = tree;
+        });
         return trees;
     };
 
     return {
         rootTree: treeOf(rootScan),
         starredFolders,
-        starredTrees: collectTrees(starredScans),
-        externalTrees: collectTrees(externalScans),
+        starredTrees: collectTrees(starredFolders, starredEntries),
+        externalTrees: collectTrees(externalFolders, externalEntries),
     };
-}
-
-/** The read paths that live OUTSIDE the project root — the edge scans each as its own tree. */
-export function externalFoldersOf(projectState: FolderProjectState): readonly string[] {
-    return getExternalReadPaths(projectState.readPaths, projectState.projectRoot);
 }
 
 /**
