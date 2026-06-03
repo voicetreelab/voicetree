@@ -208,6 +208,11 @@ function applyPatch(record: TerminalRecord, patch: TerminalRecordPatch): Termina
                 ...record,
                 terminalData: {...record.terminalData, lifecycle: patch.value},
             }
+        case 'statusPhrase':
+            return {
+                ...record,
+                terminalData: {...record.terminalData, statusPhrase: patch.value},
+            }
         case 'activity': {
             const next = {...record.terminalData}
             if (patch.value.lastOutputTime !== undefined) {

@@ -24,7 +24,7 @@ import {z} from 'zod'
 import type {ZodTypeAny, ZodRawShape} from 'zod'
 
 import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import {TOOL_SPECS, type ToolSpec} from '@vt/vt-daemon-protocol'
+import {TOOL_SPECS, type ToolSpec, AGENT_STATUSES, MAX_STATUS_PHRASE_LENGTH} from '@vt/vt-daemon-protocol'
 import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
 import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/spawnAgentTool'
 import {listAgentsTool} from '../agent-runtime/agent-control/listAgentsTool'
@@ -172,6 +172,12 @@ const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
                 rationale: z.string(),
             })).optional().describe(
                 'Override validation rules that would otherwise block. Each entry must match a rule ID from the error response.',
+            ),
+            agentStatus: z.enum(AGENT_STATUSES).optional().describe(
+                'Your current status, reported with this progress node. Drives your lifecycle icon in the terminal tree. "working" = actively making progress; "awaiting_input" = blocked, need the user; "done" = task complete; "failed" = task failed. Omit to leave your status unchanged.',
+            ),
+            statusPhrase: z.string().max(MAX_STATUS_PHRASE_LENGTH).optional().describe(
+                `Short free-text live status (≤ ${MAX_STATUS_PHRASE_LENGTH} chars) shown next to your model name in the terminal tree, e.g. "wiring the create_graph param". Omit to leave it unchanged.`,
             ),
         }
     },
