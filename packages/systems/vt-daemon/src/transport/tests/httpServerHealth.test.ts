@@ -18,12 +18,9 @@ import type {VtDaemonHealthResponse} from '../../contract.ts'
 import {VtDaemonHealthResponseSchema} from '../../contract.ts'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
     type ToolCatalog,
 } from '../httpServer.ts'
-
-const noopHook: HookHandler = (): unknown => ({ok: true})
 
 interface Ctx {
     handle: HttpDaemonServerHandle
@@ -46,7 +43,6 @@ async function bring(
     const catalog: ToolCatalog = new Map()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},

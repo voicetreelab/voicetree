@@ -5,9 +5,8 @@
 
 import {afterEach, describe, expect, it} from 'vitest'
 import {generateAuthToken} from '@vt/vt-rpc'
-import {startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
+import {startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
-const noopHook: HookHandler = (): unknown => ({ok: true})
 const emptyCatalog: ToolCatalog = new Map()
 const silentLogger = {logRequest: (): void => {}, logError: (): void => {}}
 
@@ -23,7 +22,6 @@ async function bringWithCors(allowedOrigins: string[]): Promise<{handle: HttpDae
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: emptyCatalog,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         allowedOrigins,

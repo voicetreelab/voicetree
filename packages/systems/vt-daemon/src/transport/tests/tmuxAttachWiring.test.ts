@@ -27,11 +27,9 @@ import {
     killSession,
 } from '../../agent-runtime/terminals/tmux/tmux-session-manager.ts'
 
-import {startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
+import {startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
 const TEST_TIMEOUT_MS: 20000 = 20000
-
-const noopHook: HookHandler = (): unknown => ({ok: true})
 
 interface Ctx {
     handle: HttpDaemonServerHandle
@@ -56,7 +54,6 @@ async function bringDaemon(): Promise<Ctx> {
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: new Map() as ToolCatalog,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},

@@ -4,8 +4,8 @@
  * The exported VOICETREE_PROJECT_PATH must point at the canonical project root
  * (the directory containing `.voicetree/`), NOT the daemon's current
  * writeFolderPath. Many downstream consumers — vt-rpc's `authTokenFilePath`,
- * the agent hook script template (`agentHookInjection`), tmuxPromptFile,
- * the tmux namespace builder — all read `$VOICETREE_PROJECT_PATH/.voicetree/...`.
+ * tmuxPromptFile, the tmux namespace builder — all read
+ * `$VOICETREE_PROJECT_PATH/.voicetree/...`.
  * Pointing the var at a subfolder writeFolderPath breaks every one of them.
  *
  * Black-box: configure the runtime env normally (no internal mocks), call
