@@ -22,6 +22,7 @@ import type {Size} from '@vt/graph-model/graph';
 import {
     ALL_RESIZE_HANDLES,
     computeResizedFolderSize,
+    resizeBiasForHandle,
     type ResizeHandle,
 } from '@/shell/UI/cytoscape-graph-ui/services/folder-handle/folderResize';
 
@@ -128,21 +129,60 @@ export function setupFolderResize(
         const startY: number = startEvent.clientY;
         let latest: Size = startSize;
 
+        // Anchor the edge OPPOSITE the grip so the grip tracks the cursor 1:1
+        // and the chip strip (chevron + eye, pinned to the folder's top-left
+        // corner) stays attached. Set once at drag start — bias only
+        // redistributes the min-* slack, so re-applying it every frame would
+        // add pointless restyles. The stylesheet seeds every resized folder with
+        // a top-left anchor (defaultNodeStyles); this overrides only the dragged
+        // axis so a west/north drag grows toward the cursor instead.
+        for (const [prop, value] of Object.entries(resizeBiasForHandle(handle))) {
+            node.style(prop, value);
+        }
+
+        // Coalesce mousemoves to one rAF tick. Raw mousemove can fire faster than
+        // the display refresh (high-Hz mice, trackpads), and each folderWidth /
+        // folderHeight write runs cytoscape's updateStyle across the folder + its
+        // descendants + its parents. Writing per-event flooded that pipeline with
+        // hundreds of style cycles a second and the renderer fell seconds behind
+        // — the symptom the grip drag was hitting and the smooth node-drag was
+        // not (cytoscape's own drag loop is already rAF-throttled).
+        //
+        // Not wrapped in cy.batch(): batching defers style application until
+        // endBatch, but the synchronous 'data' event fires INSIDE the batch and
+        // the chip strip's listener reads renderedBoundingBox with the stale
+        // min-* values — chips would then lag the folder body by a frame instead
+        // of leading it. Unbatched writes keep chip + body in lockstep.
+        let pending: Size | null = null;
+        let rafId: number | null = null;
+
+        const flush = (): void => {
+            rafId = null;
+            if (pending === null) return;
+            const next: Size = pending;
+            pending = null;
+            node.data('folderWidth', next.width);
+            node.data('folderHeight', next.height);
+            position(folderId);
+            latest = next;
+        };
+
         const onMove = (evt: MouseEvent): void => {
-            latest = computeResizedFolderSize(
+            pending = computeResizedFolderSize(
                 startSize,
                 {dx: evt.clientX - startX, dy: evt.clientY - startY},
                 handle,
                 cy.zoom(),
             );
-            // Live feel: drive the same data the persisted-size apply path uses.
-            node.data('folderWidth', latest.width);
-            node.data('folderHeight', latest.height);
-            position(folderId);
+            rafId ??= window.requestAnimationFrame(flush);
         };
 
         const onUp = (): void => {
             window.removeEventListener('mousemove', onMove, {capture: true});
+            if (rafId !== null) {
+                window.cancelAnimationFrame(rafId);
+                flush();
+            }
             void persist(folderId, latest);
         };
 
@@ -156,7 +196,7 @@ export function setupFolderResize(
         // Folder size is owned by the directory id (the compound is not a graph
         // node, and a folder need not have a note). Persist keyed by folderId
         // through the unified spatial-layout channel.
-        await window.electronAPI?.main.saveNodeSize(folderId, size);
+        await window.hostAPI?.main.saveNodeSize(folderId, size);
     }
 
     function createFrame(folderId: string): void {
