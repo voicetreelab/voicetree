@@ -18,22 +18,42 @@
 import {z} from 'zod'
 
 import type {GraphDbClient} from '@vt/graph-db-client'
+import type {GraphNode} from '@vt/graph-model/graph'
 import type {ProjectedGraph} from '@vt/graph-state/contract'
 import {
     GRAPH_GATEWAY_METHODS,
     type GraphActivateView,
+    type GraphAddStarredFolder,
     type GraphApplyDelta,
     type GraphCloneView,
+    type GraphCopyNodeToFolder,
     type GraphCreateContextNode,
+    type GraphCreateSubfolder,
     type GraphDeleteView,
     type GraphFindFileByName,
+    type GraphGetAvailableFolders,
+    type GraphGetDirectoryTree,
+    type GraphGetFolderTreeSync,
     type GraphGetNode,
     type GraphGetPreviewContainedNodeIds,
     type GraphOpenProject,
+    type GraphRemoveStarredFolder,
     type GraphSetWriteFolderPath,
     type GraphWriteMarkdownFile,
     type GraphWritePositions,
 } from '@vt/vt-daemon-protocol'
+import {
+    addStarredFolder,
+    buildFolderTreeSyncPayload,
+    copyNodeToFolder,
+    createSubfolder,
+    getDirectoryTree,
+    getStarredFolders,
+    isPathWithinAllowlist,
+    removeStarredFolder,
+    selectAvailableFolders,
+} from '@vt/app-config/folders'
+import {createDatedSubfolder} from '@vt/app-config/project'
 
 import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {RpcRoute} from './RpcRoute.ts'
@@ -140,7 +160,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             },
             handler: async (args): Promise<McpToolResponse> => {
                 const {positions} = args as unknown as GraphWritePositions.Request
-                return json(await client.writePositions(positions))
+                return json(await client.writeNodeLayout(positions))
             },
         },
         {
@@ -215,6 +235,122 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
                 const {viewId} = args as unknown as GraphDeleteView.Request
                 await client.views.delete(viewId)
                 return json(null)
+            },
+        },
+
+        // --- Folders (browser-mode daemon-served folder browser) -------------
+        // The browser never touches the filesystem; VTD owns FS and serves these
+        // scoped to the project's allowlist (project root + read paths, via
+        // `client.getProject()`). Folder operations that would escape the
+        // allowlist return an empty/null/failed result rather than reaching disk.
+        {
+            name: M.getFolderTreeSync,
+            handler: async (): Promise<McpToolResponse> => {
+                const [projectState, graph] = await Promise.all([client.getProject(), client.getGraph()])
+                const payload = await buildFolderTreeSyncPayload(
+                    projectState,
+                    new Set<string>(Object.keys(graph.nodes)),
+                )
+                const response: GraphGetFolderTreeSync.Response = {
+                    ...payload,
+                    readPaths: projectState.readPaths,
+                    writeFolderPath: projectState.writeFolderPath,
+                }
+                return json(response)
+            },
+        },
+        {
+            name: M.getAvailableFolders,
+            inputShape: {searchQuery: z.string()},
+            handler: async (args): Promise<McpToolResponse> => {
+                const {searchQuery} = args as unknown as GraphGetAvailableFolders.Request
+                return json(await selectAvailableFolders(await client.getProject(), searchQuery))
+            },
+        },
+        {
+            name: M.getDirectoryTree,
+            inputShape: {rootPath: z.string(), maxDepth: z.number().optional()},
+            handler: async (args): Promise<McpToolResponse> => {
+                const {rootPath, maxDepth} = args as unknown as GraphGetDirectoryTree.Request
+                const projectState = await client.getProject()
+                if (!isPathWithinAllowlist(rootPath, projectState)) return json(null)
+                const tree = maxDepth === undefined
+                    ? await getDirectoryTree(rootPath)
+                    : await getDirectoryTree(rootPath, maxDepth)
+                return json(tree)
+            },
+        },
+        {
+            name: M.createSubfolder,
+            inputShape: {parentPath: z.string(), folderName: z.string()},
+            handler: async (args): Promise<McpToolResponse> => {
+                const {parentPath, folderName} = args as unknown as GraphCreateSubfolder.Request
+                const projectState = await client.getProject()
+                if (!isPathWithinAllowlist(parentPath, projectState)) {
+                    return json({success: false, error: 'Parent folder is outside the project allowlist'})
+                }
+                return json(await createSubfolder(parentPath, folderName))
+            },
+        },
+        {
+            name: M.createDatedVoiceTreeFolder,
+            handler: async (): Promise<McpToolResponse> => {
+                try {
+                    const {projectRoot} = await client.getProject()
+                    const newPath: string = await createDatedSubfolder(projectRoot)
+                    // Create the dated folder and make it the active write target.
+                    // (Electron additionally unloads the prior read paths for a
+                    // blank canvas; graphd exposes no read-path-removal route via
+                    // the gateway client, so browser-mode leaves prior folders
+                    // loaded — the new folder is still where new nodes are written.)
+                    await client.setWriteFolderPath(newPath)
+                    return json({success: true, path: newPath})
+                } catch (error) {
+                    const message: string = error instanceof Error ? error.message : String(error)
+                    return json({success: false, error: message})
+                }
+            },
+        },
+        {
+            name: M.getStarredFolders,
+            handler: async (): Promise<McpToolResponse> => json(await getStarredFolders()),
+        },
+        {
+            name: M.addStarredFolder,
+            inputShape: {folderPath: z.string()},
+            handler: async (args): Promise<McpToolResponse> => {
+                const {folderPath} = args as unknown as GraphAddStarredFolder.Request
+                const projectState = await client.getProject()
+                // Starred trees are scanned by getFolderTreeSync, so a starred path
+                // must stay inside the allowlist — never let a browser star (and
+                // thereby have the daemon scan) an arbitrary filesystem location.
+                if (isPathWithinAllowlist(folderPath, projectState)) await addStarredFolder(folderPath)
+                return json(null)
+            },
+        },
+        {
+            name: M.removeStarredFolder,
+            inputShape: {folderPath: z.string()},
+            handler: async (args): Promise<McpToolResponse> => {
+                const {folderPath} = args as unknown as GraphRemoveStarredFolder.Request
+                await removeStarredFolder(folderPath)
+                return json(null)
+            },
+        },
+        {
+            name: M.copyNodeToFolder,
+            inputShape: {nodeId: z.string(), targetFolderPath: z.string()},
+            handler: async (args): Promise<McpToolResponse> => {
+                const {nodeId, targetFolderPath} = args as unknown as GraphCopyNodeToFolder.Request
+                const projectState = await client.getProject()
+                if (!isPathWithinAllowlist(targetFolderPath, projectState)) {
+                    return json({success: false, targetPath: '', error: 'Target folder is outside the project allowlist'})
+                }
+                const graph = await client.getGraph()
+                // graphd's GraphState.nodes is typed `unknown`-valued over the
+                // wire; the shape is the graph-model GraphNode the copy needs.
+                const node = graph.nodes[nodeId] as GraphNode | undefined
+                return json(await copyNodeToFolder(node, nodeId, targetFolderPath))
             },
         },
     ]

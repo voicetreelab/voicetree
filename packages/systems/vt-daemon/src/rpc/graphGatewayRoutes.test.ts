@@ -6,7 +6,7 @@
 // dispatch path (zod validation + the buildCatalogDispatchMap merge) is
 // exercised end-to-end by the live-update integration test in transport/tests.
 
-import {mkdir, mkdtemp, writeFile, rm} from 'node:fs/promises'
+import {mkdir, mkdtemp, readdir, stat, writeFile, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, test} from 'vitest'
@@ -14,6 +14,7 @@ import {afterEach, beforeEach, describe, expect, test} from 'vitest'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server'
 import {createGraphDbClient, type GraphDbClientApi} from '@vt/graph-db-client'
 import {GRAPH_GATEWAY_METHODS} from '@vt/vt-daemon-protocol'
+import {VOICETREE_HOME_PATH_ENV} from '@vt/paths'
 
 import {buildGraphGatewayRoutes} from './graphGatewayRoutes.ts'
 import type {RpcRoute} from './RpcRoute.ts'
@@ -36,12 +37,18 @@ describe('graph.* gateway routes (real graphd roundtrip)', () => {
     let handle: DaemonHandle | null
     let client: GraphDbClientApi
     let invoke: (method: string, args?: Record<string, unknown>) => Promise<unknown>
+    let priorHome: string | undefined
 
     beforeEach(async () => {
         root = await mkdtemp(path.join(tmpdir(), 'graph-gateway-'))
         project = path.join(root, 'project')
         await mkdir(project, {recursive: true})
         voicetreeHome = await createVoicetreeHome(project)
+        // The folder routes' settings IO (starred folders) resolves the home from
+        // this env var; point it at the test home so they never touch real config.
+        priorHome = process.env[VOICETREE_HOME_PATH_ENV]
+        process.env[VOICETREE_HOME_PATH_ENV] = voicetreeHome
+        await writeFile(path.join(voicetreeHome, 'settings.json'), JSON.stringify({starredFolders: []}))
 
         handle = await startDaemon({project, voicetreeHomePath: voicetreeHome, createStarterIfEmpty: false})
         client = createGraphDbClient({baseUrl: `http://127.0.0.1:${handle.port}`})
@@ -69,6 +76,8 @@ describe('graph.* gateway routes (real graphd roundtrip)', () => {
         await handle?.stop().catch(() => {})
         await rm(root, {recursive: true, force: true})
         await rm(voicetreeHome, {recursive: true, force: true})
+        if (priorHome === undefined) delete process.env[VOICETREE_HOME_PATH_ENV]
+        else process.env[VOICETREE_HOME_PATH_ENV] = priorHome
     }, 15000)
 
     test('graph.getProject equals the direct graphd read', async () => {
@@ -132,5 +141,98 @@ describe('graph.* gateway routes (real graphd roundtrip)', () => {
         const direct = await client.getProjectedGraph(sid) as {nodes: unknown[]}
         expect(Array.isArray(viaGateway.nodes)).toBe(true)
         expect(viaGateway.nodes.length).toBe(direct.nodes.length)
+    })
+
+    // --- Folders (browser-mode daemon-served folder browser) -----------------
+
+    test('graph.getFolderTreeSync returns the project root tree + project paths', async () => {
+        await mkdir(path.join(project, 'notes'))
+        const payload = await invoke(M.getFolderTreeSync) as {
+            rootTree: {name: string; children: {name: string}[]} | null
+            readPaths: string[]
+            writeFolderPath: string
+            starredFolders: string[]
+        }
+        expect(payload.rootTree?.name).toBe(path.basename(project))
+        expect(payload.rootTree?.children.map((c) => c.name)).toContain('notes')
+        expect(payload.writeFolderPath).toBe((await client.getProject()).writeFolderPath)
+        expect(payload.starredFolders).toEqual([])
+    })
+
+    test('graph.getAvailableFolders lists project subfolders', async () => {
+        await mkdir(path.join(project, 'archive'))
+        const folders = await invoke(M.getAvailableFolders, {searchQuery: ''}) as {displayPath: string}[]
+        expect(folders.map((f) => f.displayPath)).toContain('archive')
+    })
+
+    test('graph.getDirectoryTree honours the allowlist (null outside the project)', async () => {
+        const inside = await invoke(M.getDirectoryTree, {rootPath: project}) as {name: string} | null
+        expect(inside?.name).toBe(path.basename(project))
+        const outside = await mkdtemp(path.join(tmpdir(), 'outside-'))
+        try {
+            expect(await invoke(M.getDirectoryTree, {rootPath: outside})).toBeNull()
+        } finally {
+            await rm(outside, {recursive: true, force: true})
+        }
+    })
+
+    test('graph.createSubfolder creates the folder; outside the allowlist it fails without writing', async () => {
+        const ok = await invoke(M.createSubfolder, {parentPath: project, folderName: 'fresh'}) as {success: boolean}
+        expect(ok.success).toBe(true)
+        expect((await stat(path.join(project, 'fresh'))).isDirectory()).toBe(true)
+
+        const outside = await mkdtemp(path.join(tmpdir(), 'outside-'))
+        try {
+            const denied = await invoke(M.createSubfolder, {parentPath: outside, folderName: 'x'}) as {success: boolean}
+            expect(denied.success).toBe(false)
+            expect(await readdir(outside)).toEqual([])
+        } finally {
+            await rm(outside, {recursive: true, force: true})
+        }
+    })
+
+    test('graph.createDatedVoiceTreeFolder creates a dated folder and points the write path at it', async () => {
+        const result = await invoke(M.createDatedVoiceTreeFolder) as {success: boolean; path?: string}
+        expect(result.success).toBe(true)
+        expect(result.path).toBeDefined()
+        expect((await stat(result.path!)).isDirectory()).toBe(true)
+        expect((await client.getProject()).writeFolderPath).toBe(result.path)
+    })
+
+    test('graph.addStarredFolder (in-allowlist) is observable; out-of-allowlist is ignored', async () => {
+        const starred = path.join(project, 'starred')
+        await mkdir(starred)
+        await invoke(M.addStarredFolder, {folderPath: starred})
+        expect(await invoke(M.getStarredFolders)).toEqual([starred])
+
+        // A path outside the project must never be starred (it would be scanned).
+        const outside = await mkdtemp(path.join(tmpdir(), 'outside-'))
+        try {
+            await invoke(M.addStarredFolder, {folderPath: outside})
+            expect(await invoke(M.getStarredFolders)).toEqual([starred])
+        } finally {
+            await rm(outside, {recursive: true, force: true})
+        }
+
+        await invoke(M.removeStarredFolder, {folderPath: starred})
+        expect(await invoke(M.getStarredFolders)).toEqual([])
+    })
+
+    test('graph.copyNodeToFolder copies a node markdown into a project subfolder', async () => {
+        const notePath = path.join(project, 'src-note.md')
+        await invoke(M.writeMarkdownFile, {
+            absolutePath: notePath,
+            body: '# Copy Me\n\nbody',
+            editorId: 'copy-test',
+        })
+        await mkdir(path.join(project, 'dest'))
+
+        const result = await invoke(M.copyNodeToFolder, {
+            nodeId: notePath,
+            targetFolderPath: path.join(project, 'dest'),
+        }) as {success: boolean; targetPath: string}
+        expect(result.success).toBe(true)
+        expect((await stat(result.targetPath)).isFile()).toBe(true)
+        expect(result.targetPath).toBe(path.join(project, 'dest', 'copy-me.md'))
     })
 })
