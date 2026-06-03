@@ -119,9 +119,12 @@ export function ProjectSelectionScreen({ onProjectSelected }: ProjectSelectionSc
         void initialize();
     }, [loadSavedProjects]);
 
-    // Scan after saved projects are loaded
+    // Scan after saved projects are loaded. Skipped when the runtime can't switch
+    // projects (browser-mode): discovery walks the whole machine, which the
+    // gateway does not expose — the screen only flashes during the auto-open
+    // transient, so a scan there would just surface a spurious error.
     useEffect(() => {
-        if (!isLoading && savedProjects !== undefined) {
+        if (!isLoading && savedProjects !== undefined && hostCapabilities().projectSwitching) {
             void scanForProjects();
         }
     }, [isLoading, scanForProjects, savedProjects]);

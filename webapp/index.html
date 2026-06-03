@@ -2,6 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Content-Security-Policy for browser-mode (`vt webapp`). Placed in a <meta> so it
+      travels with the document regardless of how it is served (the vite dev server does
+      not control response headers here, and this also carries into a future static build).
+      A document <meta> CSP can only be tightened, never loosened, by later-injected meta,
+      so it is robust against content injection adding its own policy.
+
+      Threat model: in browser-mode the VTD bearer token lives in the renderer and grants
+      filesystem access via the daemon. The realistic injection vector is untrusted graph/
+      file content. The highest-value, non-breaking directive here is `connect-src`: even if
+      a script were injected, it cannot exfiltrate the token or file bytes to an arbitrary
+      attacker origin — only the fixed allowlist (loopback VTD + the app's known services).
+      `object-src 'none'` and `base-uri 'self'` close plugin/base-tag vectors.
+
+      HONEST LIMITATION: the vite dev server injects an inline react-refresh preamble and
+      uses eval/wasm, so `script-src` must keep 'unsafe-inline' 'unsafe-eval' in dev — CSP
+      does NOT block injected inline scripts here. In-page script-injection defense rests on
+      sink sanitization (mermaid securityLevel:'strict', textContent error notices). A
+      production static build can drop 'unsafe-inline'/'unsafe-eval' from script-src.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*;
+        media-src 'self' blob: data: file: http://localhost:* http://127.0.0.1:*;
+        connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://us.i.posthog.com https://us-central1-vocetree-alpha.cloudfunctions.net wss://stt-rt.soniox.com;
+        worker-src 'self' blob:;
+        frame-src https://www.youtube.com https://player.vimeo.com https://www.loom.com;
+        object-src 'none';
+        base-uri 'self'
+      "
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate icon" href="/favicon.ico" type="image/x-icon" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

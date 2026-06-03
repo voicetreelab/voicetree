@@ -188,6 +188,17 @@ function buildChildEnv(
     }
     delete merged.VT_SESSION
     delete merged.VOICETREE_TERMINAL_ID
+    // Strip any inherited VOICETREE_PARENT_PID. The harness boots an INDEPENDENT
+    // `vt serve`; its graphd/vtd must be parented to that serve process (which we
+    // keep alive for the test), never to whatever ambient process launched the
+    // test runner. spawnDaemon PROPAGATES an inherited VOICETREE_PARENT_PID
+    // verbatim, so without this the daemons' parent-pid watchdog points at a
+    // foreign pid — and when the runner is itself spawned by a VoiceTree agent
+    // terminal, that inherited pid is a long-dead app instance, so graphd boots,
+    // immediately sees PARENT_GONE, and self-exits before the health probe can
+    // verify it (surfacing as a misleading DaemonLaunchTimeout). Dropping it here
+    // lets serve stamp its own (alive) pid as the parent.
+    delete merged.VOICETREE_PARENT_PID
     const result: Record<string, string> = {}
     for (const [key, value] of Object.entries(merged)) {
         if (value !== undefined) {

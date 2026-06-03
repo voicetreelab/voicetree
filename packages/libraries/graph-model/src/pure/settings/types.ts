@@ -108,6 +108,21 @@ export const DEFAULT_MAX_CHILDREN_PER_NODE: number = 4;
 export const DEFAULT_COMPLEXITY_WARN_SCORE: number = 0.7;
 export const DEFAULT_COMPLEXITY_BLOCK_SCORE: number = 1.0;
 
+/**
+ * The five create_graph subgraph-gardening defaults as one cohesive record, so a
+ * consumer that needs the whole set (e.g. the create_graph context-config
+ * fallback) imports a single deep constant instead of five loose ones. The
+ * individual constants remain exported for the settings schema and tests that
+ * reference one threshold at a time.
+ */
+export const DEFAULT_SUBGRAPH_LIMITS = {
+    subgraphWarnThreshold: DEFAULT_SUBGRAPH_WARN_THRESHOLD,
+    subgraphErrorThreshold: DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+    maxChildrenPerNode: DEFAULT_MAX_CHILDREN_PER_NODE,
+    complexityWarnScore: DEFAULT_COMPLEXITY_WARN_SCORE,
+    complexityBlockScore: DEFAULT_COMPLEXITY_BLOCK_SCORE,
+} as const;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];

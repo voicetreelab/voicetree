@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/utils/lib/utils";
 import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon";
 import StatusDisplay from "@/shell/UI/views/components/status-display";
-import { TranscriptionDisplay } from "@/shell/UI/views/ui-controls/TranscriptionDisplay.tsx";
+import { TranscriptionDisplay } from "@/shell/UI/views/ui-controls/TranscriptionDisplay";
 
 export type InputMode = 'add' | 'ask' | null;
 
@@ -20,6 +20,7 @@ interface TranscriptionOverlayProps {
 }
 
 interface ControlRowProps {
+  readonly canAskMode: boolean;
   readonly connectionError: string | null;
   readonly inputMode: InputMode;
   readonly isConnecting: boolean;
@@ -100,6 +101,7 @@ export function TranscriptionOverlay({
 }
 
 export function ControlRow({
+  canAskMode,
   connectionError,
   inputMode,
   isConnecting,
@@ -143,47 +145,52 @@ export function ControlRow({
       >
         <AnimatedMicIcon isRecording={state === 'Running'} isConnecting={isConnecting} size={28} />
       </button>
-      <div className="h-6 w-px bg-border" />
-      <div className={cn(
-        "flex items-center border border-input bg-background rounded-full overflow-hidden shadow-sm transition-all",
-        inputMode !== null && "min-w-[320px]"
-      )}>
-        <button
-          onClick={onToggleAskMode}
-          className={cn(
-            'px-2 py-0.5 text-xs transition-colors cursor-pointer m-1',
-            inputMode === 'ask'
-              ? 'bg-purple-600 text-white rounded-full'
-              : 'text-muted-foreground hover:bg-accent rounded-full'
-          )}
-        >
-          Ask
-        </button>
-        {inputMode !== null && (
-          <>
-            <div className="h-4 w-px bg-border" />
-            <input
-              type="text"
-              value={textInput}
-              onChange={(e) => onTextChange(e.target.value)}
-              onKeyPress={onKeyPress}
-              placeholder={inputMode === 'ask'
-                ? "Query for relevant context"
-                : "Add to graph"}
-              className="flex-1 px-3 py-1.5 bg-transparent focus:outline-none text-sm min-w-[180px]"
-              disabled={isProcessing}
-              autoFocus
-            />
+      {/* Ask-mode pill — hidden when the host can't serve ask-mode (browser). */}
+      {canAskMode && (
+        <>
+          <div className="h-6 w-px bg-border" />
+          <div className={cn(
+            "flex items-center border border-input bg-background rounded-full overflow-hidden shadow-sm transition-all",
+            inputMode !== null && "min-w-[320px]"
+          )}>
             <button
-              onClick={onTextSubmit}
-              disabled={isProcessing || !textInput.trim()}
-              className="px-3 py-1.5 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={onToggleAskMode}
+              className={cn(
+                'px-2 py-0.5 text-xs transition-colors cursor-pointer m-1',
+                inputMode === 'ask'
+                  ? 'bg-purple-600 text-white rounded-full'
+                  : 'text-muted-foreground hover:bg-accent rounded-full'
+              )}
             >
-              ↑
+              Ask
             </button>
-          </>
-        )}
-      </div>
+            {inputMode !== null && (
+              <>
+                <div className="h-4 w-px bg-border" />
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => onTextChange(e.target.value)}
+                  onKeyPress={onKeyPress}
+                  placeholder={inputMode === 'ask'
+                    ? "Query for relevant context"
+                    : "Add to graph"}
+                  className="flex-1 px-3 py-1.5 bg-transparent focus:outline-none text-sm min-w-[180px]"
+                  disabled={isProcessing}
+                  autoFocus
+                />
+                <button
+                  onClick={onTextSubmit}
+                  disabled={isProcessing || !textInput.trim()}
+                  className="px-3 py-1.5 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  ↑
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

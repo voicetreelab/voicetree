@@ -1,17 +1,38 @@
+// Recursive filesystem folder scanning — the FS reads behind the folder-tree
+// sidebar and the "add folder" selector. This is the EDGE: it produces RAW scans
+// (plain-string paths); branding those paths as graph-model `AbsolutePath`s is
+// graph-model's concern at its own boundary, not the edge's. Pure-of-deps
+// (`fs`/`path` only, plus graph-model TYPES), so it is reusable by both the
+// Electron main process and VTD. Total by construction: an unreadable folder
+// yields an empty/partial result, never a throw.
+
 import { promises as fs } from 'fs'
 import type { Dirent, Stats } from 'fs'
 import path from 'path'
 import normalizePath from 'normalize-path'
-import type { AbsolutePath } from '@vt/graph-model/folders'
-import { toAbsolutePath } from '@vt/graph-model/folders'
-import type { DirectoryEntry } from '@vt/graph-model/folders'
+import type { RawDirectoryEntry } from '@vt/graph-model/folders'
 
-const IGNORED_DIRS: ReadonlySet<string> = new Set([
-    'node_modules', '.git', '.next', 'dist', '.cache', '__pycache__',
-    '.tox', '.venv', 'venv',
-    // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
-    '.worktrees',
-])
+// Directory names skipped during a recursive scan: dependency/build/cache dirs
+// and VCS metadata that never hold user nodes. A pure predicate (not a
+// module-level Set) so there is no module-level mutable container.
+function isIgnoredDir(name: string): boolean {
+    switch (name) {
+        case 'node_modules':
+        case '.git':
+        case '.next':
+        case 'dist':
+        case '.cache':
+        case '__pycache__':
+        case '.tox':
+        case '.venv':
+        case 'venv':
+        // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
+        case '.worktrees':
+            return true
+        default:
+            return false
+    }
+}
 
 export async function isValidSubdirectory(
     projectRoot: string,
@@ -30,10 +51,10 @@ export async function isValidSubdirectory(
     }
 }
 
-type SubfolderModifiedAt = { path: AbsolutePath; modifiedAt: number }
+type SubfolderModifiedAt = { path: string; modifiedAt: number }
 
 export async function getSubfoldersWithModifiedAt(
-    projectRoot: AbsolutePath,
+    projectRoot: string,
 ): Promise<readonly SubfolderModifiedAt[]> {
     try {
         const rootStat: Stats = await fs.stat(projectRoot)
@@ -49,7 +70,7 @@ export async function getSubfoldersWithModifiedAt(
                     const fullPath: string = normalizePath(path.join(projectRoot, entry.name))
                     try {
                         const stat: Stats = await fs.stat(fullPath)
-                        return { path: toAbsolutePath(fullPath), modifiedAt: stat.mtime.getTime() }
+                        return { path: fullPath, modifiedAt: stat.mtime.getTime() }
                     } catch {
                         return null // Skip folders we cannot stat.
                     }
@@ -70,11 +91,11 @@ export async function getSubfoldersWithModifiedAt(
 export async function getDirectoryTree(
     rootPath: string,
     maxDepth: number = 10,
-): Promise<DirectoryEntry> {
-    async function scan(dirPath: string, depth: number): Promise<DirectoryEntry> {
+): Promise<RawDirectoryEntry> {
+    async function scan(dirPath: string, depth: number): Promise<RawDirectoryEntry> {
         const dirName: string = path.basename(dirPath)
-        const absDirPath: AbsolutePath = toAbsolutePath(normalizePath(dirPath))
-        const children: DirectoryEntry[] = []
+        const absDirPath: string = normalizePath(dirPath)
+        const children: RawDirectoryEntry[] = []
 
         if (depth < maxDepth) {
             try {
@@ -85,10 +106,10 @@ export async function getDirectoryTree(
                     }
 
                     const fullPath: string = normalizePath(path.join(dirPath, entry.name))
-                    const absPath: AbsolutePath = toAbsolutePath(fullPath)
+                    const absPath: string = fullPath
 
                     if (entry.isDirectory()) {
-                        if (IGNORED_DIRS.has(entry.name)) {
+                        if (isIgnoredDir(entry.name)) {
                             continue
                         }
                         children.push(await scan(fullPath, depth + 1))

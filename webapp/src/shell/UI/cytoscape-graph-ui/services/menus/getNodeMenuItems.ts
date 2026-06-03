@@ -27,7 +27,7 @@ import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/popups/agentCommandEdi
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type { WorktreeInfo } from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
+import type { WorktreeInfo } from '@vt/vt-daemon-protocol';
 import type { WatchStatus } from '@/shell/hostApi';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/popups/worktreeDeletePopup';
 import { hostCapabilities } from '@/shell/runtimeCapabilities';

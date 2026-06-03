@@ -8,15 +8,19 @@ import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subs
 import type {} from "@/shell/hostApi";
 import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/controllers/VoiceRecordingController";
 import { SseStatusPanel } from "@/shell/UI/sse-status-panel";
+import { hostCapabilities } from "@/shell/runtimeCapabilities";
 import { ControlRow, ErrorMessages, TranscriptionOverlay, type InputMode } from "./voicetree-transcribe/presentation";
 
 export default function VoiceTreeTranscribe(): JSX.Element {
+  // Ask-mode needs a semantic backend + a context-node-from-question spawn path
+  // the browser host lacks; hide the toggle there rather than silently no-op.
+  const canAskMode: boolean = hostCapabilities().askMode;
   const [textInput, setTextInput] = useState("");
   const [backendPort, setBackendPort] = useState<number | undefined>(undefined);
   const [isTranscriptionExpanded, setIsTranscriptionExpanded] = useState(true);
   const [inputMode, setInputMode] = useState<InputMode>(() => {
     const stored: string | null = localStorage.getItem('voicetree-input-mode');
-    if (stored === 'ask') return 'ask';
+    if (stored === 'ask') return canAskMode ? 'ask' : null;  // don't restore a gated mode
     if (stored === 'add') return 'add';
     return null;
   });
@@ -250,6 +254,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             scrollContainerRef={scrollContainerRef}
           />
           <ControlRow
+            canAskMode={canAskMode}
             connectionError={connectionError}
             inputMode={inputMode}
             isConnecting={isConnecting}
@@ -266,7 +271,9 @@ export default function VoiceTreeTranscribe(): JSX.Element {
           <ErrorMessages
             connectionError={connectionError}
             error={error}
-            isMacPlatform={navigator.platform.includes('Mac')}
+            // Only show the OS-settings deep-link when the host can actually open
+            // it (native mac). The browser controls mic access via site-settings.
+            isMacPlatform={navigator.platform.includes('Mac') && hostCapabilities().nativeMicrophoneSettings}
             micPermissionDenied={micPermissionDenied}
             onOpenMicrophoneSettings={() => { void window.hostAPI?.main.openMicrophoneSettings() }}
           />

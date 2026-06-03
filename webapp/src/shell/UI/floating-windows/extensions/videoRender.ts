@@ -78,6 +78,20 @@ function resolveVideoPath(linkText: string): string | null {
 }
 
 /**
+ * Build the "video not found" notice as a DOM node. The file path is attached via
+ * textContent (never innerHTML) so a path derived from an untrusted `![[...]]`
+ * wikilink cannot inject markup. Exported for black-box testing.
+ */
+export function buildVideoNotFoundNotice(filePath: string): HTMLElement {
+    const notice: HTMLDivElement = document.createElement('div');
+    notice.style.padding = '10px';
+    notice.style.color = '#888';
+    notice.style.fontSize = '13px';
+    notice.textContent = `Video not found: ${filePath}`;
+    return notice;
+}
+
+/**
  * Widget that renders a local video file as an inline HTML5 video player.
  */
 class VideoBlockWidget extends WidgetType {
@@ -106,7 +120,7 @@ class VideoBlockWidget extends WidgetType {
         video.src = `file://${this.filePath}`;
 
         video.addEventListener('error', (): void => {
-            container.innerHTML = `<div style="padding: 10px; color: #888; font-size: 13px;">Video not found: ${this.filePath}</div>`;
+            container.replaceChildren(buildVideoNotFoundNotice(this.filePath));
         });
 
         container.appendChild(video);

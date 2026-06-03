@@ -47,7 +47,8 @@ import {handleRpc} from './rpcDispatch.ts'
 import {applyCorsHeaders, applyPreflightCorsHeaders} from './browser/corsHeaders.ts'
 import {handleBrowserToken} from './browser/browserTokenHandler.ts'
 import {handleHealth} from './browser/healthHandler.ts'
-import {handleSettings} from './browser/settingsHandler.ts'
+import {handleSettings, handleSettingsWrite} from './browser/settingsHandler.ts'
+import {handleReadImage, handleSaveClipboardImage, type ProjectStateProvider} from './browser/clipboardImageHandler.ts'
 import type {
     AccessLogger,
     HttpDaemonServerHandle,
@@ -116,6 +117,16 @@ export interface StartHttpDaemonOptions {
      * just after `configureTmuxSession`.
      */
     readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
+    /**
+     * Resolves the live project allowlist (project root + read paths) the
+     * filesystem-touching browser routes (`/clipboard-image`, `/image`) scope
+     * every disk touch to. The vtd binary wires this to
+     * `gdb.client.getProject()`. When absent (fixtures / embeddings that don't
+     * serve those routes) the FS routes fail CLOSED — every path 404s — so a
+     * missing project scope can never silently widen to "any file the daemon
+     * can read".
+     */
+    readonly getProjectState?: ProjectStateProvider
 }
 
 const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
@@ -124,6 +135,8 @@ const EVENTS_PATH: string = '/events'
 const HEALTH_PATH: string = '/health'
 const BROWSER_TOKEN_PATH: string = '/browser-token'
 const SETTINGS_PATH: string = '/settings'
+const CLIPBOARD_IMAGE_PATH: string = '/clipboard-image'
+const IMAGE_PATH: string = '/image'
 
 function defaultLogger(): AccessLogger {
     return {
@@ -166,16 +179,25 @@ function rejectUpgradeNotFound(socket: Duplex): void {
     socket.destroy()
 }
 
+interface RequestHandlerDeps {
+    readonly catalog: ToolCatalog
+    readonly hub: EventSubscriptionHub
+    readonly token: string
+    readonly logger: AccessLogger
+    readonly readHealth: (() => VtDaemonHealthResponse) | undefined
+    readonly canonicalProject: string | undefined
+    readonly allowedOrigins: readonly string[]
+    readonly projectPath: string | undefined
+    readonly getProjectState: ProjectStateProvider | undefined
+}
+
 function buildRequestHandler(
-    catalog: ToolCatalog,
-    hub: EventSubscriptionHub,
-    token: string,
-    logger: AccessLogger,
-    readHealth: (() => VtDaemonHealthResponse) | undefined,
-    canonicalProject: string | undefined,
-    allowedOrigins: readonly string[],
-    projectPath: string | undefined,
+    deps: RequestHandlerDeps,
 ): (req: IncomingMessage, res: ServerResponse) => void {
+    const {
+        catalog, hub, token, logger, readHealth, canonicalProject,
+        allowedOrigins, projectPath, getProjectState,
+    } = deps
     return (req: IncomingMessage, res: ServerResponse): void => {
         const method: string = req.method ?? 'GET'
         const url: string = req.url ?? '/'
@@ -219,11 +241,32 @@ function buildRequestHandler(
             return
         }
 
-        // /settings serves the resolved VTSettings to the browser-mode adapter
-        // (Electron parity). Authenticated: settings include INJECT_ENV_VARS.
-        if (method === 'GET' && url === SETTINGS_PATH) {
-            void handleSettings(req, res, logger).catch((err: unknown): void => {
+        // /settings serves the browser-safe VTSettings projection to the
+        // browser-mode adapter (Electron parity). GET reads; POST persists an
+        // edited patch through the same allowlist (settingsHandler.ts).
+        if (url === SETTINGS_PATH && (method === 'GET' || method === 'POST')) {
+            const handle = method === 'GET' ? handleSettings : handleSettingsWrite
+            void handle(req, res, logger).catch((err: unknown): void => {
                 logger.logError('settings handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+
+        // Clipboard image I/O — browser-mode parity for Electron's native
+        // clipboard image save/read. Bearer-gated (handled above). Both carry a
+        // query string, so match on the parsed pathname, not the raw url.
+        const requestPathname: string = new URL(url, 'http://127.0.0.1').pathname
+        if (method === 'POST' && requestPathname === CLIPBOARD_IMAGE_PATH) {
+            void handleSaveClipboardImage(req, res, Date.now(), logger, getProjectState).catch((err: unknown): void => {
+                logger.logError('clipboard-image handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+        if (method === 'GET' && requestPathname === IMAGE_PATH) {
+            void handleReadImage(req, res, logger, getProjectState).catch((err: unknown): void => {
+                logger.logError('image handler error', err)
                 if (!res.headersSent) { res.statusCode = 500; res.end() }
             })
             return
@@ -336,11 +379,17 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
     const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring({getTmuxMouseMode: options.getTmuxMouseMode})
 
     const allowedOrigins: readonly string[] = options.allowedOrigins ?? []
-    const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, hub, options.token, logger,
-        options.readHealth, options.canonicalProject,
-        allowedOrigins, options.projectPath,
-    ))
+    const server: Server = http.createServer(buildRequestHandler({
+        catalog: options.catalog,
+        hub,
+        token: options.token,
+        logger,
+        readHealth: options.readHealth,
+        canonicalProject: options.canonicalProject,
+        allowedOrigins,
+        projectPath: options.projectPath,
+        getProjectState: options.getProjectState,
+    }))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 
     const bindHost: string = options.bindHost ?? '0.0.0.0'

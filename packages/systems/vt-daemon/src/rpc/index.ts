@@ -18,6 +18,7 @@ import {HEADLESS_ROUTES} from './headlessRoutes.ts'
 import {RECOVERY_ROUTES} from './recoveryRoutes.ts'
 import {REGISTRY_ROUTES} from './registryRoutes.ts'
 import {HOOK_ROUTES} from './hookRoutes.ts'
+import {WORKFLOW_ROUTES} from './workflowRoutes.ts'
 
 export type {RpcHandler, RpcRoute} from './RpcRoute.ts'
 
@@ -30,4 +31,5 @@ export const RPC_ROUTES: readonly RpcRoute[] = [
     ...RECOVERY_ROUTES,
     ...REGISTRY_ROUTES,
     ...HOOK_ROUTES,
+    ...WORKFLOW_ROUTES,
 ] as const
