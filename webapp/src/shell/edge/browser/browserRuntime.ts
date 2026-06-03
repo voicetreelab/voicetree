@@ -47,6 +47,7 @@ import {
     vtdCopyNodeToFolder,
 } from './vtdGraphClient'
 import {createBrowserTerminalRuntime} from './browserTerminal'
+import {readClipboardImageBlob, uploadClipboardImage, vtdReadImageAsDataUrl} from './vtdImageClient'
 import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
 import {queryMicrophonePermission, requestMicrophoneAccess} from './browserMicrophone'
 import {BROWSER_CAPABILITIES} from '@/shell/runtimeCapabilities'
@@ -332,8 +333,16 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         // falls back to a directory-derived project, and saveProject is a no-op.
         loadProjects: () => Promise.resolve([]),
         saveProject: () => Promise.resolve(),
-        saveClipboardImage: () => unsupported('saveClipboardImage'),
-        readImageAsDataUrl: () => unsupported('readImageAsDataUrl'),
+        // Clipboard image I/O: read the OS clipboard in the browser, ship the
+        // bytes to VTD (which owns the disk) and round-trip the saved file back
+        // as a data URL — matching Electron's saveClipboardImage/readImageAsDataUrl.
+        saveClipboardImage: async (nodeId: string): Promise<string | null> => {
+            const blob = await readClipboardImageBlob()
+            if (blob === null) return null
+            return uploadClipboardImage(vtdUrl, vtdToken, nodeId, blob)
+        },
+        readImageAsDataUrl: (filePath: string): Promise<string | null> =>
+            vtdReadImageAsDataUrl(vtdUrl, vtdToken, filePath),
         // WIRE (browser-native): map the browser's Permissions API + getUserMedia
         // onto the Electron permission contract so voice capture works instead of
         // being permanently reported as 'denied'. (browserMicrophone.ts)

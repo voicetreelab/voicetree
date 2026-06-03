@@ -48,6 +48,7 @@ import {applyCorsHeaders, applyPreflightCorsHeaders} from './browser/corsHeaders
 import {handleBrowserToken} from './browser/browserTokenHandler.ts'
 import {handleHealth} from './browser/healthHandler.ts'
 import {handleSettings} from './browser/settingsHandler.ts'
+import {handleReadImage, handleSaveClipboardImage} from './browser/clipboardImageHandler.ts'
 import type {
     AccessLogger,
     HttpDaemonServerHandle,
@@ -124,6 +125,8 @@ const EVENTS_PATH: string = '/events'
 const HEALTH_PATH: string = '/health'
 const BROWSER_TOKEN_PATH: string = '/browser-token'
 const SETTINGS_PATH: string = '/settings'
+const CLIPBOARD_IMAGE_PATH: string = '/clipboard-image'
+const IMAGE_PATH: string = '/image'
 
 function defaultLogger(): AccessLogger {
     return {
@@ -224,6 +227,25 @@ function buildRequestHandler(
         if (method === 'GET' && url === SETTINGS_PATH) {
             void handleSettings(req, res, logger).catch((err: unknown): void => {
                 logger.logError('settings handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+
+        // Clipboard image I/O — browser-mode parity for Electron's native
+        // clipboard image save/read. Bearer-gated (handled above). Both carry a
+        // query string, so match on the parsed pathname, not the raw url.
+        const requestPathname: string = new URL(url, 'http://127.0.0.1').pathname
+        if (method === 'POST' && requestPathname === CLIPBOARD_IMAGE_PATH) {
+            void handleSaveClipboardImage(req, res, Date.now(), logger).catch((err: unknown): void => {
+                logger.logError('clipboard-image handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+        if (method === 'GET' && requestPathname === IMAGE_PATH) {
+            void handleReadImage(req, res, logger).catch((err: unknown): void => {
+                logger.logError('image handler error', err)
                 if (!res.headersSent) { res.statusCode = 500; res.end() }
             })
             return

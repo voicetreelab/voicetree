@@ -68,7 +68,9 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     // VTD owns the git plumbing and exposes the `worktree.*` gateway RPCs, so
     // the browser can create/list/remove worktrees via the daemon.
     worktrees: true,
-    clipboardImages: false,
+    // VTD owns the filesystem and exposes /clipboard-image + /image, so the
+    // browser reads the clipboard (Clipboard API) and persists via the daemon.
+    clipboardImages: true,
     settingsPersistence: false,
     projectSwitching: false,
     usageObservability: false,
