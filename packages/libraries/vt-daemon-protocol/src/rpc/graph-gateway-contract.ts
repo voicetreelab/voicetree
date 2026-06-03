@@ -33,7 +33,7 @@ import type {
     GraphDelta,
     Position,
 } from '@vt/graph-model/graph'
-import type {AvailableFolderItem, DirectoryEntry, FolderTreeNode} from '@vt/graph-model/folders'
+import type {AvailableFolderItem, RawDirectoryEntry, FolderTreeNode} from '@vt/graph-model/folders'
 import type {ProjectedGraph} from '@vt/graph-state/contract'
 import type {ProjectState, ViewRecord} from '@vt/graph-db-protocol'
 import type {VoidResponse} from './rpc-contracts.ts'
@@ -287,13 +287,18 @@ export namespace GraphGetAvailableFolders {
     export type Response = readonly AvailableFolderItem[]
 }
 
-/** Recursive directory listing under an allowlisted root (null if disallowed). */
+/**
+ * Recursive directory listing under an allowlisted root (null if disallowed).
+ * The wire carries a RAW scan (plain-string paths) — the daemon serves what its
+ * filesystem edge produced; clients brand it to the renderer-facing
+ * `DirectoryEntry` at their own boundary (graph-model owns the brand).
+ */
 export namespace GraphGetDirectoryTree {
     export interface Request {
         readonly rootPath: string
         readonly maxDepth?: number
     }
-    export type Response = DirectoryEntry | null
+    export type Response = RawDirectoryEntry | null
 }
 
 /** Result of a folder-creation mutation. */

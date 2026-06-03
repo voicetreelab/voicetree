@@ -61,7 +61,10 @@ export async function getDirectoryTree(rootPath: string, maxDepth?: number): Pro
         GATEWAY_METHODS.graph.getDirectoryTree,
         {rootPath, maxDepth},
     )
-    return entry ?? {absolutePath: rootPath as DirectoryEntry['absolutePath'], name: rootPath, isDirectory: true, children: []}
+    // The wire carries a RAW scan (plain-string paths); brand it to the
+    // renderer-facing `DirectoryEntry` here at the client boundary. `AbsolutePath`
+    // is a compile-time-only brand, so this is a zero-cost assertion.
+    return (entry as DirectoryEntry | null) ?? {absolutePath: rootPath as DirectoryEntry['absolutePath'], name: rootPath, isDirectory: true, children: []}
 }
 
 /** "Add folder" selector results for a search query, scoped to the allowlist. */

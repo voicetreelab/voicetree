@@ -35,13 +35,13 @@ import {
     type GraphDeleteView,
     type GraphGetFolderTreeSync,
     type GraphGetAvailableFolders,
-    type GraphGetDirectoryTree,
     type GraphCreateSubfolder,
     type GraphCreateDatedVoiceTreeFolder,
     type GraphGetStarredFolders,
     type GraphCopyNodeToFolder,
 } from '@vt/vt-daemon-protocol'
 import type {GraphDelta, Position} from '@vt/graph-model/graph'
+import type {DirectoryEntry} from '@vt/graph-model/folders'
 import {callVtdRpc} from './vtdRpc'
 
 /**
@@ -134,8 +134,12 @@ export const vtdGetAvailableFolders =
     graphCall<[searchQuery: string], GraphGetAvailableFolders.Response>(
         M.getAvailableFolders, (searchQuery) => ({searchQuery}))
 
+// The wire carries a RAW scan (plain-string paths, GraphGetDirectoryTree.Response);
+// brand it to the renderer-facing `DirectoryEntry | null` at this client boundary
+// (zero-cost — `AbsolutePath` is a compile-time-only brand), so the browser HostAPI
+// adapter keeps the same shape Electron's folderQueries returns.
 export const vtdGetDirectoryTree =
-    graphCall<[rootPath: string, maxDepth?: number], GraphGetDirectoryTree.Response>(
+    graphCall<[rootPath: string, maxDepth?: number], DirectoryEntry | null>(
         M.getDirectoryTree, (rootPath, maxDepth) => ({rootPath, maxDepth}))
 
 export const vtdCreateSubfolder =

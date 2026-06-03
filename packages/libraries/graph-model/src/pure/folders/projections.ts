@@ -26,8 +26,14 @@ import {
     getExternalReadPaths,
     parseSearchQuery,
     type DirectoryEntry,
+    type RawDirectoryEntry,
     type ParsedQuery,
 } from './transforms';
+
+/** A subfolder listing as the edge scanner produces it — a plain-string path. */
+type RawSubfolder = { readonly path: string; readonly modifiedAt: number };
+/** The same, branded — what `getAvailableFolders` consumes. */
+type BrandedSubfolder = { readonly path: AbsolutePath; readonly modifiedAt: number };
 
 /**
  * Minimal structural view of the live project state the folder projections need.
@@ -57,7 +63,7 @@ export interface FolderTreeSyncProjection {
 export type ScanFolder = (
     folder: string,
     maxDepth?: number,
-) => Promise<DirectoryEntry | null>;
+) => Promise<RawDirectoryEntry | null>;
 
 /** Loaded paths = the write folder followed by every distinct read path. */
 function loadedPathsOf(projectState: FolderProjectState): readonly string[] {
@@ -92,9 +98,9 @@ export async function projectFolderTreeSync(
     );
 
     const [rootScan, starredEntries, externalEntries]: [
-        DirectoryEntry | null,
-        readonly (DirectoryEntry | null)[],
-        readonly (DirectoryEntry | null)[],
+        RawDirectoryEntry | null,
+        readonly (RawDirectoryEntry | null)[],
+        readonly (RawDirectoryEntry | null)[],
     ] = await Promise.all([
         scanFolder(projectState.projectRoot),
         Promise.all(starredFolders.map((folder: string) => scanFolder(folder, 3))),
@@ -107,12 +113,16 @@ export async function projectFolderTreeSync(
     ]);
     const writeFolderPath: AbsolutePath = toAbsolutePath(projectState.writeFolderPath);
 
-    const treeOf = (entry: DirectoryEntry | null): FolderTreeNode | null =>
-        entry === null ? null : buildFolderTree(entry, loadedPaths, writeFolderPath, graphFilePaths);
+    // Brand the raw scan at graph-model's boundary: a RawDirectoryEntry is
+    // structurally a DirectoryEntry with unbranded paths, and AbsolutePath is a
+    // compile-time-only brand over `string`, so this is a zero-cost assertion —
+    // the single point that asserts "these edge-scanned paths are absolute".
+    const treeOf = (entry: RawDirectoryEntry | null): FolderTreeNode | null =>
+        entry === null ? null : buildFolderTree(entry as DirectoryEntry, loadedPaths, writeFolderPath, graphFilePaths);
 
     const collectTrees = (
         folders: readonly string[],
-        entries: readonly (DirectoryEntry | null)[],
+        entries: readonly (RawDirectoryEntry | null)[],
     ): Record<string, FolderTreeNode> => {
         const trees: Record<string, FolderTreeNode> = {};
         folders.forEach((folder: string, i: number) => {
@@ -149,9 +159,9 @@ export async function resolveAvailableFolders(
     searchQuery: string,
     projectState: FolderProjectState,
     scanSubfolders: (
-        scanRoot: AbsolutePath,
+        scanRoot: string,
         isAbsolute: boolean,
-    ) => Promise<readonly { readonly path: AbsolutePath; readonly modifiedAt: number }[] | null>,
+    ) => Promise<readonly RawSubfolder[] | null>,
 ): Promise<readonly AvailableFolderItem[]> {
     const projectRoot: string = projectState.projectRoot;
     if (!projectRoot) {
@@ -165,7 +175,9 @@ export async function resolveAvailableFolders(
         const base: AbsolutePath = toAbsolutePath(parsed.basePath);
         const subfolders = await scanSubfolders(base, true);
         if (subfolders === null) return [];
-        return getAvailableFolders(base, loadedPaths, subfolders, searchQuery, parsed.filterText);
+        // Brand the edge's raw subfolder paths at graph-model's boundary (zero-cost
+        // compile-time assertion — see treeOf above).
+        return getAvailableFolders(base, loadedPaths, subfolders as readonly BrandedSubfolder[], searchQuery, parsed.filterText);
     }
 
     let scanRoot: AbsolutePath;
@@ -180,5 +192,5 @@ export async function resolveAvailableFolders(
 
     const subfolders = await scanSubfolders(scanRoot, false);
     if (subfolders === null) return [];
-    return getAvailableFolders(toAbsolutePath(projectRoot), loadedPaths, subfolders, searchQuery, filterText);
+    return getAvailableFolders(toAbsolutePath(projectRoot), loadedPaths, subfolders as readonly BrandedSubfolder[], searchQuery, filterText);
 }

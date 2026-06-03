@@ -269,8 +269,25 @@ export function getExternalReadPaths(
 // ============================================================
 
 /**
- * A flat directory entry from the recursive scanner.
- * Used as input to buildFolderTree.
+ * A directory entry exactly as a filesystem-edge scanner produces it — paths are
+ * plain strings, because branding an `AbsolutePath` is graph-model's concern, not
+ * the edge's. The edge (Electron main / VTD's browser-mode gateway) hands these
+ * raw scans to the deep projections (`projectFolderTreeSync`, the
+ * `graph.getDirectoryTree` wire shape); graph-model brands them at its boundary.
+ * Structurally identical to `DirectoryEntry` minus the `AbsolutePath` brand, so a
+ * branded `DirectoryEntry` is assignable to it for free.
+ */
+export interface RawDirectoryEntry {
+    readonly absolutePath: string;
+    readonly name: string;
+    readonly isDirectory: boolean;
+    readonly children?: readonly RawDirectoryEntry[];
+}
+
+/**
+ * A flat directory entry from the recursive scanner, with its path branded as an
+ * `AbsolutePath`. The branded form `buildFolderTree` consumes — produced by
+ * branding a `RawDirectoryEntry` at graph-model's boundary.
  */
 export interface DirectoryEntry {
     readonly absolutePath: AbsolutePath;

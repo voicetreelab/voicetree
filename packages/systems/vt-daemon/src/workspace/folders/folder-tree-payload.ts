@@ -17,7 +17,7 @@ import {
     type FolderProjectState,
     type FolderTreeSyncProjection,
 } from '@vt/graph-model/folders'
-import type { AbsolutePath, AvailableFolderItem, DirectoryEntry } from '@vt/graph-model/folders'
+import type { AvailableFolderItem, RawDirectoryEntry } from '@vt/graph-model/folders'
 import { getDirectoryTree, getSubfoldersWithModifiedAt, isValidSubdirectory } from './folder-scanning.ts'
 import { getStarredFolders } from './starred-folders.ts'
 
@@ -111,7 +111,7 @@ export async function buildFolderTreeSyncPayload(
     projectState: FolderTreeProjectState,
     graphFilePaths: ReadonlySet<string>,
 ): Promise<FolderTreeSyncPayload> {
-    const scanFolder = async (folder: string, maxDepth?: number): Promise<DirectoryEntry | null> => {
+    const scanFolder = async (folder: string, maxDepth?: number): Promise<RawDirectoryEntry | null> => {
         try {
             return maxDepth === undefined
                 ? await getDirectoryTree(folder)
@@ -142,7 +142,7 @@ export async function selectAvailableFolders(
     return resolveAvailableFolders(
         searchQuery,
         projectState,
-        async (scanRoot: AbsolutePath, isAbsolute: boolean) => {
+        async (scanRoot: string, isAbsolute: boolean) => {
             if (isAbsolute) {
                 if (!(await isPathWithinAllowlist(scanRoot, projectState))) return null
                 try {
