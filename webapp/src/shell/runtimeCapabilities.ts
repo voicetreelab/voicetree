@@ -33,7 +33,7 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
     nativeFolderPicker: false,
     worktrees: false,
     clipboardImages: false,
-    settingsPersistence: false,
+    settingsPersistence: true,
 }
 
 /**

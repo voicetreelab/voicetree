@@ -50,6 +50,24 @@ export async function vtdGetSettings(vtdUrl: string, token: string): Promise<VTS
     return res.json() as Promise<VTSettings>
 }
 
+/**
+ * Persist edited settings through VTD's authenticated POST /settings route.
+ * VTD enforces the browser-safe allowlist server-side (it loads on-disk settings
+ * and merges only non-secret fields), so the renderer can never write secrets or
+ * host shell hooks regardless of what it sends. Resolves true on success; throws
+ * on auth/transport failure (mirrors vtdGetSettings).
+ */
+export async function vtdSaveSettings(vtdUrl: string, token: string, settings: VTSettings): Promise<boolean> {
+    const res = await fetch(`${vtdUrl}/settings`, {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify(settings),
+    })
+    if (res.status === 401) throw new Error('VTD auth failed (401)')
+    if (!res.ok) throw new Error(`VTD POST /settings → ${res.status}`)
+    return true
+}
+
 /** Subscribe to VTD /events WebSocket. Returns a cleanup function. */
 export function vtdSubscribeEvents(
     vtdUrl: string,

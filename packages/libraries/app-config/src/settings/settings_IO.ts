@@ -243,3 +243,54 @@ export async function saveSettings(settings: VTSettings): Promise<boolean> {
   getCallbacks().onSettingsChanged?.();
   return true;
 }
+
+/**
+ * Merge a browser-originated settings patch onto the on-disk settings, accepting
+ * ONLY browser-safe fields. This is the WRITE-side counterpart of
+ * `projectBrowserSafeSettings`: the browser-mode renderer holds the projected
+ * (secret-stripped) settings, edits some fields, and POSTs them back — but the
+ * daemon must never let the renderer write `INJECT_ENV_VARS` (API keys), `hooks`
+ * (host shell commands) or `shell` (host shell override). Behind the bearer gate
+ * alone, any webapp XSS could otherwise overwrite secrets / inject shell hooks.
+ *
+ * The write allowlist is DERIVED from the read projection — the writable keys are
+ * exactly the keys `projectBrowserSafeSettings` exposes, minus `INJECT_ENV_VARS`
+ * (which the projection zeroes, and which is the secret bag the browser may never
+ * write). Defining one allowlist in terms of the other makes drift impossible: a
+ * field is browser-writable iff it is browser-readable.
+ *
+ * Fail-closed: any key in `incoming` outside the allowlist is silently dropped,
+ * and the resulting object keeps `current`'s secret/host fields untouched because
+ * the patch can never contain them.
+ */
+export function mergeBrowserSafeSettings(current: VTSettings, incoming: Partial<VTSettings>): VTSettings {
+  const writableKeys: readonly (keyof VTSettings)[] =
+    (Object.keys(projectBrowserSafeSettings(current)) as (keyof VTSettings)[])
+      .filter((key: keyof VTSettings): boolean => key !== 'INJECT_ENV_VARS');
+
+  const patch: Partial<VTSettings> = {};
+  for (const key of writableKeys) {
+    if (key in incoming) {
+      // key ∈ keyof VTSettings; the per-key value types are heterogeneous, so
+      // index-assign through an unknown view. The allowlist guarantees `key`
+      // is never a secret/host field.
+      (patch as Record<string, unknown>)[key] = incoming[key];
+    }
+  }
+
+  return { ...current, ...patch };
+}
+
+/**
+ * Persist a browser-originated settings patch to disk through the browser-safe
+ * write allowlist (see `mergeBrowserSafeSettings`). Loads the current on-disk
+ * settings (carrying the secrets the browser never sees), merges the allowlisted
+ * fields, writes, and returns the browser-safe projection of the saved result so
+ * the caller can echo back exactly what the browser is now permitted to observe.
+ */
+export async function saveBrowserSafeSettings(incoming: Partial<VTSettings>): Promise<VTSettings> {
+  const current: VTSettings = await loadSettings();
+  const merged: VTSettings = mergeBrowserSafeSettings(current, incoming);
+  await saveSettings(merged);
+  return projectBrowserSafeSettings(merged);
+}

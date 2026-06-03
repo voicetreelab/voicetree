@@ -16,7 +16,7 @@ import type {GraphDelta} from '@vt/graph-model/graph'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {BrowserDaemonConfig} from './browserConfig'
-import {callVtdRpc, vtdGetSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
+import {callVtdRpc, vtdGetSettings, vtdSaveSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtdRpc'
 import {
     vtdActivateView,
     vtdApplyDelta,
@@ -148,9 +148,9 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         // Settings — fetch the resolved VTSettings from VTD (Electron parity).
         // Drives `agents` for the editor horizontal menu / agent-spawn control.
         loadSettings: (): Promise<VTSettings> => vtdGetSettings(vtdUrl, vtdToken),
-        // Honest: persisting settings needs a security-gated VTD write RPC that
-        // does not exist yet. Surfaced as unsupported via runtime capabilities.
-        saveSettings: (): Promise<boolean> => Promise.resolve(false),
+        // Persists through VTD's POST /settings, which enforces the browser-safe
+        // allowlist server-side — secrets/host fields can never be written here.
+        saveSettings: (settings: VTSettings): Promise<boolean> => vtdSaveSettings(vtdUrl, vtdToken, settings),
 
         // Project — `graph.openProject` is idempotent (VTD owns the single
         // graphd session); it returns the boot triple in one round-trip.
