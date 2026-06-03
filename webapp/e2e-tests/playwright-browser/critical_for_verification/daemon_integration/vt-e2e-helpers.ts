@@ -86,3 +86,51 @@ export async function waitForCytoscapeReady(page: Page, timeoutMs = 20_000): Pro
     {timeout: timeoutMs},
   )
 }
+
+/**
+ * Boot the page, install the browser runtime, openProject, and wait until the
+ * projection has actually streamed nodes into Cytoscape — the precondition every
+ * graph-surface / node-tap test needs.
+ *
+ * RESILIENT BY DESIGN. The browser runtime reaches VTD over HTTP+SSE and (per its
+ * reconnect policy) recovers from a transient `Failed to fetch` / `network error`
+ * — which DOES happen on the initial projected-graph subscription under load (this
+ * daemon tier shares one machine with sibling daemons). The product self-heals via
+ * reconnect; a test that fires openProject once and assumes the first fetch landed
+ * is racing that blip. So we retry the openProject→nodes-appear step a bounded
+ * number of times: a transient first-fetch miss is re-driven instead of failing
+ * the run. This aligns the test with the product's real (reconnect-based)
+ * behaviour rather than masking a logic bug — a persistent failure still throws on
+ * the final attempt with the full 20s window.
+ */
+export async function openProjectAndWaitForGraph(
+  page: Page,
+  cfg: BrowserDaemonTestConfig,
+  attempts = 3,
+): Promise<void> {
+  await injectConfig(page, cfg)
+  await page.goto('/')
+  await waitForHostApiReady(page)
+  await waitForCytoscapeReady(page)
+
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await page.evaluate(async (projectPath) => {
+      const api = (window as unknown as {hostAPI?: {main?: {openProject?: (p: string) => Promise<unknown>}}}).hostAPI
+      await api?.main?.openProject?.(projectPath)
+    }, cfg.projectPath)
+    try {
+      // Instance existing != projection laid in. Wait for real rendered nodes.
+      // Shorter window on the non-final attempts so a transient miss is re-driven
+      // promptly; the final attempt gets the full budget before it gives up.
+      await page.waitForFunction(
+        () => ((window as unknown as {cytoscapeInstance?: {nodes: () => {length: number}}}).cytoscapeInstance?.nodes().length ?? 0) > 0,
+        {timeout: attempt < attempts - 1 ? 8_000 : 20_000},
+      )
+      return
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
+}

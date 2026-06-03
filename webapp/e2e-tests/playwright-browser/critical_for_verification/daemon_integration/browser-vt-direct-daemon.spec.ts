@@ -17,7 +17,7 @@ import {
   loadDaemonConfig,
   injectConfig,
   waitForHostApiReady,
-  waitForCytoscapeReady,
+  openProjectAndWaitForGraph,
 } from './vt-e2e-helpers.ts'
 
 test.describe('Browser VoiceTree — daemon round-trip', () => {
@@ -278,27 +278,31 @@ test.describe('Browser VoiceTree — daemon round-trip', () => {
 
   test('editor opens via node tap and closes via traffic-light button', async ({page}) => {
     const cfg = loadDaemonConfig()
-    await injectConfig(page, cfg)
-    await page.goto('/')
-    await waitForHostApiReady(page)
+    // Resilient open: retries a transient initial-fetch blip so the graph is
+    // populated before we look for a node (see openProjectAndWaitForGraph).
+    await openProjectAndWaitForGraph(page, cfg)
 
-    await page.evaluate(async (projectPath) => {
-      const api = (window as unknown as {hostAPI?: {main?: {openProject?: (p: string) => Promise<unknown>}}}).hostAPI
-      await api?.main?.openProject?.(projectPath)
-    }, cfg.projectPath)
+    // Tap the seed root.md node specifically (a guaranteed top-level, non-folder
+    // leaf), not an arbitrary first leaf. This tier shares one daemon project that
+    // sibling specs fill with folders/context nodes, so "first non-folder node" is
+    // pollution-dependent; the seed root is stable. Wait for its element, then tap.
+    const rootId = `${cfg.projectPath}/root.md`
+    await page.waitForFunction(
+      (id) => ((window as unknown as {cytoscapeInstance?: {getElementById: (i: string) => {length: number}}}).cytoscapeInstance?.getElementById(id).length ?? 0) > 0,
+      rootId,
+      {timeout: 20_000},
+    )
 
-    await waitForCytoscapeReady(page)
-
-    const nodeWasTapped = await page.evaluate(() => {
-      type CyNode = {emit: (ev: string) => void}
-      type CyInstance = {nodes: (sel: string) => {length: number; first: () => CyNode}}
+    const nodeWasTapped = await page.evaluate((id) => {
+      type CyNode = {length: number; emit: (ev: string) => void}
+      type CyInstance = {getElementById: (i: string) => CyNode}
       const cy = (window as unknown as {cytoscapeInstance?: CyInstance}).cytoscapeInstance
       if (!cy) return false
-      const leaves = cy.nodes('[!isFolderNode]')
-      if (leaves.length === 0) return false
-      leaves.first().emit('tap')
+      const rootNode = cy.getElementById(id)
+      if (rootNode.length === 0) return false
+      rootNode.emit('tap')
       return true
-    })
+    }, rootId)
     expect(nodeWasTapped).toBe(true)
 
     await page.waitForSelector('.cy-floating-window', {timeout: 10_000})
