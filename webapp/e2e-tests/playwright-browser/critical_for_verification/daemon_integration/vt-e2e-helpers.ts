@@ -23,7 +23,16 @@ const HERE: string = dirname(fileURLToPath(import.meta.url))
 // Under webapp/test-results (already gitignored). daemon_integration is four
 // levels below webapp: daemon_integration -> critical_for_verification ->
 // playwright-browser -> e2e-tests -> webapp.
-export const DAEMON_CONFIG_FILE: string = join(HERE, '../../../../test-results/daemon-config.json')
+//
+// Keyed by PLAYWRIGHT_PORT so distinct concurrent runs (e.g. parallel agents on
+// different ports) write distinct handoff files instead of clobbering one
+// another. globalSetup, the workers, and globalTeardown all run in processes
+// that inherit PLAYWRIGHT_PORT for a given invocation, so they agree on the path.
+const HANDOFF_PORT: string = process.env.PLAYWRIGHT_PORT ?? '3100'
+export const DAEMON_CONFIG_FILE: string = join(
+  HERE,
+  `../../../../test-results/daemon-config-${HANDOFF_PORT}.json`,
+)
 
 export interface BrowserDaemonTestConfig {
   readonly vtdUrl: string
