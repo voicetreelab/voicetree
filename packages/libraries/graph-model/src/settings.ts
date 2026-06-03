@@ -1,12 +1,11 @@
 export type { VTSettings, AgentConfig, EnvVarValue, HotkeyModifier, HotkeyBinding, HotkeySettings, HookSettings, ProjectConfig, VoiceTreeConfig, TerminalScrollStrategy } from './pure/settings/types'
-export { getUniqueAgentName } from './pure/settings/types'
+export { getUniqueAgentName, agentBaseName, formatAgentId, AGENT_ID_SEPARATOR, AGENT_ID_HASH_LENGTH } from './pure/settings/types'
 export { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD } from './pure/settings/types'
 export { AGENT_NAMES, getNextAgentName, getDefaultAgent } from './pure/settings/types'
 export {
     type Persona,
     SILICON_VALLEY_ROSTER,
     SILICON_VALLEY_IDS,
-    baseIdFromAgentName,
     lookupPersona,
     renderPersonaSoul,
     getAgentNamePool,
