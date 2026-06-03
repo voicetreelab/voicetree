@@ -10,15 +10,14 @@
 import { getLayout, subscribeLayout } from '@vt/graph-state/state/layoutStore';
 
 const DEFAULT_BASE_SPACING = 24;
+// Below this on-screen spacing the grid reads as noise rather than structure,
+// so we fade it out instead of drawing an indistinct smear.
 const MIN_DOT_SPACING = 6;
-
-const DOT_SIZE_MIN = 10;
-const DOT_SIZE_MAX = 48;
-const DOT_SIZE_MID = (DOT_SIZE_MIN + DOT_SIZE_MAX) / 2;
-const DOT_SIZE_HALF = (DOT_SIZE_MAX - DOT_SIZE_MIN) / 2;
-// k = 1/HALF_RANGE gives derivative = 1 at the center, so the sigmoid
-// matches the linear feel in the sweet spot and only curves at extremes.
-const SIGMOID_K = 1 / DOT_SIZE_HALF;
+// Dot radius in graph-space px at `baseSpacing`. Scaling it by zoom alongside
+// the spacing keeps the dot *marks* in lockstep too, so the whole pattern is a
+// faithful zoom of one graph-space grid. At zoom 1 this is the 1px the CSS
+// `--dot-radius` fallback already used, so the resting look is unchanged.
+const BASE_DOT_RADIUS = 1;
 
 export function attachDotGridBackground(
     el: HTMLElement,
@@ -30,8 +29,12 @@ export function attachDotGridBackground(
         const layout = getLayout();
         const zoom = layout.zoom ?? 1;
         const pan = layout.pan ?? { x: 0, y: 0 };
-        const linearSize = baseSpacing * zoom;
-        const size = DOT_SIZE_MID + DOT_SIZE_HALF * Math.tanh(SIGMOID_K * (linearSize - DOT_SIZE_MID));
+        // Cytoscape renders model points as `screen = model * zoom + pan`, so a
+        // graph-space grid of spacing `baseSpacing` lands at `baseSpacing * zoom`
+        // px and shares the nodes' zoom rate exactly. The spacing law MUST stay
+        // linear in zoom — any easing/sigmoid here makes the dots drift against
+        // the nodes as you zoom.
+        const size = baseSpacing * zoom;
 
         if (size < MIN_DOT_SPACING) {
             el.style.setProperty('--dot-opacity', '0');
@@ -40,6 +43,9 @@ export function attachDotGridBackground(
 
         el.style.setProperty('--dot-opacity', '1');
         el.style.setProperty('--dot-size', `${size}px`);
+        el.style.setProperty('--dot-radius', `${BASE_DOT_RADIUS * zoom}px`);
+        // Phase the pattern so model-space grid lines stay pinned to the nodes:
+        // a line at model k*baseSpacing sits at screen k*size + pan, i.e. pan % size.
         el.style.setProperty('--dot-x', `${pan.x % size}px`);
         el.style.setProperty('--dot-y', `${pan.y % size}px`);
     };

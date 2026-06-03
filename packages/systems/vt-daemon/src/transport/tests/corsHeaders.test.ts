@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {isLocalhostOrigin, parseLocalhostCorsOrigins} from '../browser/corsHeaders.ts'
+import {isLocalhostOrigin, isPrivateLanHttpOrigin, parseDevCorsOrigins} from '../browser/corsHeaders.ts'
 
 describe('isLocalhostOrigin', (): void => {
     it('accepts http://localhost:<port>', (): void => {
@@ -37,33 +37,58 @@ describe('isLocalhostOrigin', (): void => {
     })
 })
 
-describe('parseLocalhostCorsOrigins', (): void => {
+describe('isPrivateLanHttpOrigin', (): void => {
+    it('accepts RFC1918 private-range IPv4 origins with a port', (): void => {
+        expect(isPrivateLanHttpOrigin('http://192.168.1.20:3000')).toBe(true)
+        expect(isPrivateLanHttpOrigin('http://10.0.0.5:5173')).toBe(true)
+        expect(isPrivateLanHttpOrigin('http://172.16.0.9:3000')).toBe(true)
+        expect(isPrivateLanHttpOrigin('http://172.31.255.255:8080')).toBe(true)
+    })
+
+    it('rejects public IPv4, out-of-range 172.x, https, and missing port', (): void => {
+        expect(isPrivateLanHttpOrigin('http://8.8.8.8:3000')).toBe(false)
+        expect(isPrivateLanHttpOrigin('http://172.32.0.1:3000')).toBe(false)
+        expect(isPrivateLanHttpOrigin('http://172.15.0.1:3000')).toBe(false)
+        expect(isPrivateLanHttpOrigin('https://192.168.1.20:3000')).toBe(false)
+        expect(isPrivateLanHttpOrigin('http://192.168.1.20')).toBe(false)
+    })
+})
+
+describe('parseDevCorsOrigins', (): void => {
     it('returns empty array for empty/blank string', (): void => {
-        expect(parseLocalhostCorsOrigins('')).toEqual([])
-        expect(parseLocalhostCorsOrigins('   ')).toEqual([])
+        expect(parseDevCorsOrigins('')).toEqual([])
+        expect(parseDevCorsOrigins('   ')).toEqual([])
     })
 
     it('parses valid localhost origins', (): void => {
-        expect(parseLocalhostCorsOrigins('http://localhost:3000')).toEqual(['http://localhost:3000'])
+        expect(parseDevCorsOrigins('http://localhost:3000')).toEqual(['http://localhost:3000'])
         expect(
-            parseLocalhostCorsOrigins('http://localhost:3000,http://127.0.0.1:3000'),
+            parseDevCorsOrigins('http://localhost:3000,http://127.0.0.1:3000'),
         ).toEqual(['http://localhost:3000', 'http://127.0.0.1:3000'])
     })
 
-    it('drops non-localhost origins and keeps valid ones', (): void => {
-        const result = parseLocalhostCorsOrigins('http://localhost:3000,https://evil.com:3000,http://127.0.0.1:5173')
-        expect(result).toEqual(['http://localhost:3000', 'http://127.0.0.1:5173'])
+    it('parses private-LAN origins alongside localhost (LAN mode)', (): void => {
+        expect(
+            parseDevCorsOrigins('http://localhost:3000,http://192.168.1.20:3000'),
+        ).toEqual(['http://localhost:3000', 'http://192.168.1.20:3000'])
+    })
+
+    it('drops public/https origins and keeps valid loopback + LAN ones', (): void => {
+        const result = parseDevCorsOrigins(
+            'http://localhost:3000,https://evil.com:3000,http://8.8.8.8:3000,http://10.0.0.5:5173',
+        )
+        expect(result).toEqual(['http://localhost:3000', 'http://10.0.0.5:5173'])
     })
 
     it('ignores blank entries from extra commas', (): void => {
-        expect(parseLocalhostCorsOrigins('http://localhost:3000,,http://127.0.0.1:3000')).toEqual([
+        expect(parseDevCorsOrigins('http://localhost:3000,,http://127.0.0.1:3000')).toEqual([
             'http://localhost:3000',
             'http://127.0.0.1:3000',
         ])
     })
 
     it('trims whitespace around origins', (): void => {
-        expect(parseLocalhostCorsOrigins('  http://localhost:3000 , http://127.0.0.1:8080 ')).toEqual([
+        expect(parseDevCorsOrigins('  http://localhost:3000 , http://127.0.0.1:8080 ')).toEqual([
             'http://localhost:3000',
             'http://127.0.0.1:8080',
         ])
