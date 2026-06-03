@@ -11,6 +11,7 @@ import {
 
 const KEYS: readonly (keyof RuntimeCapabilities)[] = [
     'nativeFolderPicker', 'worktrees', 'clipboardImages', 'settingsPersistence',
+    'usageObservability', 'nativeMicrophoneSettings', 'askMode',
 ]
 
 describe('capability records', () => {

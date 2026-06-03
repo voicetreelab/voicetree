@@ -39,6 +39,7 @@ import {
 } from './vtdGraphClient'
 import {createBrowserTerminalRuntime} from './browserTerminal'
 import {resumeOnReconnect, routeGraphFrame} from './graphEventStream'
+import {queryMicrophonePermission, requestMicrophoneAccess} from './browserMicrophone'
 import {BROWSER_CAPABILITIES} from '@/shell/runtimeCapabilities'
 
 type Listener = (...args: unknown[]) => void
@@ -160,9 +161,18 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             return {projectState, sessionId: currentSessionId, initialProjectedGraph}
         },
         getStartupProjectHint: () => Promise.resolve({kind: 'open-folder', projectPath}),
-        stopFileWatching: () => Promise.resolve(),
+        // CONFIRM-NOOP: file watching is owned by the daemon, which the browser
+        // shares with every other client — it must never stop it. The native
+        // contract returns {success, error}; honour the shape (a bare resolve
+        // made callers' `result.success` read throw) with an honest no-op.
+        stopFileWatching: () => Promise.resolve({success: true}),
+        // CONFIRM-NOOP: never shut down the shared daemon from a browser tab.
         shutdownGraphDaemon: () => Promise.resolve(),
-        getWatchStatus: () => Promise.resolve({isWatching: false}),
+        // WIRE (local): `.directory` is consumed across the UI as the project
+        // root (wikilink completion, video render, worktree delete, command
+        // spawn). The browser always has a single, live, daemon-watched project
+        // fixed by `--project`, so report it rather than a hollow {isWatching:false}.
+        getWatchStatus: () => Promise.resolve({isWatching: true, directory: projectPath}),
         getProjectPaths: async () => {
             const ps = await vtdGetProject(vtdUrl, vtdToken)
             return {readPaths: ps.readPaths ?? [], writeFolderPath: ps.writeFolderPath ?? ''}
@@ -233,13 +243,20 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             callVtdRpc(vtdUrl, vtdToken, 'forkRecoverySession', req as Record<string, unknown>),
         removeRecoverySession: (req: unknown) =>
             callVtdRpc(vtdUrl, vtdToken, 'removeRecoverySession', req as Record<string, unknown>),
-        askQuery: () => Promise.resolve(''),
-        askModeCreateAndSpawn: () => Promise.resolve(null),
+        // GATE (askMode): the UI hides the Ask toggle in browser mode. Full
+        // ask-mode needs a browser-reachable semantic backend plus a VTD
+        // createContextNodeFromQuestion+spawn route — neither exists yet. These
+        // throwers are the defence-in-depth backstop behind the hidden control.
+        askQuery: () => unsupported('askQuery'),
+        askModeCreateAndSpawn: () => unsupported('askModeCreateAndSpawn'),
         getMetrics: () => callVtdRpc(vtdUrl, vtdToken, 'metrics.getMetrics', {}),
-        getUsageData: () => Promise.resolve(null),
-        refreshClaudeUsageHeadless: () => Promise.resolve(),
-        openClaudeUsage: () => Promise.resolve(),
-        openCodexStatus: () => Promise.resolve(),
+        // GATE (usageObservability): the UI hides the UsageSection in browser
+        // mode. Usage observability is token-JSONL scraping + a headless `claude`
+        // PTY + native-terminal shortcuts — desktop-only. Backstop throwers.
+        getUsageData: () => unsupported('getUsageData'),
+        refreshClaudeUsageHeadless: () => unsupported('refreshClaudeUsageHeadless'),
+        openClaudeUsage: () => unsupported('openClaudeUsage'),
+        openCodexStatus: () => unsupported('openCodexStatus'),
         runAgentOnSelectedNodes: () => Promise.resolve(),
         syncRendererSessionStateWithDaemon: () => Promise.resolve(),
 
@@ -253,9 +270,15 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         removeProject: () => Promise.resolve(),
         saveClipboardImage: () => unsupported('saveClipboardImage'),
         readImageAsDataUrl: () => unsupported('readImageAsDataUrl'),
-        checkMicrophonePermission: () => Promise.resolve('denied' as const),
-        requestMicrophonePermission: () => Promise.resolve('denied' as const),
-        openMicrophoneSettings: () => Promise.resolve(),
+        // WIRE (browser-native): map the browser's Permissions API + getUserMedia
+        // onto the Electron permission contract so voice capture works instead of
+        // being permanently reported as 'denied'. (browserMicrophone.ts)
+        checkMicrophonePermission: () => queryMicrophonePermission(),
+        requestMicrophonePermission: () => requestMicrophoneAccess(),
+        // GATE (nativeMicrophoneSettings): a page cannot open the OS mic-settings
+        // pane; the browser controls mic access via its own site-settings UI. The
+        // UI hides the "Open System Settings" link; this is the backstop.
+        openMicrophoneSettings: () => unsupported('openMicrophoneSettings'),
         listWorktrees: () => Promise.resolve([]),
         createWorktree: () => unsupported('createWorktree'),
         generateWorktreeName: () => Promise.resolve(''),
@@ -266,9 +289,15 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         removeStarredFolder: () => Promise.resolve(),
         isStarred: () => Promise.resolve(false),
         copyNodeToFolder: () => Promise.resolve(),
-        listWorkflows: () => Promise.resolve([]),
-        readSkillFile: () => Promise.resolve(''),
-        readSkillFileSummary: () => Promise.resolve(''),
+        // WIRE: the daemon reads the host's ~/brain/workflows skill tree and
+        // serves it over the workflows.* RPCs (single source: vt-daemon
+        // tools/workflows/workflowReader.ts). Browser-mode gets the same
+        // workflow-injection feature as Electron.
+        listWorkflows: () => callVtdRpc(vtdUrl, vtdToken, 'workflows.list', {}),
+        readSkillFile: (workflowPath: string) =>
+            callVtdRpc(vtdUrl, vtdToken, 'workflows.readSkill', {workflowPath}),
+        readSkillFileSummary: (workflowPath: string) =>
+            callVtdRpc(vtdUrl, vtdToken, 'workflows.readSkillSummary', {workflowPath}),
         prettySetupAppForElectronDebugging: () => Promise.resolve(),
         views: {
             list: () => vtdListViews(vtdUrl, vtdToken),
