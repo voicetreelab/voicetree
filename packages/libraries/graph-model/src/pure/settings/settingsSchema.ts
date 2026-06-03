@@ -169,7 +169,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
         default: {
             onWorktreeCreatedBlocking: './scripts/git/worktree/on-created-blocking.sh',
             postWorktreeCreatedAsync: './scripts/git/worktree/on-created-async.sh',
-            onNewNode: '# node .voicetree/hooks/on-new-node.cjs',
+            onNewNode: '',
         } as HookSettings,
         section: 'hooks',
     },

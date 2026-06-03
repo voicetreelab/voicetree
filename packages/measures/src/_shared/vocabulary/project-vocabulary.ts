@@ -150,11 +150,6 @@ export const PATH_ALLOWANCES: readonly PathAllowance[] = [
     {pathPrefix: 'packages/measures/perf/', category: 'client-machinery', reason: 'perf storm harness: MCP discovery/spawn machinery'},
     {pathPrefix: 'webapp/e2e-tests/', category: 'client-machinery', reason: 'Electron e2e tests exercising MCP-named spawn/discovery flows'},
 
-    // MCP-server-era hook/trigger scripts that POST to the removed `/mcp`
-    // endpoint or read the stale `.mcpServers.voicetree` entry. Likely dead;
-    // allowed (not deleted) pending review — see the rename-plan node.
-    {pathPrefix: 'scripts/on-new-node.cjs', category: 'suspected-dead', reason: 'onNewNode hook is live-wired (copied into projects by tools-setup.ts) but POSTs to the removed /mcp endpoint via VOICETREE_MCP_PORT — a live-broken dead-MCP ref; Lochlan to repoint-vs-remove'},
-
     // OpenSpec change records: point-in-time proposals that accurately use the
     // vocabulary of their time and only mention "mcp" incidentally in prose.
     // Allowed pending an archive decision. (NOT a permanent home for "mcp".)
