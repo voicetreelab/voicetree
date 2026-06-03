@@ -37,7 +37,7 @@ function renderAgentCliDiscovery(): string {
         .join('\n')
 
     return [
-        'Voicetree operations are exposed as the `vt` CLI (available on PATH).',
+        'VoiceTree is the shared graph/mindmap and agent-coordination layer for this task. Use the `vt` CLI (available on PATH) whenever you need to interact with that layer: list or spawn agents, create progress nodes, read unseen graph updates, send messages, or look up tool syntax. Do normal shell, file, and git work directly.',
         'Use `vt manual` for the full reference or `vt manual <verb>` for one tool section.',
         'Common verbs:',
         essentials,
