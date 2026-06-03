@@ -35,6 +35,7 @@ function makeResumable(): RecoverableAgentSession {
         isPinned: true,
         isDone: false,
         lifecycle: 'idle',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,

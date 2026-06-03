@@ -50,13 +50,11 @@ import {
 import { tracing } from '@vt/observability'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
-import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
 import {
     generateAuthToken,
@@ -274,17 +272,10 @@ async function main(): Promise<void> {
     const token: string = generateAuthToken()
     await writeAuthTokenFile(tempProject, token)
 
-    const hookHandler: HookHandler = (input): unknown =>
-        handleHookEventRequest(
-            { source: input.source, terminalId: input.terminalId, hookEventName: input.eventName },
-            { updateAgentEvent: agentRuntime.updateTerminalAgentEvent },
-        )
-
     let httpHandle: HttpDaemonServerHandle
     try {
         httpHandle = await startHttpDaemonServer({
             catalog: buildDefaultToolCatalog(mcpBridges),
-            hookHandler,
             token,
             bindHost: '127.0.0.1',
             port: undefined,

@@ -178,6 +178,7 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         isPinned: params.isPinned ?? true,
         isDone: false,
         lifecycle: 'spawning',
+        statusPhrase: '',
         lastOutputTime: Date.now(),
         activityCount: 0,
         parentTerminalId: params.parentTerminalId ?? null,

@@ -35,6 +35,7 @@ function makeTerminalData(id: string): TerminalData {
         isPinned: false,
         isDone: false,
         lifecycle: 'completed',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,

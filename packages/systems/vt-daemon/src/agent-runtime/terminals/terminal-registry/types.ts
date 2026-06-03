@@ -52,6 +52,7 @@ export function createTerminalData(
         isPinned: params.isPinned ?? true,
         isDone: false,
         lifecycle: 'spawning',
+        statusPhrase: '',
         lastOutputTime: now(),
         activityCount: 0,
         parentTerminalId: params.parentTerminalId ?? null,

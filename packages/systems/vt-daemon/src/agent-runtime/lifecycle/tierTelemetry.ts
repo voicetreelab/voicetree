@@ -11,13 +11,13 @@
  * the snapshot will show zero events for that agent type.
  *
  * The Tier-3 heuristic prompt detector that previously produced
- * `detected`/`cleared` events was deleted once Tier-1 hooks were proven
- * sufficient; the `kind` union now mirrors `AgentEventKind` directly.
+ * `detected`/`cleared` events was deleted; the `kind` union now mirrors
+ * `AgentStatus` (the agent-authored status preset) directly.
  */
 
-import type {AgentEventKind} from './types'
+import type {AgentStatus} from './types'
 
-export type TierEventKind = AgentEventKind
+export type TierEventKind = AgentStatus
 
 export type TierEvent = {
     readonly ts: number
@@ -42,7 +42,7 @@ export type TelemetrySnapshot = {
 }
 
 function emptyByKind(): Record<TierEventKind, number> {
-    return {awaiting: 0, working: 0, done: 0}
+    return {working: 0, awaiting_input: 0, done: 0, failed: 0}
 }
 
 function bumpAgentBreakdown(

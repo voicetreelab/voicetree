@@ -1,6 +1,21 @@
+/**
+ * Agent-authored status preset. Mirrors `@vt/vt-daemon-protocol`'s
+ * `AGENT_STATUSES` vocabulary — kept local so this test harness stays
+ * dependency-light; the daemon validates the value on receipt.
+ */
+export type AgentStatus = 'working' | 'awaiting_input' | 'done' | 'failed'
+
 export type Action =
   | { type: 'delay'; ms: number }
-  | { type: 'create_nodes'; nodes: readonly { title: string; summary: string; content?: string; color?: string }[] }
+  | {
+      type: 'create_nodes'
+      nodes: readonly { title: string; summary: string; content?: string; color?: string }[]
+      // Optional agent-authored status reported with this progress node — drives
+      // the terminal's lifecycle icon (`status`) and the live status phrase shown
+      // next to the model name (`statusPhrase`).
+      status?: AgentStatus
+      statusPhrase?: string
+    }
   | { type: 'spawn_child'; task: string; childScript?: FakeAgentScript; depthBudget?: number; headless?: boolean }
   | { type: 'wait_for_children' }
   | { type: 'send_message'; targetTerminalId: string; message: string }
