@@ -113,19 +113,19 @@ function writeMinimalSettings(voicetreeHomePath: string): void {
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-/** Open the project via the real mainAPI path once electronAPI is exposed. */
+/** Open the project via the real mainAPI path once hostAPI is exposed. */
 async function openSeededProject(
     appWindow: import('@playwright/test').Page,
     projectDir: string,
 ): Promise<void> {
     await appWindow.waitForFunction(
-        () => Boolean((window as unknown as { electronAPI?: { main?: { openProject?: unknown } } }).electronAPI?.main?.openProject),
+        () => Boolean((window as unknown as { hostAPI?: { main?: { openProject?: unknown } } }).hostAPI?.main?.openProject),
         undefined,
         { timeout: 30_000 },
     )
     const result = await appWindow.evaluate(async (dir) => {
         try {
-            await (window as unknown as { electronAPI: { main: { openProject: (d: string) => Promise<unknown> } } }).electronAPI.main.openProject(dir)
+            await (window as unknown as { hostAPI: { main: { openProject: (d: string) => Promise<unknown> } } }).hostAPI.main.openProject(dir)
             return 'ok'
         } catch (e) { return `err:${(e as Error).message}` }
     }, projectDir)

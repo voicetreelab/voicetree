@@ -7,7 +7,7 @@ export interface ExtendedWindow extends Window {
     undoCalls: number;
     redoCalls: number;
   };
-  electronAPI?: {
+  hostAPI?: {
     graph?: {
       _projectedGraphCallback?: (graph: ProjectedGraph) => void;
     };

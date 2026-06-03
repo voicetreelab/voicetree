@@ -16,6 +16,7 @@ function ownerRecordPathFor(project: string, daemonKind: 'graphd' | 'vtd'): stri
 import { DaemonOwnerConflictError } from '../lifecycle/daemonOwnerLifecycle.ts'
 import { readPortFile } from '../portFile.ts'
 import { CONTRACT_VERSION, HealthResponseSchema } from '@vt/graph-db-server/contract'
+import { DAEMON_SHUTDOWN_HEADER, DAEMON_SHUTDOWN_HEADER_VALUE } from '@vt/graph-db-protocol'
 
 async function withTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-test-'))
@@ -151,6 +152,7 @@ describe('startDaemon', () => {
     const h = handles[0]
     const res = await fetch(`http://127.0.0.1:${h.port}/shutdown`, {
       method: 'POST',
+      headers: { [DAEMON_SHUTDOWN_HEADER]: DAEMON_SHUTDOWN_HEADER_VALUE },
     })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true })

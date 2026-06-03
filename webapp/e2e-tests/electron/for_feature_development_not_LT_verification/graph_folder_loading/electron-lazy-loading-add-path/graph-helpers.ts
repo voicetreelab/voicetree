@@ -11,8 +11,8 @@ export async function getNodeIds(appWindow: Page): Promise<string[]> {
 
 export async function addReadOnLinkPath(appWindow: Page, readPath: string): Promise<{ success: boolean }> {
   return await appWindow.evaluate(async (pathToAdd: string) => {
-    const api = (window as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     return await api.main.addReadOnLinkPath(pathToAdd);
   }, readPath);
 }
@@ -20,7 +20,7 @@ export async function addReadOnLinkPath(appWindow: Page, readPath: string): Prom
 export async function getSourceNodeData(appWindow: Page): Promise<unknown> {
   return await appWindow.evaluate(async () => {
     const cy = (window as ExtendedWindow).cytoscapeInstance;
-    const api = (window as ExtendedWindow).electronAPI;
+    const api = (window as ExtendedWindow).hostAPI;
     if (!cy) throw new Error('Cytoscape not available');
 
     const sourceNode = cy.nodes().filter(n => n.id().includes('source-node'))[0];

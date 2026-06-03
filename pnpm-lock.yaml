@@ -340,6 +340,9 @@ importers:
       '@vt/graph-model':
         specifier: '*'
         version: link:../graph-model
+      '@vt/graph-state':
+        specifier: '*'
+        version: link:../graph-state
       fp-ts:
         specifier: ^2.16.9
         version: 2.16.11
@@ -440,6 +443,40 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
 
+  packages/systems/daemon-test-harness:
+    dependencies:
+      '@vt/daemon-lifecycle':
+        specifier: '*'
+        version: link:../../libraries/daemon-lifecycle
+      '@vt/graph-db-client':
+        specifier: '*'
+        version: link:../graph-db-client
+      '@vt/graph-db-protocol':
+        specifier: '*'
+        version: link:../../libraries/graph-db-protocol
+      '@vt/vt-daemon':
+        specifier: '*'
+        version: link:../vt-daemon
+      '@vt/vt-daemon-client':
+        specifier: '*'
+        version: link:../vt-daemon-client
+      '@vt/vt-rpc':
+        specifier: '*'
+        version: link:../../libraries/vt-rpc
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(@vitest/ui@3.2.4)(jiti@2.7.0)(jsdom@27.4.0)(lightningcss@1.32.0)(msw@2.14.6(@types/node@22.19.19)(typescript@5.8.3))(tsx@4.22.3)(yaml@2.9.0)
+
   packages/systems/graph-db-client:
     dependencies:
       '@opentelemetry/api':
@@ -457,6 +494,9 @@ importers:
       '@vt/graph-db-server':
         specifier: '*'
         version: link:../graph-db-server
+      '@vt/graph-state':
+        specifier: '*'
+        version: link:../../libraries/graph-state
       '@vt/paths':
         specifier: '*'
         version: link:../../libraries/paths
@@ -593,6 +633,9 @@ importers:
       '@vt/daemon-lifecycle':
         specifier: '*'
         version: link:../../libraries/daemon-lifecycle
+      '@vt/daemon-test-harness':
+        specifier: '*'
+        version: link:../daemon-test-harness
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../graph-db-client
@@ -611,6 +654,9 @@ importers:
       '@vt/graph-validation':
         specifier: '*'
         version: link:../voicetree-graph-validation
+      '@vt/vt-daemon':
+        specifier: '*'
+        version: link:../vt-daemon
       '@vt/vt-daemon-client':
         specifier: '*'
         version: link:../vt-daemon-client
@@ -1026,9 +1072,15 @@ importers:
       '@vt/app-config':
         specifier: '*'
         version: link:../packages/libraries/app-config
+      '@vt/daemon-test-harness':
+        specifier: '*'
+        version: link:../packages/systems/daemon-test-harness
       '@vt/graph-db-client':
         specifier: '*'
         version: link:../packages/systems/graph-db-client
+      '@vt/graph-db-server':
+        specifier: '*'
+        version: link:../packages/systems/graph-db-server
       '@vt/graph-model':
         specifier: '*'
         version: link:../packages/libraries/graph-model

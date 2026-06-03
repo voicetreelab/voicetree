@@ -28,7 +28,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
 
     // Notify main process to kill the tmux session and clean up registry/runtime state.
     // The renderer-local disposal below handles the floating-window DOM; main handles tmux.
-    void window.electronAPI?.main.closeAgent({ terminalId });
+    void window.hostAPI?.main.closeAgent({ terminalId });
 
     // Analytics: Track terminal closed
     posthog.capture('terminal_closed', { terminalId: terminalId });
@@ -83,7 +83,7 @@ export async function closeTerminal(terminal: TerminalData, cy: Core): Promise<v
  */
 async function deleteContextNodeIfLastTerminal(nodeId: NodeIdAndFilePath, cy: Core): Promise<void> {
     try {
-        const node: GraphNode | undefined = await window.electronAPI?.main.getNode(nodeId);
+        const node: GraphNode | undefined = await window.hostAPI?.main.getNode(nodeId);
         if (!node) return;
 
         // Only delete if it's a context node

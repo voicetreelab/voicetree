@@ -1,10 +1,10 @@
 /**
  * Silicon Valley mode — the alternate agent-identity roster.
  *
- * When `settings.siliconValleyMode` is on (off by default — the user opts in),
- * spawned agents draw their names from this roster instead of the neutral
- * `AGENT_NAMES` pool, and each name carries a persona that is spliced into the
- * agent's AGENT_PROMPT at spawn time (see spawn/injection/personaInjection.ts).
+ * When `settings.siliconValleyMode` is on (opt-in; off by default), spawned
+ * agents draw their names from this roster instead of the neutral `AGENT_NAMES`
+ * pool, and each name carries a persona that is spliced into the agent's
+ * AGENT_PROMPT at spawn time (see spawn/injection/personaInjection.ts).
  *
  * This module is the single source of truth: the id list, the persona text,
  * and the name→persona lookup all derive from `SILICON_VALLEY_ROSTER`. It is

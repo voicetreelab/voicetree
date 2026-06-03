@@ -21,7 +21,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory: string }>;
@@ -64,7 +64,7 @@ const test = base.extend<{
     try {
       const page = await electronApp.firstWindow();
       await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -86,8 +86,8 @@ const test = base.extend<{
     // App starts on ProjectSelectionScreen — programmatically save a project
     // and start file watching to trigger the onWatchingStarted auto-switch
     await page.evaluate(async (projectRoot) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       await api.main.saveProject({
         id: 'minimap-test-project',

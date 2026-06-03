@@ -6,7 +6,7 @@
  */
 
 import { uiAPIHandler } from '@/shell/edge/UI-edge/api';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 type UIAPIKey = keyof typeof uiAPIHandler;
 type UIAPIFunction = (typeof uiAPIHandler)[UIAPIKey];
@@ -16,16 +16,16 @@ type UIAPIFunction = (typeof uiAPIHandler)[UIAPIKey];
  * Should be called once during renderer initialization
  */
 export function setupUIRpcHandler(): void {
-    const electronAPI: ElectronAPI | undefined = window.electronAPI;
+    const hostAPI: HostAPI | undefined = window.hostAPI;
 
-    if (!electronAPI?.on) {
-        console.warn('[UI RPC] electronAPI.on not available, skipping UI RPC handler setup');
+    if (!hostAPI?.on) {
+        console.warn('[UI RPC] hostAPI.on not available, skipping UI RPC handler setup');
         return;
     }
 
     console.log('[UI RPC] Handler registered, listening for ui:call');
 
-    electronAPI.on('ui:call', (_event: unknown, funcName: unknown, args: unknown) => {
+    hostAPI.on('ui:call', (_event: unknown, funcName: unknown, args: unknown) => {
         // console.log('[UI RPC] Received call:', funcName, args);
         const fnName: string = funcName as string;
         const fnArgs: unknown[] = args as unknown[];

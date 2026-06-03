@@ -77,7 +77,7 @@ const test = base.extend<{
             try {
                 const w = await electronApp.firstWindow();
                 await w.evaluate(async () => {
-                    const api = (window as unknown as ExtendedWindow).electronAPI;
+                    const api = (window as unknown as ExtendedWindow).hostAPI;
                     if (api) await api.main.stopFileWatching();
                 });
                 await w.waitForTimeout(300);
@@ -116,8 +116,8 @@ const test = base.extend<{
         await w.waitForLoadState('domcontentloaded');
 
         const watchResult = await w.evaluate(async (folderPath: string) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             return api.main.startFileWatching(folderPath);
         }, projectRoot);
         expect(watchResult.success, watchResult.error ?? 'startFileWatching failed').toBe(true);

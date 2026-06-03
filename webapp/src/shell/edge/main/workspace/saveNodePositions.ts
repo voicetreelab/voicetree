@@ -1,12 +1,11 @@
 import type {NodeDefinition} from "cytoscape";
 import type {Graph, GraphDelta, NodeIdAndFilePath, Position, Size} from "@vt/graph-model/graph";
+import {collectNodePositions} from "@/shell/edge/UI-edge/graph/collectNodePositions";
 import {getTerminalRecords, type TerminalRecord} from '@vt/vt-daemon-client';
 import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
 import {getGraphFromDaemon, postDeltaThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy';
 import {writeNodeLayoutThroughDaemon, writeNodeSizeThroughDaemon} from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries';
 import * as O from "fp-ts/lib/Option.js";
-
-type NodeLayoutRecord = { x?: number; y?: number; w?: number; h?: number };
 
 /**
  * Persist a single folder's size (folder resize) through the unified
@@ -25,7 +24,7 @@ export async function saveNodeSize(folderId: NodeIdAndFilePath, size: Size): Pro
  * @param cyNodes - Result of cy.nodes().jsons() (note: @types/cytoscape incorrectly types this as string[])
  */
 export async function saveNodePositions(cyNodes: readonly NodeDefinition[]): Promise<void> {
-    const layout: Record<string, NodeLayoutRecord> = collectPositions(cyNodes);
+    const layout: Record<string, Position> = collectNodePositions(cyNodes);
     if (Object.keys(layout).length === 0) {
         return;
     }
@@ -78,23 +77,4 @@ export async function cleanupOrphanedContextNodes(): Promise<void> {
 
     // Apply deltas (deletes from filesystem and updates graph state)
     await postDeltaThroughDaemon(deleteDelta);
-}
-
-function collectPositions(cyNodes: readonly NodeDefinition[]): Record<string, Position> {
-    const positions: Record<string, Position> = {};
-    for (const node of cyNodes) {
-        const id: unknown = node.data.id;
-        const position: Position | undefined = node.position as Position | undefined;
-        if (
-            typeof id !== 'string'
-            || position === undefined
-            || !Number.isFinite(position.x)
-            || !Number.isFinite(position.y)
-        ) {
-            continue;
-        }
-
-        positions[id] = position;
-    }
-    return positions;
 }

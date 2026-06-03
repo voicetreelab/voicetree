@@ -13,16 +13,16 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
-// Type definitions (already uses ElectronAPI from types)
+// Type definitions (already uses HostAPI from types)
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
   testHelpers?: {
     createTerminal: (nodeId: string) => void;
   };
@@ -67,7 +67,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -149,10 +149,10 @@ test.describe('Terminal Auto-Command Execution E2E', () => {
     // to avoid race condition where output arrives before listener is attached
     const terminalOutputPromise = appWindow.evaluate(async (nodeId) => {
       const w = (window as ExtendedWindow);
-      const api = w.electronAPI;
+      const api = w.hostAPI;
 
       if (!api?.terminal) {
-        throw new Error('electronAPI.terminal not available');
+        throw new Error('hostAPI.terminal not available');
       }
 
       return new Promise<{ terminalId: string; output: string }>((resolve) => {

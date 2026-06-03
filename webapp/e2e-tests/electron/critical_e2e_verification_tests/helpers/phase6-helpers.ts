@@ -260,8 +260,8 @@ export async function bootstrapPhase6CallerTerminal(
 ): Promise<{ success: boolean; terminalId?: string; error?: string }> {
   return window.evaluate(
     async ({ parentNodeId: nodeId, callerId: id }) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api?.terminal) throw new Error("electronAPI.terminal not available");
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api?.terminal) throw new Error("hostAPI.terminal not available");
       return api.terminal.spawn({
         type: "Terminal",
         terminalId: id,

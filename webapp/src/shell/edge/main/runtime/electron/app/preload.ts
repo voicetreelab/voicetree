@@ -3,7 +3,7 @@
 //
 // RENDERER → MAIN (request/response):
 //   1. Add your function to mainAPI in src/shell/edge/main/runtime/api.ts
-//   2. Call it via window.electronAPI.main.yourFunction() - types flow automatically
+//   2. Call it via window.hostAPI.main.yourFunction() - types flow automatically
 //   See: src/shell/edge/main/edge-auto-rpc/rpc-handler.ts
 //
 // MAIN → RENDERER (push events):
@@ -17,13 +17,14 @@
 
 import {contextBridge, ipcRenderer} from 'electron';
 import type {ProjectedGraph} from "@vt/graph-state/contract";
-import type {ElectronAPI, Promisify} from '@/shell/electron';
+import type {HostAPI, Promisify} from '@/shell/hostApi';
 import type {mainAPI} from '@/shell/edge/main/runtime/api';
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes';
-import type {RelayConnectionStatus} from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus';
+import {ELECTRON_CAPABILITIES} from '@/shell/runtimeCapabilities';
 
 // Synchronously expose runtime flags so the renderer can branch before
-// async electronAPI setup finishes. PostHog init in main.tsx and other
+// async hostAPI setup finishes. PostHog init in main.tsx and other
 // boot-time decisions need this without a roundtrip.
 const perfMode: boolean =
     process.env.VOICETREE_PERF_MODE === '1'
@@ -36,7 +37,7 @@ const perfMode: boolean =
 const perfProbe: boolean = process.env.VOICETREE_PERF_PROBE === '1';
 contextBridge.exposeInMainWorld('voicetreeEnv', {perfMode, perfProbe});
 
-// Async function to build and expose the electronAPI
+// Async function to build and expose the hostAPI
 // This allows us to dynamically fetch API keys from main process at runtime
 async function exposeElectronAPI(): Promise<void> {
     // Step 1: Fetch API keys from main process
@@ -44,7 +45,7 @@ async function exposeElectronAPI(): Promise<void> {
 
     // Step 2: Build RPC wrappers dynamically (zero-boilerplate: just add to mainAPI)
     // Dotted keys (e.g. "views.list") create nested objects so renderers can call
-    // window.electronAPI.main.views.list() with correct TypeScript types.
+    // window.hostAPI.main.views.list() with correct TypeScript types.
     const mainAPIWrappers: Record<string, unknown> = {}
     for (const key of apiKeys) {
         const wrapper = (...args: unknown[]): Promise<unknown> => ipcRenderer.invoke('rpc:call', key, args)
@@ -64,8 +65,11 @@ async function exposeElectronAPI(): Promise<void> {
         }
     } // see rpc-handler.ts
 
-    // Step 3: Build electronAPI with dynamically generated wrappers
-    const electronAPI: ElectronAPI = {
+    // Step 3: Build hostAPI with dynamically generated wrappers
+    const hostAPI: HostAPI = {
+        // Electron can perform every native-only operation.
+        capabilities: ELECTRON_CAPABILITIES,
+
         // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
         main: mainAPIWrappers as unknown as Promisify<typeof mainAPI>,
 
@@ -269,12 +273,12 @@ async function exposeElectronAPI(): Promise<void> {
     }
 
     // Step 4: Expose the API to the renderer
-    contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+    contextBridge.exposeInMainWorld('hostAPI', hostAPI)
 }
 
 // Initialize the API
 exposeElectronAPI().catch((error: unknown) => {
-    console.error('[Preload] FATAL ERROR: Failed to expose electronAPI:', error)
+    console.error('[Preload] FATAL ERROR: Failed to expose hostAPI:', error)
 })
 
 // E2E Test Mode: Expose flag for mock speech client injection

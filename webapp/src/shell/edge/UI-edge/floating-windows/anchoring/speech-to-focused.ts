@@ -6,7 +6,7 @@
  */
 
 import { EditorView } from '@codemirror/view';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 type FocusedWindow = {
   type: 'editor' | 'terminal';
@@ -205,9 +205,9 @@ export function confirmTranscriptionPreview(): boolean {
   if (preview.target.type === 'editor') {
     insertTextAtCursor(preview.target.view, preview.currentText);
   } else {
-    const electronAPI: ElectronAPI | undefined = window.electronAPI;
-    if (electronAPI) {
-      void electronAPI.main.sendTextToTerminal({ terminalId: preview.target.id, text: preview.currentText });
+    const hostAPI: HostAPI | undefined = window.hostAPI;
+    if (hostAPI) {
+      void hostAPI.main.sendTextToTerminal({ terminalId: preview.target.id, text: preview.currentText });
     }
   }
 

@@ -164,8 +164,35 @@
 //   vt-daemon-client -> paths:       0 -> 1 (VTD owner discovery)
 //   vt-rpc -> paths:                 0 -> 1 (auth/port files)
 //   webapp -> paths:                 0 -> 2 (Electron build config + project bootstrap)
+// 2026-06-02 [extract @vt/daemon-test-harness from voicetree-cli e2e — PR #229]:
+// The harness's reason to exist is booting, validating, and tearing down REAL
+// graphd + vtd daemons for the daemon round-trip e2e (no internal mocks — see
+// serveHarness.ts header). It therefore legitimately imports the minimal
+// real-daemon-control surface as VALUE symbols (every type-only import is
+// already `import type` and uncounted):
+//   - graph-db-client: 2 — `ensureGraphDaemonForProject` (prewarmGraphd, the
+//     same graphd ensure `vt serve` uses) + `GraphDbClient` (shutdownGraphd /
+//     ensureCleanProject, which the webapp browser-e2e globalTeardown relies on
+//     to shut graphd down by owner record).
+//   - vt-daemon-client: 1 — `ensureNodeVtDaemonForProject`, the vtd ensure entry
+//     the harness boots the daemon-under-test with.
+//   - vt-rpc: 1 — `readAuthTokenFile`, reads the per-project token the harness
+//     needs to authenticate against the freshly-booted daemon.
+//   - graph-db-protocol: 3 — `HealthResponseSchema` + `VtDaemonHealthResponseSchema`
+//     (assert both daemons are actually healthy before a test proceeds) +
+//     `ownerRecordFile` (locate the owner record for teardown).
+// These symbols previously lived inside voicetree-cli's e2e harness FILE (under
+// the `voicetree-cli -> graph-db-client: 7` budget); the extraction carried them
+// across unchanged — a topology change (the harness moved to its own scanned
+// `src/`), not new coupling. Mirrors the existing sanctioned real-daemon-booting
+// leaves `voicetree-bootcamp -> graph-db-client: 1` and `vt-daemon ->
+// graph-db-client: 1`. Should not grow.
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
+    'daemon-test-harness -> graph-db-client': 2,
+    'daemon-test-harness -> vt-daemon-client': 1,
+    'daemon-test-harness -> vt-rpc': 1,
+    'daemon-test-harness -> graph-db-protocol': 3,
     'app-config -> paths': 3,
     // 2026-05-28 [PR #139]: @vt/code-graph-cli is a thin agent-facing wrapper
     // around `@vt/measures`' `buildCallGraph` — single value symbol
@@ -178,12 +205,19 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'daemon-lifecycle -> graph-db-protocol': 3,
     'daemon-lifecycle -> paths': 1,
     'graph-db-client -> daemon-lifecycle': 23,
-    'graph-db-client -> graph-db-protocol': 24,
+    // 2026-06-02 [PR #229]: 24 -> 26. graph-db-client now owns the projectedGraph
+    // SSE consumer/parser (relocated here from the webapp) plus the shared
+    // DAEMON_SHUTDOWN_HEADER/_VALUE CSRF constants it sends on /shutdown — +2
+    // value symbols from @vt/graph-db-protocol.
+    'graph-db-client -> graph-db-protocol': 26,
     'graph-db-client -> paths': 1,
     'graph-db-protocol -> paths': 1,
     'graph-db-server -> app-config': 13,
     'graph-db-server -> daemon-lifecycle': 10,
-    'graph-db-server -> graph-db-protocol': 1,
+    // 2026-06-02 [PR #229]: 1 -> 2. The server reads the shared
+    // DAEMON_SHUTDOWN_HEADER constant to gate POST /shutdown against cross-origin
+    // simple-POST CSRF (+1 value symbol).
+    'graph-db-server -> graph-db-protocol': 2,
     'graph-db-server -> graph-model': 42,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
@@ -246,10 +280,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon -> app-config': 2,
     'vt-daemon -> daemon-lifecycle': 9,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
-    // client (BF-375 standalone-vtd boundary). Single value symbol
-    // (`GraphDbClient`) — the class is constructed once during daemon
-    // bootstrap; further reach into graphd is via that handle.
-    'vt-daemon -> graph-db-client': 1,
+    // client (BF-375 standalone-vtd boundary). `GraphDbClient` is constructed
+    // once during daemon bootstrap; further reach into graphd is via that handle.
+    // 2026-06-02 [PR #229]: 1 -> 2. The graph.* gateway routes ("everything
+    // through VTD") delegate to graph-db-client, adding one more value symbol.
+    'vt-daemon -> graph-db-client': 2,
     'vt-daemon -> graph-db-protocol': 2,
     // 2026-05-27 [Phase 3]: graph-model is a leaf data package; widening
     // 9 -> 10 as the daemon takes over Main's normalization paths under
@@ -297,7 +332,9 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // (sendMessageTool.ts), and one terminal-registry constant. The earlier
     // shape of "14 individual *_SPEC constants" was an over-export of
     // implementation detail; those are no longer in the protocol barrel.
-    'vt-daemon -> vt-daemon-protocol': 4,
+    // 2026-06-02 [PR #229]: 4 -> 5. vt-daemon consumes the published graph.*
+    // gateway RPC contract from vt-daemon-protocol (+1 value symbol).
+    'vt-daemon -> vt-daemon-protocol': 5,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
     // (proposed `@vt/project-paths` or `@vt/paths`). See #123 for

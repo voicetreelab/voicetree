@@ -13,7 +13,8 @@
 
 export * from './core-types.ts'
 export * from './terminal-types.ts'
-export * from './rpc-contracts.ts'
+export * from './rpc/rpc-contracts.ts'
+export * from './rpc/graph-gateway-contract.ts'
 export * from './terminal-registry-events.ts'
 export * from './from-prefix-message.ts'
 export * from './tool-spec-types.ts'

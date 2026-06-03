@@ -90,6 +90,19 @@ export const ShutdownResponseSchema = z.object({
 })
 export type ShutdownResponse = z.infer<typeof ShutdownResponseSchema>
 
+/**
+ * Required request header on graphd `POST /shutdown` (RE-PLAN B). graphd is
+ * loopback-internal behind the VTD gateway and exposes no browser auth, so a
+ * malicious page could otherwise port-scan localhost and fire a CORS-exempt
+ * "simple" POST at a guessed graphd port to kill the daemon (DoS). A custom
+ * request header is NOT a CORS simple header, so a cross-origin attempt to set
+ * it forces a preflight that graphd never approves — the actual POST is blocked
+ * by the browser. Legitimate same-process callers (the graph-db client) send it
+ * explicitly. Loopback bind remains defense-in-depth.
+ */
+export const DAEMON_SHUTDOWN_HEADER = 'x-vt-daemon-shutdown'
+export const DAEMON_SHUTDOWN_HEADER_VALUE = '1'
+
 export const GraphStateSchema = z
   .object({
     nodes: z.record(z.string(), z.unknown()),

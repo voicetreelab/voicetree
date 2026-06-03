@@ -190,8 +190,8 @@ export async function readDaemonUrl(appWindow: Page, timeoutMs: number): Promise
     while (Date.now() < deadline) {
         try {
             const url: string = await appWindow.evaluate(async () => {
-                const api = (window as unknown as { electronAPI?: { main: { getDaemonUrl: () => Promise<string> } } }).electronAPI
-                if (!api) throw new Error('electronAPI not available')
+                const api = (window as unknown as { hostAPI?: { main: { getDaemonUrl: () => Promise<string> } } }).hostAPI
+                if (!api) throw new Error('hostAPI not available')
                 return await api.main.getDaemonUrl()
             })
             if (url) return url

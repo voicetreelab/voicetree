@@ -35,8 +35,8 @@ export function subscribeToUnclaimedTmuxChanges(callback: UnclaimedTmuxCallback)
 export async function refreshUnclaimedTmuxSessions(): Promise<void> {
     try {
         const nextSessions: readonly UnclaimedTmuxSession[] = await (
-            window.electronAPI?.main.refreshUnclaimedTmuxSessions?.()
-            ?? window.electronAPI?.main.listUnclaimedTmuxSessions?.()
+            window.hostAPI?.main.refreshUnclaimedTmuxSessions?.()
+            ?? window.hostAPI?.main.listUnclaimedTmuxSessions?.()
             ?? Promise.resolve([])
         )
         syncUnclaimedTmuxFromMain(nextSessions)
@@ -70,7 +70,7 @@ export async function attachUnclaimedTmuxSession(
     sessionName: string,
 ): Promise<{readonly success: boolean; readonly error?: string}> {
     const result: {readonly success: boolean; readonly error?: string} = await (
-        window.electronAPI?.main.attachUnclaimedTmuxSession?.(sessionName)
+        window.hostAPI?.main.attachUnclaimedTmuxSession?.(sessionName)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     if (result.success) removeUnclaimedTmuxSession(sessionName)
@@ -82,7 +82,7 @@ export async function killUnclaimedTmuxSession(
     sessionName: string,
 ): Promise<{readonly success: boolean; readonly error?: string}> {
     const result: {readonly success: boolean; readonly error?: string} = await (
-        window.electronAPI?.main.killUnclaimedTmuxSession?.(sessionName)
+        window.hostAPI?.main.killUnclaimedTmuxSession?.(sessionName)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     if (result.success) removeUnclaimedTmuxSession(sessionName)

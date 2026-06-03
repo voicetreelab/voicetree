@@ -11,7 +11,7 @@
  * 5. The agent transitions to status 'exited' with exitCode 0
  *
  * Bootstrap: launch Electron, load the project fixture, register a caller
- * terminal via electronAPI (so we have a valid callerTerminalId for MCP),
+ * terminal via hostAPI (so we have a valid callerTerminalId for MCP),
  * then drive the headless lifecycle entirely through MCP.
  */
 
@@ -36,7 +36,7 @@ interface ExtendedWindow {
     cytoscapeInstance?: {
         nodes: () => { length: number; map: (fn: (n: { id: () => string }) => string) => string[] };
     };
-    electronAPI?: {
+    hostAPI?: {
         main: {
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
@@ -230,8 +230,8 @@ test.describe('Headless Agent E2E', () => {
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 4: Discover graph nodes ===');
         const nodeIds: string[] = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             const graph = await api.main.getGraph();
             return Object.keys(graph.nodes);
         });
@@ -245,15 +245,15 @@ test.describe('Headless Agent E2E', () => {
         // ═══════════════════════════════════════════════════════════════════
         // STEP 5: Bootstrap a caller terminal (registers in terminal-registry)
         // ═══════════════════════════════════════════════════════════════════
-        console.log('=== STEP 5: Spawn caller terminal via electronAPI ===');
+        console.log('=== STEP 5: Spawn caller terminal via hostAPI ===');
 
         // Spawn an interactive terminal that registers in the daemon-owned
         // terminal registry. The fixture's settings register "Test Agent" as
         // the default — long-lived enough (sleep 10) to serve as a parked
         // callerTerminalId for MCP `spawn_agent`. The daemon assigns the id.
         const callerSpawn = await appWindow.evaluate(async ({ parentNodeId: nodeId }) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
 
             return await api.main.spawnTerminalWithContextNode({
                 taskNodeId: nodeId,

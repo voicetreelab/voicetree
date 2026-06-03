@@ -4,7 +4,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import {
   getCiElectronFlags,
   pollForCondition,
@@ -32,7 +32,7 @@ const EXPECTED_CONTEXT_PARENT_CONTENT = `# ${PARENT_TITLE}\n\n${CONTEXT_MARKER}\
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 function idSelector(id: string): string {
@@ -83,7 +83,7 @@ async function closeAllTerminalWindows(page: Page): Promise<void> {
   await page.locator('.cy-floating-window-terminal').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
   await page.locator('.cy-floating-window-terminal .terminal-relay-status').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
   await page.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     const terminalWindows = Array.from(document.querySelectorAll<HTMLElement>('.cy-floating-window-terminal'));
     const terminalIds = terminalWindows
       .map(terminalWindow => terminalWindow.dataset.floatingWindowId)
@@ -243,8 +243,8 @@ const test = base.extend<{
     await window.waitForLoadState('domcontentloaded');
 
     const openResult = await window.evaluate(async (dir) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const response = await api.main.openProject(dir);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
@@ -298,7 +298,7 @@ test('typing in a parent editor survives immediate create-child shortcut', async
 
   await expect.poll(async () => {
     return await appWindow.evaluate(async ({ id }) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).hostAPI;
       const node = await api?.main.getNode(id);
       return node?.contentWithoutYamlOrLinks ?? null;
     }, { id: nodeId });
@@ -336,8 +336,8 @@ test('typing in a parent editor survives immediate create-child shortcut', async
 // renderer-side flush-before-spawn hook is implemented.
 test.skip('typing in a parent editor is included in an immediate agent context snapshot', async ({ appWindow, writeFolderPath }) => {
   await appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as unknown as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     const currentSettings = await api.main.loadSettings();
     await api.main.saveSettings({
       ...currentSettings,

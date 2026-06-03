@@ -4,7 +4,7 @@ import type { Core as CytoscapeCore } from 'cytoscape'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import type { ElectronAPI } from '@/shell/electron'
+import type { HostAPI } from '@/shell/hostApi'
 import {
   getCiElectronFlags,
   pollForCondition,
@@ -28,7 +28,7 @@ const P99_BUDGET_MS = 750
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore
-  electronAPI?: ElectronAPI
+  hostAPI?: HostAPI
 }
 
 function idSelector(id: string): string {
@@ -154,8 +154,8 @@ const test = base.extend<{
     const window = await electronApp.firstWindow({ timeout: 15_000 })
     await window.waitForLoadState('domcontentloaded')
     const openResult = await window.evaluate(async (dir) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI
-      if (!api) throw new Error('electronAPI not available')
+      const api = (window as unknown as ExtendedWindow).hostAPI
+      if (!api) throw new Error('hostAPI not available')
       const response = await api.main.openProject(dir)
       return { writeFolderPath: response.writeFolderPath }
     }, projectPath)
@@ -249,7 +249,7 @@ test('keystroke-to-graph-label update stays within the editor FS write latency b
     expect(fileContent).toContain(nextContent)
 
     const daemonHasContent = await appWindow.evaluate(async ({ id, content }) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI
+      const api = (window as unknown as ExtendedWindow).hostAPI
       const node = await api?.main.getNode(id)
       return node?.contentWithoutYamlOrLinks === content
     }, { id: nodeId, content: nextContent })

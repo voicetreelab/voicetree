@@ -1,9 +1,11 @@
-// Electron API type definitions
+// Host runtime API type definitions — the contract the webapp talks to,
+// implemented by the Electron preload OR the browser-daemon adapter.
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
 import type { mainAPI } from '@/shell/edge/main/runtime/api';
 import type { ConnectionState, EventFrame, GapFrame, TopicName } from '@vt/vt-daemon/transport/eventTypes';
-import type { RelayConnectionStatus } from '@/shell/edge/main/runtime/electron/daemon/terminals/vtTerminalAttachTypes';
+import type { RelayConnectionStatus } from '@/core/terminal/relayConnectionStatus';
+import type { RuntimeCapabilities } from '@/shell/runtimeCapabilities';
 
 // Re-export TerminalData for use in terminal API
 
@@ -25,7 +27,12 @@ export interface WatchStatus {
 }
 
 
-export interface ElectronAPI {
+export interface HostAPI {
+  // Which native-only operations this host runtime supports. The browser
+  // adapter reports all-false; the Electron preload reports all-true. The UI
+  // gates native-only controls on these flags (see runtimeCapabilities.ts).
+  capabilities: RuntimeCapabilities;
+
   // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
   // All RPC calls are async, so we promisify the mainAPI type
   main: Promisify<typeof mainAPI>;
@@ -89,7 +96,7 @@ export interface ElectronAPI {
 // Extend the Window interface to include all global properties
 declare global {
   interface Window {
-    electronAPI?: ElectronAPI;
+    hostAPI?: HostAPI;
     // Graph-related properties exposed for testing
     cy: CytoscapeCore | null;
   }

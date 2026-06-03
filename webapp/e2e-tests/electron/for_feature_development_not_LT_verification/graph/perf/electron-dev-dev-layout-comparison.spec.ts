@@ -20,7 +20,7 @@ type LayoutEngine = typeof LAYOUT_ENGINES[number];
 
 type DevDevWindow = Window & {
   readonly cytoscapeInstance?: CytoscapeCore;
-  readonly electronAPI?: {
+  readonly hostAPI?: {
     readonly main?: {
       readonly startFileWatching?: (directoryPath?: string) => Promise<{ readonly success: boolean; readonly error?: string }>;
       readonly stopFileWatching?: () => Promise<void>;
@@ -167,7 +167,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        await (window as unknown as DevDevWindow).electronAPI?.main?.stopFileWatching?.();
+        await (window as unknown as DevDevWindow).hostAPI?.main?.stopFileWatching?.();
       });
       await window.waitForTimeout(300);
     } catch {
@@ -197,9 +197,9 @@ const test = base.extend<{
     await window.locator('button:has-text("dev-dev")').first().click();
 
     const watchResult = await window.evaluate(async (projectPath) => {
-      const api = (window as unknown as DevDevWindow).electronAPI;
+      const api = (window as unknown as DevDevWindow).hostAPI;
       if (!api?.main?.startFileWatching) {
-        throw new Error('electronAPI.main.startFileWatching is unavailable');
+        throw new Error('hostAPI.main.startFileWatching is unavailable');
       }
       return api.main.startFileWatching(projectPath);
     }, DEV_DEV_PROJECT_PATH);
@@ -233,7 +233,7 @@ async function waitForLoadedGraph(appWindow: Page, markdownFileCount: number): P
 
 async function setLayoutEngine(appWindow: Page, engine: LayoutEngine): Promise<void> {
   await appWindow.evaluate(async (nextEngine) => {
-    const api = (window as unknown as DevDevWindow).electronAPI?.main;
+    const api = (window as unknown as DevDevWindow).hostAPI?.main;
     if (!api?.loadSettings || !api.saveSettings) {
       throw new Error('settings API is unavailable');
     }

@@ -28,7 +28,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definition for browser window with cytoscape
 interface ExtendedWindow extends Window {
     cytoscapeInstance?: CytoscapeCore;
-    electronAPI?: {
+    hostAPI?: {
         main?: {
             stopFileWatching?: () => Promise<{ success: boolean; error?: string }>;
             getGraph?: () => Promise<{ nodes: Record<string, unknown> } | null>;
@@ -63,7 +63,7 @@ const test = base.extend<{
         try {
             const page = await electronApp.firstWindow();
             await page.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api?.main?.stopFileWatching) {
                     await api.main.stopFileWatching();
                 }

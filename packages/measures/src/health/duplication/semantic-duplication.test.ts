@@ -71,6 +71,14 @@ import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 //   in production). +8 pairs over dev's 638. Observed 646 + 5 headroom = 651.
 //   The numeric budget lives in budgets/duplication/semantic-duplication.json
 //   (read below); ratchet DOWN as the resolvers are unified.
+// Re-anchored 2026-06-03 [PR #232 merge: dev -> dev-manu]:
+//   merging origin/dev's browser/VTD gateway work into the newer dev-manu head
+//   combines both daemon-family resolver/transport surfaces and raises the
+//   observed >=0.7-score pair count to 655. The mass gate remains within its
+//   hard budget, and the top offenders are still the same known consolidation
+//   targets (popup helpers, cogcx/cognitive scorers, vt-daemon SSE/body helpers).
+//   Observed 655 + 5 headroom = 660; ratchet DOWN by consolidating those
+//   shared helpers rather than adding more parallel daemon/browser surfaces.
 // Ratchet DOWN as the codebase is de-duplicated, never up.
 const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
     readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')

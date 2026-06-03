@@ -33,9 +33,10 @@ import {
 } from '@/shell/edge/UI-edge/state/stores/LatestProjectedGraphStore';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
 import { StarredSection } from './StarredSection';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { toggleFolderCollapse } from '@/shell/edge/UI-edge/graph/view/folderCollapse';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 
 import './folder-tree.css';
 
@@ -126,9 +127,9 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
     const [showResults, setShowResults] = useState<boolean>(false);
 
     const fetchFolders: (query: string) => Promise<void> = useCallback(async (query: string): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
         try {
-            const folders: readonly AvailableFolderItem[] = await window.electronAPI.main.getAvailableFoldersForSelector(query);
+            const folders: readonly AvailableFolderItem[] = await window.hostAPI.main.getAvailableFoldersForSelector(query);
             setAvailableFolders(folders);
         } catch (err) {
             console.error('[FolderTreeSidebar] Failed to fetch available folders:', err);
@@ -146,14 +147,14 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
     }, [addQuery, fetchFolders]);
 
     const handleAddAsRead: (path: string) => void = useCallback((path: string): void => {
-        void window.electronAPI?.main.addReadPath(path);
+        void window.hostAPI?.main.addReadPath(path);
         setAddQuery('');
         setShowResults(false);
     }, []);
 
     const handleSetAsWrite: (path: string) => void = useCallback((path: string): void => {
-        void window.electronAPI?.main.addReadPath(path).then(() => {
-            void window.electronAPI?.main.setWriteFolderPath(path);
+        void window.hostAPI?.main.addReadPath(path).then(() => {
+            void window.hostAPI?.main.setWriteFolderPath(path);
         });
         setAddQuery('');
         setShowResults(false);
@@ -161,15 +162,15 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
 
     const handleBrowseExternal: () => void = useCallback((): void => {
         void (async (): Promise<void> => {
-            if (!window.electronAPI) return;
+            if (!window.hostAPI) return;
             try {
-                const result: { success: boolean; path?: string } = await window.electronAPI.main.showFolderPicker({
+                const result: { success: boolean; path?: string } = await window.hostAPI.main.showFolderPicker({
                     defaultPath: watchDirectory ?? undefined,
                     buttonLabel: 'Add Folder',
                     title: 'Select Folder to Add',
                 });
                 if (result.success && result.path) {
-                    void window.electronAPI.main.addReadPath(result.path);
+                    void window.hostAPI.main.addReadPath(result.path);
                 }
             } catch (err) {
                 console.error('[FolderTreeSidebar] Error browsing for folder:', err);
@@ -178,7 +179,7 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
     }, [watchDirectory]);
 
     const handleCreateDatedFolder: () => void = useCallback((): void => {
-        void window.electronAPI?.main.createDatedVoiceTreeFolder();
+        void window.hostAPI?.main.createDatedVoiceTreeFolder();
     }, []);
 
     const handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void = useCallback(
@@ -262,13 +263,15 @@ function FooterSection({ watchDirectory, readPaths }: FooterSectionProps): JSX.E
                 >
                     New voicetree
                 </button>
-                <button
-                    className="folder-tree-footer-btn"
-                    onClick={handleBrowseExternal}
-                    title="Browse and add external folder"
-                >
-                    Browse...
-                </button>
+                {hostCapabilities().nativeFolderPicker && (
+                    <button
+                        className="folder-tree-footer-btn"
+                        onClick={handleBrowseExternal}
+                        title="Browse and add external folder"
+                    >
+                        Browse...
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -303,16 +306,16 @@ function FolderTreeSidebarInternal({ callbacks }: SidebarInternalProps): JSX.Ele
     const handleToggleLoad: (path: string, currentState: 'loaded' | 'not-loaded') => void = useCallback(
         (path: string, currentState: 'loaded' | 'not-loaded'): void => {
             if (currentState === 'loaded') {
-                void window.electronAPI?.main.removeReadPath(path);
+                void window.hostAPI?.main.removeReadPath(path);
             } else {
-                void window.electronAPI?.main.addReadPath(path);
+                void window.hostAPI?.main.addReadPath(path);
             }
         }, []
     );
 
     const handleSetWriteTarget: (path: string) => void = useCallback(
         (path: string): void => {
-            void window.electronAPI?.main.setWriteFolderPath(path);
+            void window.hostAPI?.main.setWriteFolderPath(path);
         }, []
     );
 

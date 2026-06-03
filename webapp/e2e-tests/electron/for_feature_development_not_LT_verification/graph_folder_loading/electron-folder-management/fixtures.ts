@@ -74,7 +74,7 @@ async function launchFolderManagementApp(
 async function stopFileWatching(electronApp: ElectronApplication): Promise<void> {
   const window = await electronApp.firstWindow();
   await window.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     if (api) {
       await api.main.stopFileWatching();
     }
@@ -96,8 +96,8 @@ function attachWindowDiagnostics(window: Page): void {
 
 async function saveProjectForSelection(window: Page, folderPath: string, projectName: string): Promise<void> {
   await window.evaluate(async (params: { folderPath: string; projectName: string }) => {
-    const api = (window as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
 
     const project = {
       id: crypto.randomUUID(),
@@ -116,7 +116,7 @@ async function selectProjectFromPicker(window: Page, testProjectPath: string): P
   const notesPath = path.join(testProjectPath, 'notes');
   const projectName = 'test-folder-mgmt';
 
-  await window.waitForFunction(() => !!(window as unknown as ExtendedWindow).electronAPI, { timeout: 5000 });
+  await window.waitForFunction(() => !!(window as unknown as ExtendedWindow).hostAPI, { timeout: 5000 });
   await saveProjectForSelection(window, notesPath, projectName);
 
   console.log('[appWindow] Project saved, waiting for it to appear in list');

@@ -5,7 +5,7 @@ import type { ProjectedGraph } from '@vt/graph-state/contract';
 
 interface GraphDeltaActionWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     graph?: unknown;
     _triggerIpc?: (channel: string, ...args: unknown[]) => void;
   };
@@ -45,13 +45,13 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
       return action;
     }) as GraphDelta;
 
-    const electronAPI = (window as unknown as GraphDeltaActionWindow).electronAPI;
-    if (!electronAPI) throw new Error('electronAPI not available');
+    const hostAPI = (window as unknown as GraphDeltaActionWindow).hostAPI;
+    if (!hostAPI) throw new Error('hostAPI not available');
 
     const { projectDelta } = await import('/src/shell/edge/UI-edge/graph/integration-tests/projectGraphDelta.ts');
     const projectedGraph = projectDelta(reconstructedDelta);
 
-    const mockGraphAPI = electronAPI.graph as {
+    const mockGraphAPI = hostAPI.graph as {
       _projectedGraphCallback?: (graph: ProjectedGraph) => void;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       _graphState: { nodes: Record<string, any>; edges: any[] };
@@ -68,12 +68,12 @@ export async function sendGraphDelta(page: Page, graphDelta: GraphDelta): Promis
 
     if (mockGraphAPI._projectedGraphCallback) {
       mockGraphAPI._projectedGraphCallback(projectedGraph);
-      console.log('[Test] Triggered projected graph update via electronAPI callback');
+      console.log('[Test] Triggered projected graph update via hostAPI callback');
     } else {
       console.error('[Test] No projected graph update callback registered!');
     }
 
-    const triggerIpc = (electronAPI as unknown as { _triggerIpc?: (channel: string, ...args: unknown[]) => void })._triggerIpc;
+    const triggerIpc = (hostAPI as unknown as { _triggerIpc?: (channel: string, ...args: unknown[]) => void })._triggerIpc;
     if (triggerIpc) {
       triggerIpc('ui:call', 'updateFloatingEditorsFromExternal', [reconstructedDelta]);
       console.log('[Test] Triggered ui:call for updateFloatingEditorsFromExternal');

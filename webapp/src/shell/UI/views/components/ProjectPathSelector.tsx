@@ -3,7 +3,7 @@ import type { JSX } from 'react';
 import { subscribeToProjectPaths, getProjectState } from '@/shell/edge/UI-edge/state/stores/ProjectPathStore';
 import type { ProjectPathState } from '@/shell/edge/UI-edge/state/stores/ProjectPathStore';
 import { toggleFolderTreeSidebar } from '@/shell/edge/UI-edge/state/stores/FolderTreeStore';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 
 /**
  * Simplified toggle button that shows current write folder path name

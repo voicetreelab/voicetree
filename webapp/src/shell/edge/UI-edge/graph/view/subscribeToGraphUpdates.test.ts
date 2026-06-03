@@ -3,7 +3,7 @@
 import cytoscape, { type Core } from 'cytoscape';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectedGraph } from '@vt/graph-state/contract';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import { disposeGraphViewOverlays, initGraphViewOverlays, setLoadingState } from '@/shell/edge/UI-edge/state/stores/GraphViewUIStore';
 import { getLatestProjectedGraph } from '@/shell/edge/UI-edge/state/stores/LatestProjectedGraphStore';
 import type { GraphNavigationService } from '@/shell/edge/UI-edge/graph/navigation/GraphNavigationService';
@@ -35,13 +35,13 @@ function setupLoadingOverlay(): HTMLDivElement {
 }
 
 function installElectronAPI(projectedGraph: ProjectedGraph): void {
-    window.electronAPI = {
+    window.hostAPI = {
         graph: {
             getCurrentProjectedGraph: async (): Promise<ProjectedGraph> => projectedGraph,
             onProjectedGraphUpdate: () => (): void => {},
             onGraphClear: () => (): void => {},
         },
-    } as unknown as ElectronAPI;
+    } as unknown as HostAPI;
 }
 
 function createNavigationService(cy: Core): GraphNavigationService {
@@ -70,7 +70,7 @@ describe('subscribeToGraphUpdates', () => {
         cy = null;
         disposeGraphViewOverlays();
         document.body.replaceChildren();
-        Reflect.deleteProperty(window, 'electronAPI');
+        Reflect.deleteProperty(window, 'hostAPI');
         vi.restoreAllMocks();
     });
 

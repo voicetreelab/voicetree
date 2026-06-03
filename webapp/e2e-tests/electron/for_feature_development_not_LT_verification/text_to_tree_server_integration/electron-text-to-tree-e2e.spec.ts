@@ -47,7 +47,7 @@ interface FakeToken { text: string; is_final: boolean }
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   __VOICE_TEST__?: { emitVoiceResult: (result: { tokens: FakeToken[] }) => void };
-  electronAPI?: {
+  hostAPI?: {
     main: {
       getBackendPort: () => Promise<number>;
       stopFileWatching: () => Promise<{ success: boolean }>;
@@ -154,7 +154,7 @@ test.describe('Voice → Tree (real backend, mock mic only)', () => {
   test('emitted Soniox tokens create real nodes through the live pipeline', async ({ appWindow }) => {
     // ---- backend up (real Python server) ----
     const backendPort = await appWindow.evaluate(async () =>
-      (window as unknown as ExtendedWindow).electronAPI!.main.getBackendPort()
+      (window as unknown as ExtendedWindow).hostAPI!.main.getBackendPort()
     );
     expect(backendPort).toBeGreaterThan(8000);
     console.log(`[E2E] Backend port: ${backendPort}`);

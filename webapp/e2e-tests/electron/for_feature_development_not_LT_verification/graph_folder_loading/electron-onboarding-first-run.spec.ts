@@ -23,17 +23,17 @@ import { promises as fs } from 'fs';
 import type { Dirent } from 'fs';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use absolute paths
 const PROJECT_ROOT: string = path.resolve(process.cwd());
 // Source onboarding files (in dev mode this is in public/)
 const ONBOARDING_SOURCE: string = path.join(PROJECT_ROOT, 'public', 'onboarding');
 
-// Type definitions (already uses ElectronAPI from types)
+// Type definitions (already uses HostAPI from types)
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 interface TestFixtures {
@@ -124,7 +124,7 @@ const test: ReturnType<typeof base.extend<TestFixtures>> = base.extend<TestFixtu
     try {
       const window: Page = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api: ElectronAPI | undefined = (window as unknown as ExtendedWindow).electronAPI;
+        const api: HostAPI | undefined = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -164,7 +164,7 @@ test.describe('Onboarding First Run', () => {
     // Step 1: Verify app loaded
     const appReady: boolean = await appWindow.evaluate(() => {
       return !!(window as ExtendedWindow).cytoscapeInstance &&
-             !!(window as ExtendedWindow).electronAPI;
+             !!(window as ExtendedWindow).hostAPI;
     });
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully');
@@ -176,8 +176,8 @@ test.describe('Onboarding First Run', () => {
     // Step 3: Trigger initialLoad to load the onboarding directory automatically
     // Since there's no config file, this should load onboarding
     const loadResult: LoadResult = await appWindow.evaluate(async () => {
-      const api: ElectronAPI | undefined = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api: HostAPI | undefined = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadPreviousFolder();
     });
 
@@ -189,8 +189,8 @@ test.describe('Onboarding First Run', () => {
 
     // Step 5: Verify the watched directory is the onboarding directory
     const watchStatus: WatchStatus = await appWindow.evaluate(async () => {
-      const api: ElectronAPI | undefined = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api: HostAPI | undefined = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getWatchStatus();
     });
 
@@ -201,8 +201,8 @@ test.describe('Onboarding First Run', () => {
 
     // Step 6: Verify graph state contains exactly 5 nodes
     const graphState: GraphState = await appWindow.evaluate(async () => {
-      const api: ElectronAPI | undefined = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api: HostAPI | undefined = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
 

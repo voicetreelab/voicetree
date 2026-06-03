@@ -94,12 +94,12 @@ describe('folderTreeReducer — core store actions', () => {
 describe('FolderTreeStore dispatchers and persistence', () => {
     beforeEach(() => {
         localStorage.clear()
-        Reflect.deleteProperty(window, 'electronAPI')
+        Reflect.deleteProperty(window, 'hostAPI')
     })
 
     afterEach(() => {
         localStorage.clear()
-        Reflect.deleteProperty(window, 'electronAPI')
+        Reflect.deleteProperty(window, 'hostAPI')
         vi.resetModules()
         vi.restoreAllMocks()
     })

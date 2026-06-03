@@ -6,7 +6,7 @@ import { ViewSwitcher } from './ViewSwitcher'
 
 type ViewRecord = { viewId: string; name: string; isActive: boolean }
 
-function makeElectronAPI(views: ViewRecord[]): Window['electronAPI'] {
+function makeElectronAPI(views: ViewRecord[]): Window['hostAPI'] {
   const listeners: Array<(data: { activeViewId: string }) => void> = []
 
   const api = {
@@ -39,7 +39,7 @@ function makeElectronAPI(views: ViewRecord[]): Window['electronAPI'] {
       }
     }),
   }
-  return api as unknown as Window['electronAPI']
+  return api as unknown as Window['hostAPI']
 }
 
 describe('ViewSwitcher', () => {
@@ -50,7 +50,7 @@ describe('ViewSwitcher', () => {
       { viewId: 'v1', name: 'main', isActive: true },
       { viewId: 'v2', name: 'scratch', isActive: false },
     ]
-    Object.defineProperty(window, 'electronAPI', {
+    Object.defineProperty(window, 'hostAPI', {
       value: makeElectronAPI(views),
       writable: true,
       configurable: true,
@@ -59,7 +59,7 @@ describe('ViewSwitcher', () => {
 
   afterEach(() => {
     cleanup()
-    Object.defineProperty(window, 'electronAPI', {
+    Object.defineProperty(window, 'hostAPI', {
       value: undefined,
       writable: true,
       configurable: true,
@@ -96,7 +96,7 @@ describe('ViewSwitcher', () => {
     fireEvent.click(screen.getByTestId('view-switcher-trigger'))
     fireEvent.click(screen.getByTestId('view-item-scratch'))
     await waitFor(() =>
-      expect(window.electronAPI!.main.views.activate).toHaveBeenCalledWith('v2'),
+      expect(window.hostAPI!.main.views.activate).toHaveBeenCalledWith('v2'),
     )
   })
 
@@ -109,10 +109,10 @@ describe('ViewSwitcher', () => {
     fireEvent.change(input, { target: { value: 'focus' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() =>
-      expect(window.electronAPI!.main.views.clone).toHaveBeenCalledWith('v1', 'focus'),
+      expect(window.hostAPI!.main.views.clone).toHaveBeenCalledWith('v1', 'focus'),
     )
     await waitFor(() =>
-      expect(window.electronAPI!.main.views.activate).toHaveBeenCalledWith('cloned-focus'),
+      expect(window.hostAPI!.main.views.activate).toHaveBeenCalledWith('cloned-focus'),
     )
   })
 
@@ -122,13 +122,13 @@ describe('ViewSwitcher', () => {
     fireEvent.click(screen.getByTestId('view-switcher-trigger'))
     fireEvent.click(screen.getByTestId('view-delete-scratch'))
     await waitFor(() =>
-      expect(window.electronAPI!.main.views.delete).toHaveBeenCalledWith('v2'),
+      expect(window.hostAPI!.main.views.delete).toHaveBeenCalledWith('v2'),
     )
   })
 
   it('refreshes on view:switched event', async () => {
     render(<ViewSwitcher />)
     await waitFor(() => screen.getByTestId('view-switcher-trigger'))
-    expect(window.electronAPI!.onViewSwitched).toHaveBeenCalled()
+    expect(window.hostAPI!.onViewSwitched).toHaveBeenCalled()
   })
 })

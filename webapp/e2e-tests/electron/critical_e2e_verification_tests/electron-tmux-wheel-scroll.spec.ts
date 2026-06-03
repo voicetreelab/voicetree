@@ -102,7 +102,7 @@ function killTmuxSession(sessionName: string, voicetreeHomePath?: string): void 
 //   - `api.main.startFileWatching()` — replaced by `openProject` (BF-376 phase 2)
 //
 // The underlying wheel-scroll behaviour IS wired end-to-end on the merged
-// branch: the renderer's electronAPI.terminal.scroll IPC was added during the
+// branch: the renderer's hostAPI.terminal.scroll IPC was added during the
 // merge fix work, and the daemon's `{type:'scroll'}` WS handler was preserved
 // from dev-manu (see tmux-attach-relay.ts). Skipping until the test is
 // re-baselined on the new contracts.
@@ -118,8 +118,8 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
     try {
       // ── Bring up MCP + file watcher + graph. ──
       const runtimeInfo: { voicetreeHomePath: string; mcpPort: number } = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         return {
           voicetreeHomePath: await api.main.getVoicetreeHomePath(),
           mcpPort: await api.main.getMcpPort(),
@@ -129,15 +129,15 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       expect(await waitForMcpServer(`http://127.0.0.1:${runtimeInfo.mcpPort}/mcp`)).toBe(true);
 
       const watchResult = await appWindow.evaluate(async (projectRoot) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         return await api.main.startFileWatching(projectRoot);
       }, fixtureProjectPath);
       expect(watchResult.success, 'startFileWatching failed').toBe(true);
 
       await expect.poll(async () => appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         const graph = await api.main.getGraph();
         return Object.keys(graph.nodes).length;
       }), {
@@ -147,8 +147,8 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       }).toBeGreaterThan(0);
 
       const parentNodeId: string = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         const graph = await api.main.getGraph();
         return Object.keys(graph.nodes)[0];
       });
@@ -157,8 +157,8 @@ test.describe.skip('renderer wheel → tmux scrollback', () => {
       // path runs end-to-end (this is what mounts TerminalVanilla and attaches
       // our customWheelHandler). ──
       await appWindow.evaluate(async (nodeId: string) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         await api.main.spawnPlainTerminal(nodeId, 0);
       }, parentNodeId);
 

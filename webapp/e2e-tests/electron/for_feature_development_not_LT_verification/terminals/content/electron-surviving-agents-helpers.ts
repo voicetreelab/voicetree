@@ -73,7 +73,7 @@ export type RecoverableAgentSessionShape = {
 
 export interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
-    electronAPI?: {
+    hostAPI?: {
         main: {
             startFileWatching: (dir: string) => Promise<{success: boolean; directory?: string; error?: string}>;
             stopFileWatching: () => Promise<{success: boolean; error?: string}>;
@@ -335,7 +335,7 @@ export const test = base.extend<{
             try {
                 const window = await electronApp.firstWindow();
                 await window.evaluate(async () => {
-                    const api = (window as unknown as ExtendedWindow).electronAPI;
+                    const api = (window as unknown as ExtendedWindow).hostAPI;
                     if (api) await api.main.stopFileWatching();
                 });
                 await window.waitForTimeout(200);

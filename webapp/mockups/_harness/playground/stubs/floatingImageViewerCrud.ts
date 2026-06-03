@@ -1,6 +1,6 @@
 // Browser-only stub of `@/shell/edge/UI-edge/floating-windows/image-viewers/FloatingImageViewerCRUD`.
 //
-// The real module renders inline image previews via electronAPI.main.readImageAsDataUrl
+// The real module renders inline image previews via hostAPI.main.readImageAsDataUrl
 // and pulls in the spatial-index + anchor-to-node chain. The playground keeps
 // image viewers stubbed (per playground scope) — hovering an image node is a
 // no-op rather than a viewer popup.

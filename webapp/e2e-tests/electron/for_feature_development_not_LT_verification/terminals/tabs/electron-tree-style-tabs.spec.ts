@@ -24,7 +24,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 
 interface ExtendedWindow {
     cytoscapeInstance?: CytoscapeCore;
-    electronAPI?: {
+    hostAPI?: {
         main: {
             startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -83,7 +83,7 @@ const test = base.extend<{
         try {
             const window = await electronApp.firstWindow();
             await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api) {
                     await api.main.stopFileWatching();
                 }
@@ -126,8 +126,8 @@ const test = base.extend<{
 async function loadProjectAndWaitForGraph(appWindow: Page): Promise<void> {
     // Start file watching on fixture project
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_PROJECT_PATH);
 
@@ -136,8 +136,8 @@ async function loadProjectAndWaitForGraph(appWindow: Page): Promise<void> {
 
     // Save settings with an agent command
     await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         await api.main.saveSettings({
             agents: [{ name: 'Test Agent', command: 'echo TEST_AGENT' }],
             INJECT_ENV_VARS: {}
@@ -166,10 +166,10 @@ async function loadProjectAndWaitForGraph(appWindow: Page): Promise<void> {
 async function spawnTerminalAndWait(appWindow: Page, nodeId: string, marker: string): Promise<string> {
     return appWindow.evaluate(async ({ nodeId, marker }) => {
         const w = (window as unknown as ExtendedWindow);
-        const api = w.electronAPI;
+        const api = w.hostAPI;
 
         if (!api?.terminal || !api?.main) {
-            throw new Error('electronAPI terminal/main not available');
+            throw new Error('hostAPI terminal/main not available');
         }
 
         return new Promise<string>((resolve) => {

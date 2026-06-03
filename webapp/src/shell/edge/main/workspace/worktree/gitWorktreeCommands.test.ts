@@ -13,7 +13,7 @@
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {basename, delimiter, dirname, join} from 'node:path';
 
@@ -99,6 +99,38 @@ describe('createWorktree (discover-based)', () => {
         const repoRoot: string = makeRepo();
         await createWorktree(repoRoot, 'wt-dup');
         await expect(createWorktree(repoRoot, 'wt-dup')).rejects.toThrow(/Failed to create git worktree/);
+    });
+
+    // ROOT-CAUSE REGRESSION GUARD for "spawning in a new worktree takes 10+s":
+    // `git worktree add` fires post-checkout from the BRANCH TREE just checked
+    // out. A stale base whose post-checkout still runs `pnpm install` would
+    // re-stall the spawn even after PR #225 (which only fixed the hook in
+    // newer commits). createWorktree overrides `core.hooksPath` for THIS one
+    // invocation onto an app-owned no-op dir, so the branch-tree hook is
+    // bypassed regardless of how stale the base is.
+    it('overrides core.hooksPath so a post-checkout checked into the branch tree does not run', async () => {
+        const repoRoot: string = makeRepo();
+        // Plant a "branch tree" post-checkout that writes a marker on every
+        // checkout, and tell git to look there via core.hooksPath. This is the
+        // exact shape of the project's real hooks dir.
+        const markerDir: string = realpathSync(mkdtempSync(join(tmpdir(), 'vt-wt-stale-hook-')));
+        cleanups.push(() => rmSync(markerDir, {recursive: true, force: true}));
+        const markerPath: string = join(markerDir, 'stale-hook-ran.txt');
+        const branchHooks: string = join(repoRoot, 'scripts', 'hooks');
+        mkdirSync(branchHooks, {recursive: true});
+        const branchHook: string = join(branchHooks, 'post-checkout');
+        writeFileSync(branchHook, `#!/bin/sh\necho "ran" > "${markerPath}"\n`, 'utf-8');
+        chmodSync(branchHook, 0o755);
+        git(repoRoot, ['config', 'core.hooksPath', 'scripts/hooks']);
+        git(repoRoot, ['add', '.']);
+        git(repoRoot, ['commit', '-q', '-m', 'plant stale hook']);
+        setEnvUntilCleanup('HOME', gitGateFreeHome());
+
+        await createWorktree(repoRoot, 'wt-hardened');
+
+        // The branch-tree hook MUST NOT have fired — `-c core.hooksPath=<no-op>`
+        // diverted git to the app-owned dir for this invocation.
+        expect(existsSync(markerPath)).toBe(false);
     });
 });
 

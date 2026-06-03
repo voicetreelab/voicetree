@@ -9,7 +9,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
 import { getTerminals, updateTerminalActivityAndNotify } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 
 /**
  * Mark a terminal as having activity (produced a node)
@@ -24,7 +24,7 @@ export function markTerminalActivityForContextNode(nodeId: string): void {
         if (terminal.attachedToContextNodeId === nodeId) {
             const newCount: number = terminal.activityCount + 1;
             // Phase 3: Update main process (source of truth)
-            void window.electronAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });
+            void window.hostAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });
             // Update local store + notify subscribers (React re-renders)
             updateTerminalActivityAndNotify(terminalId, newCount);
             return;
@@ -33,7 +33,7 @@ export function markTerminalActivityForContextNode(nodeId: string): void {
         if (O.isSome(terminal.anchoredToNodeId) && terminal.anchoredToNodeId.value === nodeId) {
             const newCount: number = terminal.activityCount + 1;
             // Phase 3: Update main process (source of truth)
-            void window.electronAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });
+            void window.hostAPI?.main.updateTerminalActivityState(terminalId, { activityCount: newCount });
             // Update local store + notify subscribers (React re-renders)
             updateTerminalActivityAndNotify(terminalId, newCount);
             return;
@@ -48,7 +48,7 @@ export function markTerminalActivityForContextNode(nodeId: string): void {
  */
 export function clearActivityForTerminal(terminalId: TerminalId): void {
     // Phase 3: Update main process (source of truth)
-    void window.electronAPI?.main.updateTerminalActivityState(terminalId, { activityCount: 0 });
+    void window.hostAPI?.main.updateTerminalActivityState(terminalId, { activityCount: 0 });
     // Update local store + notify subscribers (React re-renders)
     updateTerminalActivityAndNotify(terminalId, 0);
 }

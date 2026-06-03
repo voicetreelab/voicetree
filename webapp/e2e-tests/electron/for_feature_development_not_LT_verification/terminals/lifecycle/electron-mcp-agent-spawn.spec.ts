@@ -19,7 +19,7 @@ const MCP_URL = 'http://localhost:3001/mcp';
 const TARGET_NODE_ID = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md';
 
 interface ExtendedWindow {
-  electronAPI?: {
+  hostAPI?: {
     main: {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -73,7 +73,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -176,8 +176,8 @@ test.describe('MCP Agent Spawn E2E', () => {
     expect(serverReady).toBe(true);
 
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_PROJECT_PATH);
 
@@ -185,8 +185,8 @@ test.describe('MCP Agent Spawn E2E', () => {
     await appWindow.waitForTimeout(3000);
 
     await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.saveSettings({
         terminalSpawnPathRelativeToWatchedDirectory: '../',
         agents: [{ name: 'MCP Test Agent', command: 'echo MCP_AGENT_TEST' }],

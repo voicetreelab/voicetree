@@ -4,8 +4,9 @@
 // outcomes — stdout ready line, /health owner identity for both daemons,
 // on-disk graphd.owner.json + vtd.owner.json contents, exit code, stderr
 // fragments, cross-process lifetime of the spawned daemons. No internal mocks.
-// The spawn / health / owner-record / teardown effect helpers live in
-// `serveOwner.e2e.harness.ts`.
+// The spawn / health / owner-record / teardown effect helpers live in the
+// shared `@vt/daemon-test-harness` package (also consumed by the webapp browser
+// round-trip Playwright globalSetup).
 //
 // Seven scenarios cover the two-ensure wrapper contract:
 //   1. Cold-start spawns one vt-graphd AND one vt-daemon; both /health probes
@@ -64,7 +65,7 @@ import {
     waitForVtdFailureExit,
     type ServeHandle,
     type ServeReady,
-} from './__tests__/serveOwner.e2e.harness'
+} from '@vt/daemon-test-harness'
 
 describe.skipIf(process.env.CI_SANDBOX === '1')(
     'vt serve two-ensure wrapper',

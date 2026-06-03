@@ -17,7 +17,7 @@ export * from './ui-helpers';
 export const isAppReady = (appWindow: Page): Promise<boolean> =>
   appWindow.evaluate(() => {
     return !!(window as ExtendedWindow).cytoscapeInstance &&
-           !!(window as ExtendedWindow).electronAPI;
+           !!(window as ExtendedWindow).hostAPI;
   });
 
 export const getNodeCount = (appWindow: Page): Promise<number> =>
@@ -131,8 +131,8 @@ export const lacksNodeLabel = (appWindow: Page, label: string): Promise<boolean>
 
 export const stopFileWatching = (appWindow: Page): Promise<StopFileWatchingResult> =>
   appWindow.evaluate(async () => {
-    const api = (window as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
 
     return await api.main.stopFileWatching();
   });

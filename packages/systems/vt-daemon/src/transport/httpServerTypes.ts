@@ -5,6 +5,7 @@
 
 import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {EventSubscriptionHub} from './sse/eventSubscriptionHub.ts'
+export type {VtDaemonHealthResponse} from '../contract.ts'
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
 export type ToolCatalog = ReadonlyMap<string, ToolHandler>

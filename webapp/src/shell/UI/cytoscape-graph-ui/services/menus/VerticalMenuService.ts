@@ -11,7 +11,7 @@ import {showExtractIntoFolderPopup, type ExtractIntoFolderSelectedNode} from "@/
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/graph";
 import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
-import '@/shell/electron.d.ts';
+import '@/shell/hostApi.d.ts';
 import { formatShortcut } from '@vt/graph-model/utils';
 import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
@@ -245,7 +245,7 @@ export class VerticalMenuService {
 
                 try {
                     await Promise.all(selectedNodeIds.map(nodeId => flushEditorForNode(nodeId)));
-                    await window.electronAPI?.main.runAgentOnSelectedNodes({
+                    await window.hostAPI?.main.runAgentOnSelectedNodes({
                         selectedNodeIds,
                         taskDescription: result.taskDescription,
                         position,
@@ -263,7 +263,7 @@ export class VerticalMenuService {
             action: async () => {
                 const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
                 const terminalCount: number = getNextTerminalCount(terminalsMap, 'plain-terminal');
-                await window.electronAPI?.main.spawnPlainTerminalWithNode({ position, terminalCount });
+                await window.hostAPI?.main.spawnPlainTerminalWithNode({ position, terminalCount });
             },
         });
 

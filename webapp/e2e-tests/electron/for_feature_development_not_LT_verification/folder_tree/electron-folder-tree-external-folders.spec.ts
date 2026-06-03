@@ -26,8 +26,8 @@ async function addExternalFolder(appWindow: import('@playwright/test').Page): Pr
     await fs.writeFile(path.join(subfolderPath, 'sub-file.md'), '# Sub File\n\nNested external content.\n');
 
     await appWindow.evaluate(async (params: { folderPath: string }) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         await api.main.addReadPath(params.folderPath);
     }, { folderPath: externalFolderPath });
 
@@ -126,8 +126,8 @@ test.describe('File Tree Sidebar — External Folders', () => {
         const folder2 = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-external-2-'));
         await fs.writeFile(path.join(folder2, 'second.md'), '# Second\n\nContent.\n');
         await appWindow.evaluate(async (params: { folderPath: string }) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             await api.main.addReadPath(params.folderPath);
         }, { folderPath: folder2 });
         await appWindow.waitForTimeout(1000);
