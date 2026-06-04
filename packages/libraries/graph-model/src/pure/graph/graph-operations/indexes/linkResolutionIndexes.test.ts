@@ -6,7 +6,7 @@ import {
   updateNodeByBaseNameIndexForDelete,
   updateUnresolvedLinksIndexForUpsert,
   updateUnresolvedLinksIndexForDelete,
-  getBaseName
+  getMarkdownLinkTargetBasename
 } from './linkResolutionIndexes'
 import type { NodeByBaseNameIndex, UnresolvedLinksIndex } from './linkResolutionIndexes'
 import type { GraphNode, Edge, NodeIdAndFilePath } from '../..'
@@ -25,39 +25,39 @@ const createTestNode: (id: string, edges?: readonly Edge[]) => GraphNode = (id: 
   }
 })
 
-describe('getBaseName', () => {
+describe('getMarkdownLinkTargetBasename', () => {
   it('should extract basename from absolute path', () => {
-    expect(getBaseName('/project/a/foo.md')).toBe('foo')
+    expect(getMarkdownLinkTargetBasename('/project/a/foo.md')).toBe('foo')
   })
 
   it('should extract basename from relative path', () => {
-    expect(getBaseName('./foo.md')).toBe('foo')
-    expect(getBaseName('../bar/foo.md')).toBe('foo')
+    expect(getMarkdownLinkTargetBasename('./foo.md')).toBe('foo')
+    expect(getMarkdownLinkTargetBasename('../bar/foo.md')).toBe('foo')
   })
 
   it('should handle paths without .md extension', () => {
-    expect(getBaseName('/project/foo')).toBe('foo')
+    expect(getMarkdownLinkTargetBasename('/project/foo')).toBe('foo')
   })
 
   it('should handle simple filenames', () => {
-    expect(getBaseName('foo.md')).toBe('foo')
-    expect(getBaseName('foo')).toBe('foo')
+    expect(getMarkdownLinkTargetBasename('foo.md')).toBe('foo')
+    expect(getMarkdownLinkTargetBasename('foo')).toBe('foo')
   })
 
   it('should ignore empty, current-directory, and parent-directory segments', () => {
-    expect(getBaseName('')).toBe('')
-    expect(getBaseName('./')).toBe('')
-    expect(getBaseName('../')).toBe('')
-    expect(getBaseName('./.././Note.md')).toBe('note')
+    expect(getMarkdownLinkTargetBasename('')).toBe('')
+    expect(getMarkdownLinkTargetBasename('./')).toBe('')
+    expect(getMarkdownLinkTargetBasename('../')).toBe('')
+    expect(getMarkdownLinkTargetBasename('./.././Note.md')).toBe('note')
   })
 
   it('should only strip a terminal markdown extension', () => {
-    expect(getBaseName('/project/archive.md.backup')).toBe('archive.md.backup')
+    expect(getMarkdownLinkTargetBasename('/project/archive.md.backup')).toBe('archive.md.backup')
   })
 
   it('should return lowercase basename', () => {
-    expect(getBaseName('/project/FooBar.md')).toBe('foobar')
-    expect(getBaseName('README.md')).toBe('readme')
+    expect(getMarkdownLinkTargetBasename('/project/FooBar.md')).toBe('foobar')
+    expect(getMarkdownLinkTargetBasename('README.md')).toBe('readme')
   })
 })
 
