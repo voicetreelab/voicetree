@@ -133,6 +133,10 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
     let wasDisconnected = false
     vtdSubscribeEvents(
         vtdUrl, vtdToken,
+        // `graph` carries projectedGraph snapshots; `agent-events` passes through
+        // to vt:events. `terminal-registry` is NOT here — it has its own SSE
+        // channel (vtdSubscribeTerminalRegistry below).
+        ['graph', 'agent-events'],
         (frame) => {
             const route = routeGraphFrame(frame)
             if (route.kind === 'projectedGraph') emit('graph:projectedGraphUpdate', route.data)
