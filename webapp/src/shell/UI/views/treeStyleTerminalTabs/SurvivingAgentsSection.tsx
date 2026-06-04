@@ -49,7 +49,7 @@ const RESUME_FAILURE_MESSAGES: Record<NoNativeSessionResult['reason'], string> =
     'db-missing': 'Codex state database not found at ~/.codex/state_5.sqlite',
     'db-schema-mismatch': "Codex state DB schema is unexpected — voicetree can't read it",
     'outside-recency-window': "Session exists but is older than the resolver's recency window",
-    'marker-mismatch': 'No matching session — likely the project was moved or the task node renamed since spawn',
+    'marker-mismatch': 'No saved transcript matched this session — its conversation log may have been deleted or never recorded',
     'no-rows': 'No Codex threads recorded for this project',
     'projects-dir-missing': 'Claude projects directory not found at ~/.claude/projects',
     'no-jsonl-matches': 'No Claude transcripts matched this project/cwd',
