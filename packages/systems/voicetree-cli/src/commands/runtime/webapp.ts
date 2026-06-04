@@ -127,6 +127,18 @@ function applyDevCorsOrigins(port: number, lanIp: string | null): void {
     process.env.VOICETREE_CORS_ORIGINS = existing ? `${existing},${devOrigins}` : devOrigins
 }
 
+// In --lan mode the renderer is served to LAN devices and pointed at VTD via this
+// machine's LAN IP, so VTD must listen on that interface — not just loopback. Bind
+// it to 0.0.0.0 (all interfaces), which keeps loopback working for the Mac's own
+// localhost too. Like applyDevCorsOrigins, this must run BEFORE the ensure spawns
+// vt-daemon (vtd.ts reads VOICETREE_DAEMON_BIND at startup); a reused daemon keeps
+// its existing bind — hence the reuse note. graph-db stays loopback-internal: the
+// renderer never talks to it directly, only VTD does (same machine). VTD's bearer
+// token + CORS gate remain the access boundary on the now-LAN-exposed port.
+function applyLanDaemonBind(): void {
+    process.env.VOICETREE_DAEMON_BIND = '0.0.0.0'
+}
+
 function resolveViteBin(): string {
     const candidates: readonly string[] = [
         resolve(WEBAPP_DIR, 'node_modules/.bin/vite'),
@@ -181,6 +193,7 @@ export async function runWebappCommand(argv: string[]): Promise<void> {
 
     const lanIp: string | null = args.lan ? resolveLanIPv4() : null
     applyDevCorsOrigins(args.port, lanIp)
+    if (args.lan) applyLanDaemonBind()
 
     const {graphd, vtd}: EnsuredDaemons = await ensureBothDaemons(args.project, {exclusive: false})
     const vtdUrl: string = vtd.client.baseUrl
@@ -198,8 +211,13 @@ export async function runWebappCommand(argv: string[]): Promise<void> {
     )
     if (!vtd.launched) {
         process.stdout.write(
-            'note: reused an already-running vt-daemon. If the browser shows CORS errors, stop it and '
-            + `rerun — its VOICETREE_CORS_ORIGINS must include ${lanUrl ?? webUrl}.\n`,
+            'note: reused an already-running vt-daemon — it keeps the CORS origins and bind '
+            + 'interface it was launched with. '
+            + (lanIp
+                ? `For LAN mode it must be bound to 0.0.0.0 and allow ${lanUrl}; if the page can't `
+                  + 'reach VTD, stop the existing daemon and rerun so this command relaunches it.\n'
+                : `If the browser shows CORS errors, stop it and rerun — its VOICETREE_CORS_ORIGINS `
+                  + `must include ${webUrl}.\n`),
         )
     }
 
