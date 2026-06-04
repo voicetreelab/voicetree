@@ -9,6 +9,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/mutations/applyGraphDelta";
+import {publish} from '@vt/graph-db-server/state/events/deltaEventBus'
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
@@ -98,6 +99,9 @@ Your task is to answer it by reading all the relevant context provided, and fetc
         previousNode: O.none
     }]
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(questionDelta)
+    // Broadcast so per-session projectedGraph subscribers render it — see
+    // createContextNode.ts for the full rationale (browser has no optimistic apply).
+    publish({delta: questionDelta, source: 'context-node'})
 
     // 2. Create context node as child of question node
     const contextNodeId: string = `${writeFolderPath}/${CONTEXT_NODES_FOLDER}/ask_${timestamp}.md`
@@ -122,6 +126,7 @@ Your task is to answer it by reading all the relevant context provided, and fetc
     )
 
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextDelta)
+    publish({delta: contextDelta, source: 'context-node'})
 
     return contextNodeId
 }
