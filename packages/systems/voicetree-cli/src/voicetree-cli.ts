@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {
     agentClose,
+    agentFork,
     agentList,
     agentOutput,
     agentResume,
@@ -60,6 +61,7 @@ Subcommands:
   wait      Start background monitoring for one or more agents
   close     Close an agent terminal
   resume    Resume a closed/exited agent under its original terminalId
+  fork      Fork a live or exited agent into a new branched terminal
   send      Send a message to an agent terminal
   output    Read buffered agent output`
 
@@ -137,6 +139,9 @@ async function dispatchAgentCommand(
             return
         case 'resume':
             await agentResume(terminalId, args)
+            return
+        case 'fork':
+            await agentFork(terminalId, args)
             return
         case 'send':
             await agentSend(terminalId, args)
@@ -254,7 +259,7 @@ function readVtVersion(): string {
 }
 
 const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
-    'spawn', 'list', 'wait', 'close', 'resume', 'send', 'output',
+    'spawn', 'list', 'wait', 'close', 'resume', 'fork', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
     'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',
