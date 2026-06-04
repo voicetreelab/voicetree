@@ -125,11 +125,19 @@ describe('runViewCommand (views, folders, selection, show)', () => {
     it('omits node markdown content from show JSON output', async () => {
         const {project} = ctx.harness()
         const nodePath: string = join(project, 'one.md')
-        await writeFile(nodePath, '# one\n\nbody text that should not be printed\n', 'utf8')
-        await waitFor(async () => {
-            const graph = await ctx.createClient().getGraph()
-            return graph.nodes[nodePath] ? true : null
-        })
+        setGraph(createGraph({
+            [nodePath]: {
+                kind: 'leaf',
+                outgoingEdges: [],
+                absoluteFilePathIsID: nodePath,
+                contentWithoutYamlOrLinks: 'body text that should not be printed',
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none,
+                    additionalYAMLProps: {},
+                },
+            },
+        }))
 
         const body = await runViewJson(['show', '--project', project])
         expect(body).toMatchObject({

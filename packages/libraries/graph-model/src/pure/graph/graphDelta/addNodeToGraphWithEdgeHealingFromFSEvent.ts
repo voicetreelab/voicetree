@@ -4,7 +4,7 @@ import {parseMarkdownToGraphNode} from '../markdown-parsing/parse-markdown-to-no
 import {findBestMatchingNode} from '../markdown-parsing/extract-edges'
 import {setOutgoingEdges} from '../graph-operations/transforms/graph-edge-operations'
 import {filenameToNodeId} from '../markdown-parsing/filename-utils'
-import {getBaseName, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '../graph-operations/indexes/linkResolutionIndexes'
+import {getMarkdownLinkTargetBasename, updateNodeByBaseNameIndexForUpsert, updateUnresolvedLinksIndexForUpsert} from '../graph-operations/indexes/linkResolutionIndexes'
 
 // Position resolution lives at the daemon's apply pipeline
 // (resolveInitialPositionsForDelta + applyGraphDeltaToGraph's existing-position
@@ -154,7 +154,7 @@ function findNodesWithPotentialEdgesToNode(
     newNode: GraphNode,
     currentGraph: Graph
 ): readonly NodeIdAndFilePath[] {
-    const newNodeBasename: string = getBaseName(newNode.absoluteFilePathIsID)
+    const newNodeBasename: string = getMarkdownLinkTargetBasename(newNode.absoluteFilePathIsID)
     // O(1) lookup using unresolvedLinksIndex
     return currentGraph.unresolvedLinksIndex.get(newNodeBasename) ?? []
 }

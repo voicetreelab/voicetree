@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {
     agentClose,
+    agentFork,
     agentList,
     agentOutput,
     agentResume,
@@ -15,7 +16,7 @@ import {runManualCommand} from './commands/manual.ts'
 import {findRepoRoot} from './commands/util/findRepoRoot.ts'
 import {runSessionCommand} from './commands/runtime/session.ts'
 import {runProjectCommand} from './commands/runtime/project.ts'
-import {runViewCommand} from './commands/node/view.ts'
+import {runViewCommand} from './commands/graph-node/view.ts'
 import {getErrorMessage} from './commands/graph/core/util.ts'
 import {CliError, error} from './commands/output.ts'
 import {argsShape} from './commands/telemetry/argsShape.ts'
@@ -60,6 +61,7 @@ Subcommands:
   wait      Start background monitoring for one or more agents
   close     Close an agent terminal
   resume    Resume a closed/exited agent under its original terminalId
+  fork      Fork a live or exited agent into a new branched terminal
   send      Send a message to an agent terminal
   output    Read buffered agent output`
 
@@ -138,6 +140,9 @@ async function dispatchAgentCommand(
         case 'resume':
             await agentResume(terminalId, args)
             return
+        case 'fork':
+            await agentFork(terminalId, args)
+            return
         case 'send':
             await agentSend(terminalId, args)
             return
@@ -209,17 +214,17 @@ async function dispatchGraphCommand(
             return
         }
         case 'rename': {
-            const {graphRename} = await import('./commands/node/rename.ts')
+            const {graphRename} = await import('./commands/graph-node/rename.ts')
             await graphRename(terminalId, args)
             return
         }
         case 'mv': {
-            const {graphMove} = await import('./commands/node/move.ts')
+            const {graphMove} = await import('./commands/graph-node/move.ts')
             await graphMove(terminalId, args)
             return
         }
         case 'group': {
-            const {graphGroup} = await import('./commands/node/group.ts')
+            const {graphGroup} = await import('./commands/graph-node/group.ts')
             await graphGroup(terminalId, args)
             return
         }
@@ -237,7 +242,7 @@ async function dispatchSearchCommand(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
-    const {searchCommand} = await import('./commands/node/search.ts')
+    const {searchCommand} = await import('./commands/graph-node/search.ts')
     await searchCommand(terminalId, args)
 }
 
@@ -254,7 +259,7 @@ function readVtVersion(): string {
 }
 
 const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
-    'spawn', 'list', 'wait', 'close', 'resume', 'send', 'output',
+    'spawn', 'list', 'wait', 'close', 'resume', 'fork', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
     'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',

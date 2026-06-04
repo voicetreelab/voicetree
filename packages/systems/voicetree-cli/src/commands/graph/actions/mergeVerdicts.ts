@@ -1,7 +1,7 @@
 import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringPlanEntry,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import {isAbsolute, relative as relativePath} from 'node:path'
 import type {AppliedNode} from '../io/filesystem'
 import type {GatedInput} from './gateVerdicts'

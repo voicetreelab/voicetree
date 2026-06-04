@@ -1,6 +1,6 @@
 import path from 'node:path'
 import {GraphDbClient, readPortFile, type ViewResponse} from '@vt/graph-db-client'
-import {renderAutoView, renderGraphView, type ViewFormat} from '@vt/graph-tools/node'
+import {renderAutoView, renderGraphView, type ViewFormat} from '@vt/graph-tools/node-runtime'
 import {error, handleCliError} from '../cliDeps'
 import {resolveGraphProject} from './snapshot'
 

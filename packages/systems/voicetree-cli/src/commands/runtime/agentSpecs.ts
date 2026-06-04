@@ -97,6 +97,14 @@ export const AGENT_RESUME_SPEC: SubcommandSpec = {
     flags: [],
 }
 
+export const AGENT_FORK_SPEC: SubcommandSpec = {
+    verb: 'vt agent fork',
+    rpcTool: 'forkAgentSession',
+    usageTail: '[terminalId]',
+    summary: 'Fork a live (or exited) agent into a new branched terminal. Defaults to the caller.',
+    flags: [],
+}
+
 export const AGENT_SEND_SPEC: SubcommandSpec = {
     verb: 'vt agent send',
     rpcTool: 'send_message',

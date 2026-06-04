@@ -6,7 +6,7 @@ import {
   liveStateDump,
   liveView,
   type ViewFormat,
-} from '../../../src/node'
+} from '../../../src/node-runtime'
 import {fail} from '../shared'
 import {isLiveCrudVerb, parseLiveCrudCommand} from './liveCrudParse'
 import {

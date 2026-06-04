@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {computeGraphComplexity, crossingPressure, isBipartite, type EdgePair} from '../../src/node'
+import {computeGraphComplexity, crossingPressure, isBipartite, type EdgePair} from '../../src/node-runtime'
 
 function g(...pairs: [string, string][]): EdgePair[] {
     return pairs.map(([src, tgt]) => ({src, tgt}))

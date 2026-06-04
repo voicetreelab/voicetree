@@ -1,4 +1,4 @@
-import type {StructureManifest} from '@vt/graph-tools/node'
+import type {StructureManifest} from '@vt/graph-tools/node-runtime'
 import {error} from '../cliDeps'
 import {readGraphFileUtf8} from '../io/filesystem'
 import {parseOverrideSpec} from './overrideSpec'
