@@ -33,6 +33,7 @@ interface ControlRowProps {
   readonly ssePanelMountRef: RefObject<HTMLDivElement | null>;
   readonly state: RecorderState;
   readonly textInput: string;
+  readonly voiceInputSupported: boolean;
 }
 
 interface ErrorMessagesProps {
@@ -41,6 +42,7 @@ interface ErrorMessagesProps {
   readonly isMacPlatform: boolean;
   readonly micPermissionDenied: boolean;
   readonly onOpenMicrophoneSettings: () => void;
+  readonly voiceInputUnsupported: boolean;
 }
 
 export function TranscriptionOverlay({
@@ -114,6 +116,7 @@ export function ControlRow({
   ssePanelMountRef,
   state,
   textInput,
+  voiceInputSupported,
 }: ControlRowProps): JSX.Element {
   return (
     <div className="flex items-center justify-center gap-3 py-2">
@@ -134,13 +137,17 @@ export function ControlRow({
       </div>
       <button
         onClick={onMicClick}
+        disabled={!voiceInputSupported}
+        title={voiceInputSupported ? undefined : 'Voice input needs HTTPS or localhost'}
         className={cn(
-          "p-1 rounded-lg transition-all cursor-pointer",
-          state === 'Running'
-            ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            : isConnecting
-              ? "bg-orange-500 text-white hover:bg-orange-600"
-              : "bg-primary text-primary-foreground hover:bg-primary/90"
+          "p-1 rounded-lg transition-all",
+          !voiceInputSupported
+            ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+            : state === 'Running'
+              ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+              : isConnecting
+                ? "bg-orange-500 text-white hover:bg-orange-600 cursor-pointer"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
         )}
       >
         <AnimatedMicIcon isRecording={state === 'Running'} isConnecting={isConnecting} size={28} />
@@ -201,13 +208,25 @@ export function ErrorMessages({
   isMacPlatform,
   micPermissionDenied,
   onOpenMicrophoneSettings,
+  voiceInputUnsupported,
 }: ErrorMessagesProps): JSX.Element | null {
-  if (!(error ?? connectionError ?? micPermissionDenied)) {
+  if (!(error ?? connectionError ?? micPermissionDenied ?? voiceInputUnsupported)) {
     return null;
   }
 
   return (
     <div className="mt-3">
+      {voiceInputUnsupported && (
+        <div className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
+          <p className="font-medium text-amber-800 dark:text-amber-200">
+            Voice input unavailable here
+          </p>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
+            Browsers only allow microphone capture over HTTPS or localhost. Open VoiceTree on this
+            machine's localhost to dictate — text input below works everywhere.
+          </p>
+        </div>
+      )}
       {micPermissionDenied && (
         <div className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
           <p className="font-medium text-amber-800 dark:text-amber-200">
