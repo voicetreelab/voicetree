@@ -1,0 +1,1002 @@
+{
+"graph-db-server": {
+"searches": 202,
+"nav": 155,
+"filter": 47
+},
+"graph-model": {
+"searches": 107,
+"nav": 76,
+"filter": 31
+},
+"agent-runtime": {
+"searches": 106,
+"nav": 66,
+"filter": 40
+},
+"vt-daemon": {
+"searches": 55,
+"nav": 21,
+"filter": 34
+},
+"graph": {
+"searches": 54,
+"nav": 36,
+"filter": 18
+},
+"systems": {
+"searches": 46,
+"nav": 8,
+"filter": 38
+},
+"measures": {
+"searches": 46,
+"nav": 32,
+"filter": 14
+},
+"electron": {
+"searches": 44,
+"nav": 15,
+"filter": 29
+},
+"VT_REMOTE_HOST": {
+"searches": 40,
+"nav": 36,
+"filter": 4
+},
+"spawnTerminalWithContextNode": {
+"searches": 37,
+"nav": 36,
+"filter": 1
+},
+"pure": {
+"searches": 37,
+"nav": 34,
+"filter": 3
+},
+"state": {
+"searches": 36,
+"nav": 32,
+"filter": 4
+},
+"Status": {
+"searches": 35,
+"nav": 1,
+"filter": 34
+},
+"claude": {
+"searches": 35,
+"nav": 4,
+"filter": 31
+},
+"app-config": {
+"searches": 35,
+"nav": 33,
+"filter": 2
+},
+"elec2-b2bc2954": {
+"searches": 32,
+"nav": 32,
+"filter": 0
+},
+"graph-state": {
+"searches": 30,
+"nav": 24,
+"filter": 6
+},
+"recovery": {
+"searches": 30,
+"nav": 12,
+"filter": 18
+},
+"shell": {
+"searches": 29,
+"nav": 17,
+"filter": 12
+},
+"graph-db-client": {
+"searches": 29,
+"nav": 18,
+"filter": 11
+},
+"additionalYAMLProps": {
+"searches": 27,
+"nav": 27,
+"filter": 0
+},
+"application": {
+"searches": 27,
+"nav": 8,
+"filter": 19
+},
+"find": {
+"searches": 27,
+"nav": 2,
+"filter": 25
+},
+"collapseSet": {
+"searches": 26,
+"nav": 26,
+"filter": 0
+},
+"status": {
+"searches": 26,
+"nav": 24,
+"filter": 2
+},
+"edge": {
+"searches": 25,
+"nav": 10,
+"filter": 15
+},
+"integration-tests": {
+"searches": 25,
+"nav": 2,
+"filter": 23
+},
+"parent": {
+"searches": 24,
+"nav": 18,
+"filter": 6
+},
+"Cannot": {
+"searches": 24,
+"nav": 0,
+"filter": 24
+},
+"module": {
+"searches": 24,
+"nav": 0,
+"filter": 24
+},
+"perf": {
+"searches": 23,
+"nav": 18,
+"filter": 5
+},
+"terminal": {
+"searches": 23,
+"nav": 17,
+"filter": 6
+},
+"Electron": {
+"searches": 23,
+"nav": 1,
+"filter": 22
+},
+"agents": {
+"searches": 23,
+"nav": 12,
+"filter": 11
+},
+"trace-warnings": {
+"searches": 22,
+"nav": 5,
+"filter": 17
+},
+"better-sqlite3": {
+"searches": 21,
+"nav": 20,
+"filter": 1
+},
+"getGraph": {
+"searches": 21,
+"nav": 21,
+"filter": 0
+},
+"vt-graphd": {
+"searches": 20,
+"nav": 11,
+"filter": 9
+},
+"session": {
+"searches": 20,
+"nav": 19,
+"filter": 1
+},
+"spawn": {
+"searches": 20,
+"nav": 19,
+"filter": 1
+},
+"dist-electron": {
+"searches": 20,
+"nav": 5,
+"filter": 15
+},
+"health": {
+"searches": 19,
+"nav": 17,
+"filter": 2
+},
+"loadSettings": {
+"searches": 19,
+"nav": 17,
+"filter": 2
+},
+"checks": {
+"searches": 19,
+"nav": 12,
+"filter": 7
+},
+"project": {
+"searches": 19,
+"nav": 14,
+"filter": 5
+},
+"kanban": {
+"searches": 18,
+"nav": 12,
+"filter": 6
+},
+"getAppSupportPath": {
+"searches": 18,
+"nav": 18,
+"filter": 0
+},
+"vault": {
+"searches": 17,
+"nav": 14,
+"filter": 3
+},
+"changes": {
+"searches": 17,
+"nav": 2,
+"filter": 15
+},
+"view": {
+"searches": 17,
+"nav": 14,
+"filter": 3
+},
+"commands": {
+"searches": 17,
+"nav": 1,
+"filter": 16
+},
+"workflows": {
+"searches": 16,
+"nav": 7,
+"filter": 9
+},
+"kind": {
+"searches": 16,
+"nav": 15,
+"filter": 1
+},
+"smoke": {
+"searches": 16,
+"nav": 3,
+"filter": 13
+},
+"initGraphModel": {
+"searches": 15,
+"nav": 14,
+"filter": 1
+},
+"ptyBackend": {
+"searches": 15,
+"nav": 15,
+"filter": 0
+},
+"watchFolder": {
+"searches": 15,
+"nav": 9,
+"filter": 6
+},
+"graph-tools": {
+"searches": 15,
+"nav": 10,
+"filter": 5
+},
+"sample": {
+"searches": 15,
+"nav": 1,
+"filter": 14
+},
+"startFileWatching": {
+"searches": 15,
+"nav": 15,
+"filter": 0
+},
+"fixtures": {
+"searches": 15,
+"nav": 6,
+"filter": 9
+},
+"get_dev_healthy": {
+"searches": 15,
+"nav": 1,
+"filter": 14
+},
+"load-timing": {
+"searches": 15,
+"nav": 6,
+"filter": 9
+},
+"profile": {
+"searches": 14,
+"nav": 14,
+"filter": 0
+},
+"applyGraphDelta": {
+"searches": 14,
+"nav": 13,
+"filter": 1
+},
+"voicetree-mcp": {
+"searches": 14,
+"nav": 8,
+"filter": 6
+},
+"observability": {
+"searches": 14,
+"nav": 11,
+"filter": 3
+},
+"broadcastGraphDeltaToUI": {
+"searches": 14,
+"nav": 14,
+"filter": 0
+},
+"venv": {
+"searches": 14,
+"nav": 0,
+"filter": 14
+},
+"codex": {
+"searches": 13,
+"nav": 7,
+"filter": 6
+},
+"Watching": {
+"searches": 13,
+"nav": 0,
+"filter": 13
+},
+"failed": {
+"searches": 13,
+"nav": 6,
+"filter": 7
+},
+"cleanup": {
+"searches": 13,
+"nav": 13,
+"filter": 0
+},
+"contract": {
+"searches": 13,
+"nav": 8,
+"filter": 5
+},
+"positions": {
+"searches": 13,
+"nav": 10,
+"filter": 3
+},
+"runtime": {
+"searches": 13,
+"nav": 10,
+"filter": 3
+},
+"e2e-tests": {
+"searches": 13,
+"nav": 1,
+"filter": 12
+},
+"configureAgentRuntime": {
+"searches": 13,
+"nav": 13,
+"filter": 0
+},
+"_shared": {
+"searches": 13,
+"nav": 10,
+"filter": 3
+},
+"Lint": {
+"searches": 13,
+"nav": 0,
+"filter": 13
+},
+"types": {
+"searches": 13,
+"nav": 6,
+"filter": 7
+},
+"scroll": {
+"searches": 13,
+"nav": 12,
+"filter": 1
+},
+"sendTextToTerminal": {
+"searches": 13,
+"nav": 13,
+"filter": 0
+},
+"crossing": {
+"searches": 13,
+"nav": 13,
+"filter": 0
+},
+"_subgraph_gate": {
+"searches": 12,
+"nav": 5,
+"filter": 7
+},
+"extract_1faltpw": {
+"searches": 12,
+"nav": 4,
+"filter": 8
+},
+"check": {
+"searches": 12,
+"nav": 9,
+"filter": 3
+},
+"settings": {
+"searches": 12,
+"nav": 8,
+"filter": 4
+},
+"ctx-nodes": {
+"searches": 12,
+"nav": 3,
+"filter": 9
+},
+"health-dashboard": {
+"searches": 12,
+"nav": 7,
+"filter": 5
+},
+"daemon": {
+"searches": 12,
+"nav": 4,
+"filter": 8
+},
+"undo": {
+"searches": 12,
+"nav": 12,
+"filter": 0
+},
+"applyGraphDeltaToUI": {
+"searches": 12,
+"nav": 11,
+"filter": 1
+},
+"waitForFunction": {
+"searches": 12,
+"nav": 12,
+"filter": 0
+},
+"isFolderNode": {
+"searches": 12,
+"nav": 12,
+"filter": 0
+},
+"headless": {
+"searches": 12,
+"nav": 11,
+"filter": 1
+},
+"updateFloatingEditors": {
+"searches": 12,
+"nav": 6,
+"filter": 6
+},
+"webSocketDebuggerUrl": {
+"searches": 12,
+"nav": 0,
+"filter": 12
+},
+"cy-horizontal-context-menu": {
+"searches": 12,
+"nav": 12,
+"filter": 0
+},
+"reports": {
+"searches": 11,
+"nav": 6,
+"filter": 5
+},
+"complexity": {
+"searches": 11,
+"nav": 9,
+"filter": 2
+},
+"VT_REMOTE": {
+"searches": 11,
+"nav": 6,
+"filter": 5
+},
+"vt-fake-agent": {
+"searches": 11,
+"nav": 7,
+"filter": 4
+},
+"daemonRouteParity": {
+"searches": 11,
+"nav": 4,
+"filter": 7
+},
+"search": {
+"searches": 11,
+"nav": 11,
+"filter": 0
+},
+"knowledge-graph": {
+"searches": 11,
+"nav": 6,
+"filter": 5
+},
+"fuzz": {
+"searches": 11,
+"nav": 7,
+"filter": 4
+},
+"subgraph-gate": {
+"searches": 11,
+"nav": 11,
+"filter": 0
+},
+"openspec": {
+"searches": 11,
+"nav": 5,
+"filter": 6
+},
+"cytoscape": {
+"searches": 11,
+"nav": 10,
+"filter": 1
+},
+"tools": {
+"searches": 11,
+"nav": 10,
+"filter": 1
+},
+"tier": {
+"searches": 11,
+"nav": 9,
+"filter": 2
+},
+"AGENT_PROMPT": {
+"searches": 11,
+"nav": 11,
+"filter": 0
+},
+"dev-dev": {
+"searches": 11,
+"nav": 1,
+"filter": 10
+},
+"spanSelector": {
+"searches": 11,
+"nav": 8,
+"filter": 3
+},
+"layoutConfig": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"path": {
+"searches": 10,
+"nav": 8,
+"filter": 2
+},
+"workspaces": {
+"searches": 10,
+"nav": 6,
+"filter": 4
+},
+"create_graph": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"applyGraphDeltaToDBThroughMemAndUIAndEditors": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"applyGraphDeltaToDBThroughMemAndUI": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"resume": {
+"searches": 10,
+"nav": 7,
+"filter": 3
+},
+"terminalRuntimeSurface": {
+"searches": 10,
+"nav": 6,
+"filter": 4
+},
+"webapp-unit": {
+"searches": 10,
+"nav": 5,
+"filter": 5
+},
+"getProjectRootWatchedDirectory": {
+"searches": 10,
+"nav": 8,
+"filter": 2
+},
+"renderer": {
+"searches": 10,
+"nav": 8,
+"filter": 2
+},
+"runLayoutAdapter": {
+"searches": 10,
+"nav": 4,
+"filter": 6
+},
+"ProjectedGraph": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"electronAPI": {
+"searches": 10,
+"nav": 8,
+"filter": 2
+},
+"pyroscope": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"es-toolkit": {
+"searches": 10,
+"nav": 10,
+"filter": 0
+},
+"perfProbeFromEnv": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"Users": {
+"searches": 9,
+"nav": 3,
+"filter": 6
+},
+"cytoscapeInstance": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"README": {
+"searches": 9,
+"nav": 6,
+"filter": 3
+},
+"Files": {
+"searches": 9,
+"nav": 3,
+"filter": 6
+},
+"watch-folder-store": {
+"searches": 9,
+"nav": 8,
+"filter": 1
+},
+"setFolderStateThroughDaemon": {
+"searches": 9,
+"nav": 8,
+"filter": 1
+},
+"setFolderState": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"run-remote": {
+"searches": 9,
+"nav": 6,
+"filter": 3
+},
+"electron-smoke": {
+"searches": 9,
+"nav": 0,
+"filter": 9
+},
+"Tier": {
+"searches": 9,
+"nav": 1,
+"filter": 8
+},
+"rendererStateMirror": {
+"searches": 9,
+"nav": 6,
+"filter": 3
+},
+"terminals": {
+"searches": 9,
+"nav": 5,
+"filter": 4
+},
+"label": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"getTerminalRecords": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"appSupportPath": {
+"searches": 9,
+"nav": 8,
+"filter": 1
+},
+"GraphNode": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"removeTerminalFromRegistry": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"agent-control": {
+"searches": 9,
+"nav": 8,
+"filter": 1
+},
+"projectedGraphUpdate": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"watch-folder": {
+"searches": 9,
+"nav": 6,
+"filter": 3
+},
+"saveVaultConfigForDirectory": {
+"searches": 9,
+"nav": 9,
+"filter": 0
+},
+"brain-real": {
+"searches": 9,
+"nav": 6,
+"filter": 3
+},
+"should": {
+"searches": 8,
+"nav": 5,
+"filter": 3
+},
+"SpawnTerminalWithContextNode": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"a-zA-Z": {
+"searches": 8,
+"nav": 5,
+"filter": 3
+},
+"tmux-launchagent": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"spawnTmuxBackedTerminal": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"discoverRecoverableAgentSessions": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"hook": {
+"searches": 8,
+"nav": 2,
+"filter": 6
+},
+"startDaemon": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"graphStructure": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"nativeSessionId": {
+"searches": 8,
+"nav": 7,
+"filter": 1
+},
+"describe": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"collapse": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"runtime-config": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"expect": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"Node": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"electron-smoke-helpers": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"launchTerminalOntoUI": {
+"searches": 8,
+"nav": 7,
+"filter": 1
+},
+"name": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"isProjectableGraphNode": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"CHTR": {
+"searches": 8,
+"nav": 7,
+"filter": 1
+},
+"voicetree-public": {
+"searches": 8,
+"nav": 3,
+"filter": 5
+},
+"spawnTmuxBacked": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"DIAG": {
+"searches": 8,
+"nav": 6,
+"filter": 2
+},
+"syncRendererSessionStateWithDaemon": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"TerminalManager": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"systems-health": {
+"searches": 8,
+"nav": 7,
+"filter": 1
+},
+"mutagen": {
+"searches": 8,
+"nav": 5,
+"filter": 3
+},
+"root": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"Implementation": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"plan": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"zero-boilerplate": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"anchorToNode": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"createNewNodeNoParent": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"keyboard": {
+"searches": 8,
+"nav": 5,
+"filter": 3
+},
+"app-support": {
+"searches": 8,
+"nav": 8,
+"filter": 0
+},
+"write": {
+"searches": 7,
+"nav": 5,
+"filter": 2
+},
+"ORANGE_PRIORITY_BUDGET": {
+"searches": 7,
+"nav": 5,
+"filter": 2
+},
+"Voicetree": {
+"searches": 7,
+"nav": 4,
+"filter": 3
+},
+"debug": {
+"searches": 7,
+"nav": 4,
+"filter": 3
+},
+"latest": {
+"searches": 7,
+"nav": 6,
+"filter": 1
+},
+"loaded": {
+"searches": 7,
+"nav": 7,
+"filter": 0
+},
+"FolderTreeNode": {
+"searches": 7,
+"nav": 7,
+"filter": 0
+},
+"extract_15w27yk": {
+"searches": 7,
+"nav": 0,
+"filter": 7
+},
+"agentName": {
+"searches": 7,
+"nav": 7,
+"filter": 0
+},
+"NODE_UI_METADATA_YAML_KEYS": {
+"searches": 7,
+"nav": 6,
+"filter": 1
+},
+"agent_name": {
+"searches": 7,
+"nav": 7,
+"filter": 0
+}
+}
