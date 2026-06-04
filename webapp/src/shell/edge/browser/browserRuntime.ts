@@ -46,6 +46,7 @@ import {
     vtdRemoveStarredFolder,
     vtdCopyNodeToFolder,
 } from './vtd-clients/vtdGraphClient'
+import {orchestrateRunAgentOnSelectedNodes, type RunAgentOnSelectedParams, type SpawnAgentTerminalResult} from '@/shell/agent/orchestrateRunAgent'
 import {createBrowserTerminalRuntime} from './transport/browserTerminal'
 import {readClipboardImageBlob, uploadClipboardImage, vtdReadImageAsDataUrl} from './vtd-clients/vtdImageClient'
 import {resumeOnReconnect, routeGraphFrame} from './transport/graphEventStream'
@@ -330,7 +331,22 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         refreshClaudeUsageHeadless: () => unsupported('refreshClaudeUsageHeadless'),
         openClaudeUsage: () => unsupported('openClaudeUsage'),
         openCodexStatus: () => unsupported('openCodexStatus'),
-        runAgentOnSelectedNodes: () => Promise.resolve(),
+        // Composes the SAME shared orchestrator the Electron edge uses, wired to
+        // browser effects (VTD RPC). createTaskNode → applyDelta → spawn agent
+        // terminal; the spawn RPC creates the context node internally.
+        runAgentOnSelectedNodes: (params: RunAgentOnSelectedParams) =>
+            orchestrateRunAgentOnSelectedNodes(params, {
+                getGraph: () => vtdGetGraph(vtdUrl, vtdToken),
+                getWriteFolderPath: async () => {
+                    const ps = await vtdGetProject(vtdUrl, vtdToken)
+                    return ps.writeFolderPath ? O.some(ps.writeFolderPath) : O.none
+                },
+                applyTaskNodeDelta: (delta) => vtdApplyDelta(vtdUrl, vtdToken, delta),
+                spawnAgentTerminal: (req) =>
+                    callVtdRpc<SpawnAgentTerminalResult>(
+                        vtdUrl, vtdToken, 'spawnTerminalWithContextNode', req as unknown as Record<string, unknown>,
+                    ),
+            }),
         syncRendererSessionStateWithDaemon: () => Promise.resolve(),
 
         // Project selection / switching — GATED via the `projectSwitching`
