@@ -149,6 +149,30 @@ function publishTerminalRegistry(
     handle.hub.publish(TERMINAL_REGISTRY_TOPIC, event.type, event)
 }
 
+/**
+ * Block until the hub's subscriber count satisfies `predicate`. This is the
+ * real signal a live-publish test needs: `openSseReader` issues the SSE
+ * `fetch` fire-and-forget, so the server-side `addSubscriber`/`subscribe` runs
+ * asynchronously after the HTTP round-trip, and a client abort tears the
+ * subscriber down asynchronously too. `hub.subscriberCount()` increments the
+ * instant the handler runs `addSubscriber` (immediately before `subscribe`)
+ * and decrements when the route closes the handle on disconnect. Poll that
+ * rather than sleeping a fixed interval that CI load can outrun.
+ */
+async function waitForSubscriberCount(
+    handle: HttpDaemonServerHandle,
+    predicate: (count: number) => boolean,
+    timeoutMs: number = 2000,
+): Promise<void> {
+    const deadline: number = Date.now() + timeoutMs
+    while (!predicate(handle.hub.subscriberCount())) {
+        if (Date.now() > deadline) {
+            throw new Error(`subscriber count never satisfied predicate (count=${handle.hub.subscriberCount()})`)
+        }
+        await new Promise<void>((r) => setTimeout(r, 5))
+    }
+}
+
 describe('matchTerminalRegistryPath — pure helper', (): void => {
     it('extracts a session id from a well-formed path', (): void => {
         expect(matchTerminalRegistryPath('/sessions/abc-123/terminal-registry')).toBe('abc-123')
@@ -211,8 +235,9 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
         const url: string = `${handle.url}/sessions/sess-1/terminal-registry`
         const reader: SseReaderHandle = openSseReader(url, token)
 
-        // Give the SSE subscription time to register before the publish.
-        await new Promise<void>((r) => setTimeout(r, 50))
+        // Wait for the server-side subscription to be live before publishing,
+        // so the live (non-resumed) event is actually delivered.
+        await waitForSubscriberCount(handle, (n) => n >= 1)
 
         publishTerminalRegistry(handle, {type: 'terminal-removed', terminalId: asTerminalId('T1')})
 
@@ -284,11 +309,15 @@ describe('GET /sessions/:sessionId/terminal-registry — black-box', (): void =>
             `${handle.url}/sessions/sess-1/terminal-registry`,
             token,
         )
-        await new Promise<void>((r) => setTimeout(r, 50))
+        // Ensure the subscription is live so the abort exercises the
+        // mid-stream client-disconnect path, then abort and publish into the
+        // now-orphaned topic.
+        await waitForSubscriberCount(handle, (n) => n >= 1)
         reader.close()
         publishTerminalRegistry(handle, {type: 'terminal-removed', terminalId: asTerminalId('T1')})
-        await new Promise<void>((r) => setTimeout(r, 50))
-        // No assertion beyond "did not throw" — passes if shutdown is clean.
+        // Let the server observe the client disconnect and tear down the
+        // subscriber; assert it actually did (clean shutdown, no leak).
+        await waitForSubscriberCount(handle, (n) => n === 0)
     })
 
     it('returns 404 on a non-matching GET under /sessions/', async (): Promise<void> => {
