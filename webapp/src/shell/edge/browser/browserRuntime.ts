@@ -14,10 +14,10 @@ import {collectNodePositions} from '@/shell/edge/UI-edge/graph/collectNodePositi
 import type {mainAPI} from '@/shell/edge/main/runtime/api'
 import type {GraphDelta} from '@vt/graph-model/graph'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
-import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {BrowserDaemonConfig} from './browserConfig'
-import {callVtdRpc, vtdGetSettings, vtdSaveSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtd-clients/vtdRpc'
+import {callVtdRpc, vtdGetSettings, vtdSaveSettings, vtdSubscribeEvents} from './vtd-clients/vtdRpc'
+import {rehydrateBrowserTerminals, subscribeBrowserTerminalRegistry} from './browserTerminalRegistry'
 import {
     vtdActivateView,
     vtdApplyDelta,
@@ -137,7 +137,7 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         vtdUrl, vtdToken,
         // `graph` carries projectedGraph snapshots; `agent-events` passes through
         // to vt:events. `terminal-registry` is NOT here — it has its own SSE
-        // channel (vtdSubscribeTerminalRegistry below).
+        // channel (subscribeBrowserTerminalRegistry below).
         ['graph', 'agent-events'],
         (frame) => {
             const route = routeGraphFrame(frame)
@@ -153,27 +153,10 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
         },
     )
 
-    // ── VTD terminal-registry SSE ────────────────────────────────────────────
-    // In the browser, the Electron main process — which subscribes this SSE and
-    // drives the renderer's floating-terminal UI via `uiAPI.launchTerminalOntoUI`
-    // (see edge/main/graph/watch_folder/openProject.ts) — does not exist;
-    // main+renderer collapse into this one process. So we drive the UI here:
-    // the daemon emits an imperative `terminal-ui-launch` event for every spawn,
-    // which we route through the SAME `ui:call` seam Electron uses (`pushUi`),
-    // dispatching to `uiAPIHandler.launchTerminalOntoUI`. Without this the spawn
-    // succeeds and the node broadcasts, but no terminal panel ever renders.
-    vtdSubscribeTerminalRegistry(
-        vtdUrl, vtdToken, currentSessionId,
-        (data) => {
-            let event: TerminalRegistryEvent
-            try { event = (JSON.parse(data) as {event: TerminalRegistryEvent}).event } catch { return }
-            emit('terminal-registry', event)
-            if (event.type === 'terminal-ui-launch') {
-                emit('ui:call', null, 'launchTerminalOntoUI', [event.nodeId, event.terminalData, event.skipFitAnimation])
-            }
-        },
-        (err) => console.error('[browserRuntime] terminal-registry SSE error:', err),
-    )
+    // ── VTD terminal-registry SSE → floating-terminal UI ─────────────────────
+    // Renders every agent spawn; see browserTerminalRegistry.ts for why this
+    // lives in the browser runtime rather than an Electron-only main bridge.
+    subscribeBrowserTerminalRegistry(vtdUrl, vtdToken, currentSessionId, emit)
 
     const main = {
         // Graph
@@ -460,7 +443,9 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
             resize: (handle, cols, rows) => Promise.resolve(terminalRuntime.resize(handle, cols, rows)),
             scroll: (handle, dir, lines) => Promise.resolve(terminalRuntime.scroll(handle, dir, lines)),
             detach: (handle) => Promise.resolve(terminalRuntime.detach(handle)),
-            rehydrate: () => Promise.resolve(),
+            // Reload parity: re-launch a panel for every live terminal (the
+            // spawn-time launch events are never replayed). See browserTerminalRegistry.ts.
+            rehydrate: () => rehydrateBrowserTerminals(vtdUrl, vtdToken, emit),
         },
 
         events: {
