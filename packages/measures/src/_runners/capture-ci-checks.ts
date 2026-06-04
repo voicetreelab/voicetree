@@ -12,7 +12,7 @@ import {pathToFileURL, fileURLToPath} from 'node:url'
 
 import {recordCheckReport} from '../_shared/writers/check-report-writer.ts'
 import {spawnCheck} from './capture-check-runner.ts'
-import {errorSummaryForFailedOutcome, formatFailureBody} from './failure-summary.ts'
+import {errorSummaryForFailedOutcome, formatFailuresSection, formatGithubFailureSummary} from './failure-summary.ts'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..', '..', '..')
@@ -221,6 +221,11 @@ async function recordOutcome(check, outcome) {
         : undefined
     /** @type {Record<string, unknown>} */
     const details = {exitCode: outcome.exitCode, measurePath: check.measurePath, measureFolder: check.measureFolder}
+    // Identifies the parallel CI runner this check ran on, so the budget gate can
+    // compute per-job wall-clock instead of folding in cross-runner scheduling
+    // skew. Set per job by the generated workflow; absent on local runs.
+    const jobId = process.env.MEASURES_CI_JOB?.trim()
+    if (jobId) details.jobId = jobId
     if (outcome.timedOut) details.timedOut = true
     if (outcome.signal) details.signal = outcome.signal
     if (outcome.spawnError) details.spawnError = outcome.spawnError
@@ -440,42 +445,6 @@ function formatRunHeader(opts, checks) {
 async function runAllChecks(checks, opts) {
     if (opts.failFast || opts.sequential) return runChecksSequentially(checks, opts)
     return runChecksInParallel(checks, opts)
-}
-
-function formatFailuresSection(failures) {
-    if (failures.length === 0) return ''
-    const blocks = failures.map(({check, outcome}) => {
-        const body = formatFailureBody(outcome)
-        const bodyLine = body ? `${body}\n` : ''
-        return `  ✗ ${check.id}\n${bodyLine}      report: health-dashboard/reports/checks/${check.id}.json\n`
-    })
-    return `\n  failures:\n\n${blocks.join('\n')}`
-}
-
-function formatGithubFailureSummary(failures) {
-    if (failures.length === 0) return ''
-    const lines = [
-        '## CI Check Failures',
-        '',
-        `Failed checks: ${failures.length}`,
-        '',
-        ...failures.flatMap(({check, outcome}) => {
-            const body = formatFailureBody(outcome)
-                .split('\n')
-                .map(line => line.replace(/^      /, '  '))
-                .join('\n')
-            return [
-                `### ${check.id}`,
-                '',
-                `- Category: ${check.category}`,
-                `- Report: \`health-dashboard/reports/checks/${check.id}.json\``,
-                body ? '' : undefined,
-                body || undefined,
-                '',
-            ].filter(Boolean)
-        }),
-    ]
-    return `${lines.join('\n')}\n`
 }
 
 async function appendGithubFailureSummary(failures) {
