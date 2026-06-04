@@ -11,6 +11,7 @@ import {
 
 const KEYS: readonly (keyof RuntimeCapabilities)[] = [
     'nativeFolderPicker', 'worktrees', 'clipboardImages', 'settingsPersistence',
+    'projectSwitching', 'usageObservability', 'nativeMicrophoneSettings', 'askMode',
 ]
 
 describe('capability records', () => {
@@ -18,8 +19,17 @@ describe('capability records', () => {
         expect(KEYS.every(k => ELECTRON_CAPABILITIES[k])).toBe(true)
     })
 
-    it('the browser supports none of them', () => {
-        expect(KEYS.some(k => BROWSER_CAPABILITIES[k])).toBe(false)
+    it('the browser supports the VTD-gateway-backed ops (worktrees, clipboard, settings), but not the host-only ones', () => {
+        expect(BROWSER_CAPABILITIES).toEqual({
+            nativeFolderPicker: false,
+            worktrees: true,
+            clipboardImages: true,
+            settingsPersistence: true,
+            projectSwitching: false,
+            usageObservability: false,
+            nativeMicrophoneSettings: false,
+            askMode: false,
+        })
     })
 
     it('both records declare exactly the same keys (no drift)', () => {

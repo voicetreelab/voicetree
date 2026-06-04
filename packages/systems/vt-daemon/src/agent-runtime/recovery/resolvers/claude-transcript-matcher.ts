@@ -1,3 +1,5 @@
+import {textContainsAllRecoveryMarkers} from './recovery-markers'
+
 export type ClaudeContentBlock = {
     readonly type?: string
     readonly text?: string
@@ -40,11 +42,7 @@ function recordMatchesMarkers(
     projectRoot: string,
     taskNodePath: string,
 ): boolean {
-    const text: string = extractMessageText(record)
-    if (!text) return false
-    return text.includes(`VOICETREE_TERMINAL_ID = ${terminalId}`)
-        && text.includes(`VOICETREE_PROJECT_PATH = ${projectRoot}`)
-        && text.includes(`TASK_NODE_PATH = ${taskNodePath}`)
+    return textContainsAllRecoveryMarkers(extractMessageText(record), {terminalId, projectRoot, taskNodePath})
 }
 
 /**

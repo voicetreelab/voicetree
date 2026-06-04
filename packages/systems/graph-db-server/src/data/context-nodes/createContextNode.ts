@@ -10,6 +10,7 @@ import {calculateInitialPositionForChild} from '@vt/graph-model/spatial'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/mutations/applyGraphDelta";
+import {publish} from '@vt/graph-db-server/state/events/deltaEventBus'
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
@@ -176,7 +177,14 @@ export async function createContextNode(
     // 8. EDGE: Apply via GraphDelta pipeline (writes to disk)
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
 
-    // 9. Return the created node ID
+    // 9. EDGE: Broadcast the new node onto the delta event bus so per-session
+    // projectedGraph subscribers (notably the browser, which has NO optimistic
+    // local apply and learns of every node only via this stream) re-project and
+    // render it. Without this the context node exists on disk + in mem but never
+    // reaches the renderer, so the agent terminal anchored to it never appears.
+    publish({delta: contextNodeDelta, source: 'context-node'})
+
+    // 10. Return the created node ID
     return contextNodeId
 }
 

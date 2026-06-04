@@ -11,35 +11,17 @@
 // `incomingEdgesIndex`, `unresolvedLinksIndex`) into plain objects. Tools
 // that consume the bridge — `getNewNodesForAgentIdentities`,
 // `mapNodeIdToNode`, the createGraphTool's parent-resolution path — rely on
-// those Map types. Rehydrating by replaying a delta onto an empty graph
-// rebuilds those indexes through `applyGraphDeltaToGraph`'s normal write
-// path, so the daemon-side `Graph` is shape-equivalent to one produced
+// those Map types. `rehydrateSerializedGraph` (graph-model) rebuilds those
+// indexes so the daemon-side `Graph` is shape-equivalent to one produced
 // in-process.
 
 import type {GraphDbClient} from '@vt/graph-db-client'
-import {
-    applyGraphDeltaToGraph,
-    createEmptyGraph,
-    mapNewGraphToDelta,
-    type Graph,
-    type GraphNode,
-    type NodeIdAndFilePath,
-} from '@vt/graph-model/graph'
+import {rehydrateSerializedGraph, type Graph} from '@vt/graph-model/graph'
 import type {GraphBridge} from './toolBridges.ts'
-
-export function normalizeDaemonGraph(raw: {nodes: Record<string, unknown>}): Graph {
-    const normalizedNodes: Record<NodeIdAndFilePath, GraphNode> =
-        raw.nodes as Record<NodeIdAndFilePath, GraphNode>
-    const emptyGraph: Graph = createEmptyGraph()
-    return applyGraphDeltaToGraph(
-        emptyGraph,
-        mapNewGraphToDelta({...emptyGraph, nodes: normalizedNodes}),
-    )
-}
 
 export function buildGdbGraphBridge(client: GraphDbClient, projectRoot: string): GraphBridge {
     return {
-        getGraph: async (): Promise<Graph> => normalizeDaemonGraph(await client.getGraph()),
+        getGraph: async (): Promise<Graph> => rehydrateSerializedGraph(await client.getGraph()),
         getProjectPaths: async (): Promise<readonly string[]> => {
             const vs = await client.getProject()
             const seen: Set<string> = new Set<string>()

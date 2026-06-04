@@ -110,7 +110,7 @@ type ReportLike = {
     readonly startedAt: string
     readonly endedAt: string
     readonly status: 'pass' | 'fail' | 'skip' | string
-    readonly details?: {readonly measurePath?: string}
+    readonly details?: {readonly measurePath?: string; readonly jobId?: string}
 }
 
 type TierTiming = EvaluationResult['tierTimings'][number]
@@ -144,26 +144,47 @@ function aggregateTierTimings(reports: readonly ReportLike[]): Map<number, TierT
     }
     const out = new Map<number, TierTiming>()
     for (const [tier, group] of byTier) {
-        let minStart = Number.POSITIVE_INFINITY
-        let maxEnd = Number.NEGATIVE_INFINITY
-        let sum = 0
-        let slowest: TierTiming['slowest'] = null
-        for (const r of group) {
-            const s = Date.parse(r.startedAt)
-            const e = Date.parse(r.endedAt)
-            if (Number.isNaN(s) || Number.isNaN(e)) continue
-            if (s < minStart) minStart = s
-            if (e > maxEnd) maxEnd = e
-            sum += r.durationMs
-            if (slowest === null || r.durationMs > slowest.durationMs) {
-                slowest = {checkId: r.checkId, durationMs: r.durationMs}
-            }
-        }
-        const wallClockMs = (minStart === Number.POSITIVE_INFINITY || maxEnd === Number.NEGATIVE_INFINITY)
-            ? 0 : maxEnd - minStart
-        out.set(tier, {tier, wallClockMs, sumMs: sum, checkCount: group.length, slowest})
+        out.set(tier, summarizeTier(tier, group))
     }
     return out
+}
+
+// CI splits a tier's checks across several parallel jobs — one independently
+// provisioned runner each. The real wall-clock the tier costs is the slowest
+// single job's span, never the gap between separately scheduled runners (which
+// is pure provisioning skew nobody spent on work). So wall-clock is the max
+// per-job span, keyed by the runner's jobId. Reports without a jobId (local
+// single-process runs) collapse into one group, which reduces to the whole-tier
+// span — the same number the old global aggregation produced.
+//
+// sum and slowest stay tier-global: sum gates total machine-time (a cost, not a
+// latency), and the slowest single check is meaningful regardless of its job.
+function summarizeTier(tier: number, group: readonly ReportLike[]): TierTiming {
+    const spanByJob = new Map<string, {minStart: number; maxEnd: number}>()
+    let sum = 0
+    let slowest: TierTiming['slowest'] = null
+    for (const r of group) {
+        const s = Date.parse(r.startedAt)
+        const e = Date.parse(r.endedAt)
+        if (Number.isNaN(s) || Number.isNaN(e)) continue
+        sum += r.durationMs
+        if (slowest === null || r.durationMs > slowest.durationMs) {
+            slowest = {checkId: r.checkId, durationMs: r.durationMs}
+        }
+        const jobId = r.details?.jobId ?? ''
+        const span = spanByJob.get(jobId)
+        if (span) {
+            if (s < span.minStart) span.minStart = s
+            if (e > span.maxEnd) span.maxEnd = e
+        } else {
+            spanByJob.set(jobId, {minStart: s, maxEnd: e})
+        }
+    }
+    let wallClockMs = 0
+    for (const {minStart, maxEnd} of spanByJob.values()) {
+        if (maxEnd - minStart > wallClockMs) wallClockMs = maxEnd - minStart
+    }
+    return {tier, wallClockMs, sumMs: sum, checkCount: group.length, slowest}
 }
 
 function evaluateBudgets(

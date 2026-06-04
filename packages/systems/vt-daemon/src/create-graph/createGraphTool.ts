@@ -16,17 +16,11 @@ import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getFolderIdentityNoteId} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {slugify} from '../tools/graph/addProgressNodeTool'
+import {slugify} from '../_shared/slugify.ts'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {
-    DEFAULT_SUBGRAPH_WARN_THRESHOLD,
-    DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
-    DEFAULT_MAX_CHILDREN_PER_NODE,
-    DEFAULT_COMPLEXITY_WARN_SCORE,
-    DEFAULT_COMPLEXITY_BLOCK_SCORE,
-} from '@vt/graph-model/settings'
+import {DEFAULT_SUBGRAPH_LIMITS} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
     type RuleViolation,
@@ -278,11 +272,11 @@ async function validateOverridableRules(
         callerTaskNodeId,
         graph,
         lineLimit: settings.nodeLineLimit ?? 70,
-        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
-        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
-        maxChildrenPerNode: settings.maxChildrenPerNode ?? DEFAULT_MAX_CHILDREN_PER_NODE,
-        complexityWarnScore: settings.complexityWarnScore ?? DEFAULT_COMPLEXITY_WARN_SCORE,
-        complexityBlockScore: settings.complexityBlockScore ?? DEFAULT_COMPLEXITY_BLOCK_SCORE,
+        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphWarnThreshold,
+        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphErrorThreshold,
+        maxChildrenPerNode: settings.maxChildrenPerNode ?? DEFAULT_SUBGRAPH_LIMITS.maxChildrenPerNode,
+        complexityWarnScore: settings.complexityWarnScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityWarnScore,
+        complexityBlockScore: settings.complexityBlockScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityBlockScore,
         destinationFolderPath,
     })
     if (validationResult.status !== 'violations') return {error: null, warnings: []}

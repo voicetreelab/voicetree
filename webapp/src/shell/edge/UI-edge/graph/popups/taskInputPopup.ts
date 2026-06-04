@@ -7,6 +7,8 @@
  * Pattern follows agentCommandEditorPopup.ts
  */
 
+import {escapeHtml} from '@/utils/escapeHtml';
+
 export interface TaskInputResult {
     taskDescription: string;
 }
@@ -173,13 +175,4 @@ export function showTaskInputPopup(selectedNodes: SelectedNodeInfo[]): Promise<T
         dialog.showModal();
         textarea.focus();
     });
-}
-
-/**
- * Escapes HTML special characters to prevent XSS.
- */
-function escapeHtml(text: string): string {
-    const div: HTMLDivElement = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }

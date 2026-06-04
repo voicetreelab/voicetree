@@ -295,7 +295,7 @@ function captureCiStep(conc: ConcernSpec): Step {
         kind: 'run',
         name: `Run ${jobIdFor(conc.tier, conc.concern)} checks`,
         run: wrapped,
-        env: {NODE_OPTIONS: CAPTURE_CI_NODE_OPTIONS},
+        env: {MEASURES_CI_JOB: jobIdFor(conc.tier, conc.concern), NODE_OPTIONS: CAPTURE_CI_NODE_OPTIONS},
     }
 }
 
@@ -319,7 +319,9 @@ function captureCiMatrixStep(conc: ConcernSpec): Step {
         kind: 'run',
         name: `Run ${jobIdFor(conc.tier, conc.concern)} check`,
         run: wrapped,
-        env: {NODE_OPTIONS: CAPTURE_CI_NODE_OPTIONS},
+        // Per matrix leg → its own runner, so the budget gate sees each leg as a
+        // distinct job and never folds cross-leg provisioning skew into wall-clock.
+        env: {MEASURES_CI_JOB: `${jobIdFor(conc.tier, conc.concern)}-\${{ matrix.check_id }}`, NODE_OPTIONS: CAPTURE_CI_NODE_OPTIONS},
     }
 }
 

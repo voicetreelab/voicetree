@@ -33,6 +33,7 @@ import type {
     GraphDelta,
     Position,
 } from '@vt/graph-model/graph'
+import type {AvailableFolderItem, RawDirectoryEntry, FolderTreeNode} from '@vt/graph-model/folders'
 import type {ProjectedGraph} from '@vt/graph-state/contract'
 import type {ProjectState, ViewRecord} from '@vt/graph-db-protocol'
 import type {VoidResponse} from './rpc-contracts.ts'
@@ -69,6 +70,16 @@ export const GRAPH_GATEWAY_METHODS = {
     activateView: 'graph.activateView',
     cloneView: 'graph.cloneView',
     deleteView: 'graph.deleteView',
+    // Folders (browser-mode daemon-served folder browser / project FS)
+    getFolderTreeSync: 'graph.getFolderTreeSync',
+    getAvailableFolders: 'graph.getAvailableFolders',
+    getDirectoryTree: 'graph.getDirectoryTree',
+    createSubfolder: 'graph.createSubfolder',
+    createDatedVoiceTreeFolder: 'graph.createDatedVoiceTreeFolder',
+    getStarredFolders: 'graph.getStarredFolders',
+    addStarredFolder: 'graph.addStarredFolder',
+    removeStarredFolder: 'graph.removeStarredFolder',
+    copyNodeToFolder: 'graph.copyNodeToFolder',
 } as const
 
 export type GraphGatewayMethodKey = keyof typeof GRAPH_GATEWAY_METHODS
@@ -109,8 +120,9 @@ export namespace GraphGetProject {
 /**
  * Whole-graph snapshot. Over the wire the `Graph`-level Map indexes
  * (`incomingEdgesIndex`, `nodeByBaseName`, `unresolvedLinksIndex`) serialize as
- * plain objects and `nodes` as a record; the consumer rehydrates the Maps the
- * same way the daemon-side `normalizeDaemonGraph` does.
+ * plain objects and `nodes` as a record; the consumer MUST rehydrate the Maps
+ * via `rehydrateSerializedGraph` (`@vt/graph-model`) before treating the result
+ * as a usable `Graph`.
  */
 export namespace GraphGetGraph {
     export type Request = Record<string, never>
@@ -239,4 +251,104 @@ export namespace GraphDeleteView {
         readonly viewId: string
     }
     export type Response = VoidResponse
+}
+
+// ---------------------------------------------------------------------------
+// Folders — the browser-mode daemon-served folder browser. The browser never
+// touches the filesystem; VTD owns FS and serves these scoped to the project's
+// allowlisted roots (project root + read paths). Domain shapes are imported
+// from `@vt/graph-model/folders`; the small mutation-result records are declared
+// here so the contract stays the single source of truth for the wire shape.
+// ---------------------------------------------------------------------------
+
+/**
+ * The full folder-tree sidebar payload for the current project — root tree,
+ * starred-folder trees, external read-path trees — plus the project paths the
+ * renderer's ProjectPathStore needs. The browser pulls this on project:ready
+ * and after each folder/path mutation and pushes it into the same stores the
+ * Electron main process feeds.
+ */
+export namespace GraphGetFolderTreeSync {
+    export type Request = Record<string, never>
+    export interface Response {
+        readonly rootTree: FolderTreeNode | null
+        readonly starredFolders: readonly string[]
+        readonly starredTrees: Record<string, FolderTreeNode>
+        readonly externalTrees: Record<string, FolderTreeNode>
+        readonly readPaths: readonly string[]
+        readonly writeFolderPath: string
+    }
+}
+
+/** "Add folder" selector results for a search query, scoped to the allowlist. */
+export namespace GraphGetAvailableFolders {
+    export interface Request {
+        readonly searchQuery: string
+    }
+    export type Response = readonly AvailableFolderItem[]
+}
+
+/**
+ * Recursive directory listing under an allowlisted root (null if disallowed).
+ * The wire carries a RAW scan (plain-string paths) — the daemon serves what its
+ * filesystem edge produced; clients brand it to the renderer-facing
+ * `DirectoryEntry` at their own boundary (graph-model owns the brand).
+ */
+export namespace GraphGetDirectoryTree {
+    export interface Request {
+        readonly rootPath: string
+        readonly maxDepth?: number
+    }
+    export type Response = RawDirectoryEntry | null
+}
+
+/** Result of a folder-creation mutation. */
+export interface FolderMutationResult {
+    readonly success: boolean
+    readonly path?: string
+    readonly error?: string
+}
+
+export namespace GraphCreateSubfolder {
+    export interface Request {
+        readonly parentPath: string
+        readonly folderName: string
+    }
+    export type Response = FolderMutationResult
+}
+
+export namespace GraphCreateDatedVoiceTreeFolder {
+    export type Request = Record<string, never>
+    export type Response = FolderMutationResult
+}
+
+export namespace GraphGetStarredFolders {
+    export type Request = Record<string, never>
+    export type Response = readonly string[]
+}
+
+export namespace GraphAddStarredFolder {
+    export interface Request {
+        readonly folderPath: string
+    }
+    export type Response = VoidResponse
+}
+
+export namespace GraphRemoveStarredFolder {
+    export interface Request {
+        readonly folderPath: string
+    }
+    export type Response = VoidResponse
+}
+
+export namespace GraphCopyNodeToFolder {
+    export interface Request {
+        readonly nodeId: string
+        readonly targetFolderPath: string
+    }
+    export interface Response {
+        readonly success: boolean
+        readonly targetPath: string
+        readonly error?: string
+    }
 }

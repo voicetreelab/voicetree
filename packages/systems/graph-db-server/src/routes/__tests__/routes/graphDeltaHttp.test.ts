@@ -262,6 +262,71 @@ describe('HTTP graph delta writes', () => {
     expect(projectedGraph.nodes.find(node => node.id === testNodePath)).toBeUndefined()
   }, 20000)
 
+  // Regression: creating a context node must broadcast it on the per-session
+  // projectedGraph SSE, exactly like a plain delta does. Without the publish in
+  // createContextNode, the node lands on disk + in mem but never reaches
+  // subscribers — so a browser (no optimistic local apply) never sees it and the
+  // agent terminal anchored to it never renders. This asserts the SSE frame
+  // arrives; pre-fix it never does and readProjectedGraph times out.
+  test('context-node creation publishes the new node on the projectedGraph SSE', async () => {
+    const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
+    handles.push(handle)
+    const base = `http://127.0.0.1:${handle.port}`
+
+    // Seed a parent node to create context for.
+    const parentPath = join(project, 'parent-for-context.md')
+    const parentDelta = [
+      {
+        type: 'UpsertNode',
+        nodeToUpsert: {
+          kind: 'leaf',
+          outgoingEdges: [],
+          absoluteFilePathIsID: parentPath,
+          contentWithoutYamlOrLinks: '# Parent\nContext source',
+          nodeUIMetadata: {
+            color: { _tag: 'None' },
+            position: { _tag: 'None' },
+            additionalYAMLProps: {},
+          },
+        },
+        previousNode: { _tag: 'None' },
+      },
+    ]
+    const seedRes = await fetch(`${base}/graph/delta`, {
+      body: JSON.stringify(parentDelta),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
+    expect(seedRes.status).toBe(200)
+
+    // Open a session SSE and drain the initial snapshot frame.
+    const sessionRes = await fetch(`${base}/sessions`, { method: 'POST' })
+    expect(sessionRes.status).toBe(201)
+    const { sessionId } = SessionCreateResponseSchema.parse(await sessionRes.json())
+    sseController = new AbortController()
+    const sseRes = await fetch(`${base}/sessions/${sessionId}/events`, {
+      signal: sseController.signal,
+    })
+    expect(sseRes.status).toBe(200)
+    const reader = sseRes.body!.getReader()
+    await reader.read()
+
+    // Create the context node.
+    const ctxRes = await fetch(`${base}/graph/context-node`, {
+      body: JSON.stringify({ parentNodeId: parentPath, semanticNodeIds: [] }),
+      headers: { 'Content-Type': 'application/json', 'X-Session-Id': sessionId },
+      method: 'POST',
+    })
+    expect(ctxRes.status).toBe(200)
+    const { nodeId: contextNodeId } = await ctxRes.json() as { nodeId: string }
+    expect(contextNodeId).toContain('ctx-nodes')
+
+    // The decisive assertion: a projectedGraph SSE frame carrying the new
+    // context node must arrive (pre-fix this times out — nothing is published).
+    const projectedGraph = await readProjectedGraph(reader)
+    expect(projectedGraph.nodes.find(node => node.id === contextNodeId)).toBeDefined()
+  }, 20000)
+
   test('rejects invalid graph delta payloads', async () => {
     const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
     handles.push(handle)

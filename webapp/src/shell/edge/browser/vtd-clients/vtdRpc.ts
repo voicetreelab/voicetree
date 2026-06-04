@@ -1,0 +1,168 @@
+// VTD HTTP JSON-RPC + fetch-based SSE client for the browser.
+// Uses Authorization: Bearer <token> for all HTTP requests.
+// WS upgrades use the vt-bearer subprotocol (browser can't set arbitrary WS headers).
+
+import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
+import type {VTSettings} from '@vt/graph-model/settings'
+import {DEFAULT_RECONNECT_POLICY, reconnectDelayMs} from '../transport/reconnectPolicy'
+
+async function rpcCall<T>(
+    vtdUrl: string,
+    token: string,
+    method: string,
+    params: Record<string, unknown>,
+): Promise<T> {
+    const res = await fetch(`${vtdUrl}/rpc`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({jsonrpc: '2.0', method, params, id: Date.now()}),
+    })
+    if (res.status === 401) throw new Error(`VTD auth failed (401)`)
+    if (!res.ok) throw new Error(`VTD /rpc ${method} → ${res.status}`)
+    const body = await res.json() as {result?: T; error?: {message: string}}
+    if ('error' in body && body.error) throw new Error(`VTD RPC ${method} error: ${body.error.message}`)
+    return body.result as T
+}
+
+export function callVtdRpc<T>(
+    vtdUrl: string,
+    token: string,
+    method: string,
+    params: Record<string, unknown>,
+): Promise<T> {
+    return rpcCall<T>(vtdUrl, token, method, params)
+}
+
+/**
+ * Fetch the resolved VTSettings from VTD's authenticated GET /settings route.
+ * Gives the browser-mode adapter the same settings the Electron renderer gets
+ * over IPC — notably `agents`, which drives the editor horizontal menu.
+ */
+export async function vtdGetSettings(vtdUrl: string, token: string): Promise<VTSettings> {
+    const res = await fetch(`${vtdUrl}/settings`, {
+        headers: {'Authorization': `Bearer ${token}`},
+    })
+    if (res.status === 401) throw new Error('VTD auth failed (401)')
+    if (!res.ok) throw new Error(`VTD /settings → ${res.status}`)
+    return res.json() as Promise<VTSettings>
+}
+
+/**
+ * Persist edited settings through VTD's authenticated POST /settings route.
+ * VTD enforces the browser-safe allowlist server-side (it loads on-disk settings
+ * and merges only non-secret fields), so the renderer can never write secrets or
+ * host shell hooks regardless of what it sends. Resolves true on success; throws
+ * on auth/transport failure (mirrors vtdGetSettings).
+ */
+export async function vtdSaveSettings(vtdUrl: string, token: string, settings: VTSettings): Promise<boolean> {
+    const res = await fetch(`${vtdUrl}/settings`, {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify(settings),
+    })
+    if (res.status === 401) throw new Error('VTD auth failed (401)')
+    if (!res.ok) throw new Error(`VTD POST /settings → ${res.status}`)
+    return true
+}
+
+/**
+ * Subscribe to VTD /events WebSocket for the given topics. Returns a cleanup
+ * function.
+ *
+ * The hub delivers NOTHING to a connection until it declares its topics with a
+ * `{op:'subscribe'}` frame (see eventSubscriptionHub) — a freshly opened socket
+ * has an empty topic set. We send that frame on every open, so a reconnect
+ * re-declares the topics on the new connection.
+ */
+export function vtdSubscribeEvents(
+    vtdUrl: string,
+    token: string,
+    topics: readonly TopicName[],
+    onFrame: (frame: EventFrame | GapFrame) => void,
+    onConnectionState: (state: ConnectionState) => void,
+): () => void {
+    const wsUrl = vtdUrl.replace(/^http/, 'ws') + '/events'
+    const subscribeFrame = JSON.stringify({op: 'subscribe', topics: topics.map((topic) => ({topic}))})
+    let ws: WebSocket | null = null
+    let disposed = false
+    // Consecutive-failure counter driving the exponential backoff. Reset to 0 on
+    // a successful open so a healthy connection that later drops retries fast.
+    let attempt = 0
+
+    function connect(): void {
+        if (disposed) return
+        onConnectionState({kind: 'connecting', attempt})
+        ws = new WebSocket(wsUrl, ['vt-bearer', token])
+
+        ws.onopen = (): void => {
+            attempt = 0
+            ws?.send(subscribeFrame)
+            onConnectionState({kind: 'connected'})
+        }
+        ws.onmessage = (ev: MessageEvent): void => {
+            try {
+                const frame = JSON.parse(ev.data as string) as EventFrame | GapFrame
+                onFrame(frame)
+            } catch {
+                // malformed frame — ignore
+            }
+        }
+        ws.onerror = (): void => onConnectionState({kind: 'closed'})
+        ws.onclose = (): void => {
+            onConnectionState({kind: 'closed'})
+            if (disposed) return
+            const delayMs = reconnectDelayMs(DEFAULT_RECONNECT_POLICY, attempt)
+            attempt += 1
+            setTimeout(connect, delayMs)
+        }
+    }
+
+    connect()
+    return (): void => {
+        disposed = true
+        ws?.close()
+        ws = null
+    }
+}
+
+/** Subscribe to VTD /sessions/:sessionId/terminal-registry SSE with auth via fetch. */
+export function vtdSubscribeTerminalRegistry(
+    vtdUrl: string,
+    token: string,
+    sessionId: string,
+    onData: (data: string) => void,
+    onError: (err: unknown) => void,
+): () => void {
+    const abortController = new AbortController()
+    void (async () => {
+        try {
+            const res = await fetch(
+                `${vtdUrl}/sessions/${sessionId}/terminal-registry`,
+                {
+                    headers: {'Authorization': `Bearer ${token}`},
+                    signal: abortController.signal,
+                },
+            )
+            if (!res.ok || !res.body) throw new Error(`terminal-registry SSE open failed: ${res.status}`)
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+            let buf = ''
+            while (true) {
+                const {done, value} = await reader.read()
+                if (done) break
+                buf += decoder.decode(value, {stream: true})
+                const lines = buf.split('\n')
+                buf = lines.pop() ?? ''
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) onData(line.slice(6))
+                }
+            }
+        } catch (err) {
+            if ((err as {name?: string}).name !== 'AbortError') onError(err)
+        }
+    })()
+    return () => abortController.abort()
+}

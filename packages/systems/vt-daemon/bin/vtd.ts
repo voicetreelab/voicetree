@@ -67,7 +67,8 @@ import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/o
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
-import {buildGraphGatewayRoutes} from '../src/rpc/graphGatewayRoutes.ts'
+import {buildGraphGatewayRoutes} from '../src/rpc/gateway/graphGatewayRoutes.ts'
+import {buildWorktreeRoutes} from '../src/rpc/gateway/worktreeRoutes.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import {
@@ -304,10 +305,16 @@ async function main(): Promise<void> {
         client: gdb.client,
         ensureSession: gatewayLiveUpdates.ensureSession,
     })
+    // Worktree gateway: the browser drives git worktree ops through VTD. The
+    // repo root is read from the daemon's own loaded project (graphd's
+    // authoritative projectRoot), never from the client.
+    const worktreeRoutes = buildWorktreeRoutes({
+        getRepoRoot: async (): Promise<string> => (await gdb.client.getProject()).projectRoot,
+    })
 
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(toolBridges, graphGatewayRoutes),
+            catalog: buildDefaultToolCatalog(toolBridges, [...graphGatewayRoutes, ...worktreeRoutes]),
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override
@@ -326,6 +333,7 @@ async function main(): Promise<void> {
             // on/off` after `configureTmuxSession`. Default false keeps
             // browser-style text selection working without holding Shift.
             getTmuxMouseMode: async (): Promise<boolean> => (await loadSettings()).terminalTmuxMouseMode ?? false,
+            getProjectState: async () => gdb.client.getProject(), // allowlist for /clipboard-image + /image FS routes
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats

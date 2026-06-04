@@ -241,7 +241,7 @@ export { deleteNodeSimple } from './graph-operations/transforms/removeNodeMainta
 export { removeContextNodes } from './graph-operations/transforms/removeContextNodes'
 
 // === GRAPH CREATION UTILITIES ===
-export { createGraph, createEmptyGraph } from './construction/createGraph'
+export { createGraph, createEmptyGraph, rehydrateSerializedGraph } from './construction/createGraph'
 
 // === GRAPH BUILDING FROM FILES ===
 export type BuildGraphFromFiles = (files: readonly { readonly absolutePath: string; readonly content: string }[]) => Graph

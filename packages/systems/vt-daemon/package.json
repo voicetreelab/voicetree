@@ -16,6 +16,7 @@
     "./agent-runtime/*": "./src/agent-runtime/*",
     "./_shared/*": "./src/_shared/*",
     "./tools/*": "./src/tools/*",
+    "./tools/workflows/workflowReader": "./src/tools/workflows/workflowReader.ts",
     "./util/findAvailablePort": "./src/tools/findAvailablePort.ts",
     "./util/*": "./src/util/*",
     "./config/*": "./src/config/*",
@@ -24,6 +25,8 @@
     "./transport/*": "./src/transport/*",
     "./observability/*": "./src/observability/*",
     "./create-graph/*": "./src/create-graph/*",
+    "./workspace/worktree": "./src/workspace/worktree/index.ts",
+    "./workspace/*": "./src/workspace/*",
     "./hooks/*": "./src/hooks/*",
     "./lifecycle/*": "./src/lifecycle/*",
     "./bin/vtd.ts": "./bin/vtd.ts"

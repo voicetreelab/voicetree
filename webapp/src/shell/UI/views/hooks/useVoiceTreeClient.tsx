@@ -17,6 +17,7 @@ import {
   RECONNECT_DELAY_MS,
 } from "./reconnectionManager";
 import { forceRefreshAPIKey } from "@/utils/get-api-key";
+import { detectVoiceInputSupport } from "./voiceInputSupport";
 
 interface UseVoiceTreeClientOptions {
   apiKey: string | (() => Promise<string>);
@@ -52,6 +53,8 @@ export default function useVoiceTreeClient({
   cancelTranscription: () => void;
   state: RecorderState;
   error: TranscriptionError | null;
+  /** False when this browser can't capture audio (insecure context / no getUserMedia). */
+  isSupported: boolean;
 } {
   const sonioxClient: RefObject<SonioxClient | null> = useRef<SonioxClient | null>(null);
   const proactiveRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,9 +65,12 @@ export default function useVoiceTreeClient({
   // Refs to hold latest function versions (avoids stale closure issues with mutual recursion)
   const startAndScheduleRef = useRef<() => void>(() => {});
 
-  sonioxClient.current ??= new SonioxClient({
-    apiKey,
-  });
+  // Sampled once: browser audio capture needs a secure context. We do NOT
+  // construct the SonioxClient here — its constructor throws synchronously on an
+  // unsupported browser, and doing that during render crashed the whole
+  // transcribe subtree (the LAN-over-http phone case). The client is created
+  // lazily on first start instead; `cancel`/`stop` are null-safe until then.
+  const [isSupported] = useState<boolean>(detectVoiceInputSupport);
 
   const [state, setState] = useState<RecorderState>("Init");
   const [error, setError] = useState<TranscriptionError | null>(null);
@@ -94,9 +100,20 @@ export default function useVoiceTreeClient({
 
   // Internal start function (used by both initial start and restarts)
   const startTranscriptionInternal = useCallback(async () => {
-    // Kill any existing client and create fresh one
+    // Voice capture is unavailable in this context (the UI dims the mic, so this
+    // is a defensive backstop). Never reach the SDK constructor — it throws.
+    if (!isSupported) return;
+
+    // Kill any existing client and create fresh one. The constructor can throw
+    // on an unsupported browser; contain it as an error state rather than an
+    // unhandled rejection that bubbles out of the click handler.
     sonioxClient.current?.cancel();
-    sonioxClient.current = new SonioxClient({ apiKey });
+    try {
+      sonioxClient.current = new SonioxClient({ apiKey });
+    } catch (e) {
+      console.error('[VoiceTree] Soniox client unavailable:', e);
+      return;
+    }
 
     setError(null);
 
@@ -157,7 +174,7 @@ export default function useVoiceTreeClient({
         onPartialResultCallback?.(result);
       },
     });
-  }, [apiKey, onFinished, onPartialResultCallback, onStarted, translationConfig]);
+  }, [apiKey, isSupported, onFinished, onPartialResultCallback, onStarted, translationConfig]);
 
   // Keep the ref up-to-date with latest functions
   startAndScheduleRef.current = () => {
@@ -225,5 +242,6 @@ export default function useVoiceTreeClient({
     cancelTranscription,
     state,
     error,
+    isSupported,
   };
 }
