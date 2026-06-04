@@ -60,6 +60,19 @@ function syncSessionCollapseSetBatch(
 }
 
 /**
+ * Push a fresh projection to this session's live renderers after a folder-state
+ * write. Required because `'collapsed'` (and a `'collapsed' -> 'expanded'` flip
+ * on an already-loaded folder) changes the *projection* without changing the
+ * *node set*, so no graph delta fires on the delta bus and the SSE stream would
+ * otherwise never re-project. Re-running it for `'expanded'`/`'hidden'` is a
+ * harmless idempotent re-render (the SSE layer coalesces bursts), so we broadcast
+ * unconditionally rather than try to predict which transitions skipped a delta.
+ */
+async function broadcastProjection(session: Session): Promise<void> {
+  await executeCommand({ type: 'ProjectAndBroadcast', session })
+}
+
+/**
  * Apply the graph-loaded-state side of a folder-state change and report how many
  * nodes a `'hidden'` transition purged. `'hidden'` is routed exclusively through
  * the unload transition (`RemoveProjectReadPath`), which is the single funnel
@@ -123,6 +136,7 @@ export function mountFolderStateRoutes(
       state === 'hidden'
         ? { ...readCurrentFolderState(), removedNodeCount }
         : updateCurrentFolderState(path, state)
+    await broadcastProjection(session)
     return sendHttpResult(c, jsonResult(FolderStateResponseSchema.parse(snapshot)))
   })
 
@@ -155,6 +169,7 @@ export function mountFolderStateRoutes(
       loadedUpdates.length > 0
         ? updateCurrentFolderStateBatch(loadedUpdates)
         : readCurrentFolderState()
+    await broadcastProjection(session)
     return sendHttpResult(
       c,
       jsonResult(FolderStateResponseSchema.parse({ ...snapshot, removedNodeCount })),
