@@ -9,7 +9,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Option} from 'fp-ts/lib/Option.js'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {TerminalData, TerminalId, TerminalRecord} from '@vt/vt-daemon-client'
-import {selectTerminalsToRehydrate} from './rehydrateTerminalPanels'
+import {selectTerminalsToRehydrate} from './selectTerminalsToRehydrate'
 
 function makeTerminalData(id: string, contextNodeId: string): TerminalData {
     const noneOption: Option<NodeIdAndFilePath> = O.none

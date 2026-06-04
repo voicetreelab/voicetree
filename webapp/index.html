@@ -26,12 +26,12 @@
       http-equiv="Content-Security-Policy"
       content="
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://us-assets.i.posthog.com;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
         font-src 'self' https://fonts.gstatic.com data:;
         img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*;
         media-src 'self' blob: data: file: http://localhost:* http://127.0.0.1:*;
-        connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://us.i.posthog.com https://us-central1-vocetree-alpha.cloudfunctions.net wss://stt-rt.soniox.com;
+        connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://us.i.posthog.com https://us-assets.i.posthog.com https://us-central1-vocetree-alpha.cloudfunctions.net wss://stt-rt.soniox.com;
         worker-src 'self' blob:;
         frame-src https://www.youtube.com https://player.vimeo.com https://www.loom.com;
         object-src 'none';

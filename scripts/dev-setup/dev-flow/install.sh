@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install.sh — put the machine-LOCAL dev-flow commands (vt-sync / vt-pr /
-# vt-worktree) on PATH.
+# vt-worktree) AND the product CLI `vt` on PATH.
 #
 # Symlinks them into $HOME/bin and ensures $HOME/bin is first on PATH — for
 # interactive/login shells (shell-init) AND for the non-login ssh command shells
@@ -10,6 +10,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 DEST_DIR="${VT_BIN_DIR:-$HOME/bin}"
 mkdir -p "$DEST_DIR"
 
@@ -20,6 +21,17 @@ for cmd in vt-sync vt-pr vt-worktree; do
   ln -sfn "$src" "$DEST_DIR/$cmd"
   echo "→ dev-flow: $DEST_DIR/$cmd -> $src"
 done
+
+# The product CLI `vt` lives in the voicetree-cli package (not in dev-flow/), but
+# it must be on PATH for the same dev workflow: the Mac runs it locally, and the
+# remote box's `vt` forwards every invocation back to the Mac. Its bin wrapper
+# resolves symlinks to find its own package dir, so linking it from $HOME/bin is
+# safe — it still runs the live monorepo TS sources via tsx.
+vt_cli="$REPO_ROOT/packages/systems/voicetree-cli/bin/vt"
+[ -f "$vt_cli" ] || { echo "install.sh: missing product CLI $vt_cli" >&2; exit 1; }
+chmod +x "$vt_cli"
+ln -sfn "$vt_cli" "$DEST_DIR/vt"
+echo "→ vt CLI: $DEST_DIR/vt -> $vt_cli"
 
 # --- ensure $HOME/bin is on PATH ---------------------------------------------
 # Which shell-init files to wire is platform-specific (the dev-flow commands must

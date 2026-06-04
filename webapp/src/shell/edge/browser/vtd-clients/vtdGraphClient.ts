@@ -40,7 +40,8 @@ import {
     type GraphGetStarredFolders,
     type GraphCopyNodeToFolder,
 } from '@vt/vt-daemon-protocol'
-import type {GraphDelta, Position} from '@vt/graph-model/graph'
+import type {Graph, GraphDelta, Position} from '@vt/graph-model/graph'
+import {rehydrateSerializedGraph} from '@vt/graph-model/graph'
 import type {DirectoryEntry} from '@vt/graph-model/folders'
 import {callVtdRpc} from './vtdRpc'
 
@@ -70,8 +71,16 @@ export const vtdOpenProject =
 export const vtdGetProject =
     graphCall<[], GraphGetProject.Response>(M.getProject, () => ({}))
 
-export const vtdGetGraph =
+// Whole-graph read. The `Graph`'s Map indexes don't survive JSON (they arrive
+// as `{}`), so — unlike the other `graph.*` reads — this one cannot be a bare
+// `graphCall`: it must rehydrate the indexes before handing back a `Graph`, or
+// every client-side graph algorithm (e.g. findMostConnectedNode) sees broken
+// `.get`. Mirrors the Electron daemon-query and vt-daemon bridge paths.
+const getGraphRaw =
     graphCall<[], GraphGetGraph.Response>(M.getGraph, () => ({}))
+
+export const vtdGetGraph = async (u: string, t: string): Promise<Graph> =>
+    rehydrateSerializedGraph(await getGraphRaw(u, t))
 
 export const vtdGetNode =
     graphCall<[nodeId: string], GraphGetNode.Response>(M.getNode, (nodeId) => ({nodeId}))

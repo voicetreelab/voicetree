@@ -14,6 +14,7 @@ import { calculateInitialPositionForChild } from '@vt/graph-model/spatial'
 import {
   applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from '../graph/mutations/applyGraphDelta'
+import { publish } from '@vt/graph-db-server/state/events/deltaEventBus'
 import { ensureUniqueNodeId } from '@vt/graph-model/graph'
 import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
@@ -97,6 +98,11 @@ export async function createContextNodeFromSelectedNodes(
 
   // Apply to graph
   await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
+
+  // Broadcast onto the delta event bus so per-session projectedGraph
+  // subscribers (the browser has no optimistic local apply) re-project and
+  // render the new node — see createContextNode.ts for the full rationale.
+  publish({delta: contextNodeDelta, source: 'context-node'})
 
   return contextNodeId
 }

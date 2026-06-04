@@ -1,6 +1,5 @@
-import path from 'path'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '../..'
-import { ensureUniqueNodeId, parseMarkdownToGraphNode, stableIdSuffix } from '../graphOperationPrimitives'
+import { ensureUniqueNodeId, nodeBasename, parseMarkdownToGraphNode, stableIdSuffix } from '../graphOperationPrimitives'
 import { findMostConnectedNode } from '../indexes/findMostConnectedNode'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -41,7 +40,7 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   // NodeIdAndFilePath is an absolute path; the link resolver tolerates absolute
   // paths via suffix matching, but emitting basenames keeps daemon-written files
   // visually identical to user-authored files and avoids leaking machine paths.
-  const parentBasename: string = path.basename(mostConnectedNodeId, '.md')
+  const parentBasename: string = nodeBasename(mostConnectedNodeId, '.md')
 
   // Build markdown content with task description and parent link only.
   // Selected node references are stored in the context node, not here,

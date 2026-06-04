@@ -2,7 +2,7 @@
 // Uses Authorization: Bearer <token> for all HTTP requests.
 // WS upgrades use the vt-bearer subprotocol (browser can't set arbitrary WS headers).
 
-import type {ConnectionState, EventFrame, GapFrame} from '@vt/vt-daemon/transport/eventTypes'
+import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_RECONNECT_POLICY, reconnectDelayMs} from '../transport/reconnectPolicy'
 
@@ -68,14 +68,24 @@ export async function vtdSaveSettings(vtdUrl: string, token: string, settings: V
     return true
 }
 
-/** Subscribe to VTD /events WebSocket. Returns a cleanup function. */
+/**
+ * Subscribe to VTD /events WebSocket for the given topics. Returns a cleanup
+ * function.
+ *
+ * The hub delivers NOTHING to a connection until it declares its topics with a
+ * `{op:'subscribe'}` frame (see eventSubscriptionHub) — a freshly opened socket
+ * has an empty topic set. We send that frame on every open, so a reconnect
+ * re-declares the topics on the new connection.
+ */
 export function vtdSubscribeEvents(
     vtdUrl: string,
     token: string,
+    topics: readonly TopicName[],
     onFrame: (frame: EventFrame | GapFrame) => void,
     onConnectionState: (state: ConnectionState) => void,
 ): () => void {
     const wsUrl = vtdUrl.replace(/^http/, 'ws') + '/events'
+    const subscribeFrame = JSON.stringify({op: 'subscribe', topics: topics.map((topic) => ({topic}))})
     let ws: WebSocket | null = null
     let disposed = false
     // Consecutive-failure counter driving the exponential backoff. Reset to 0 on
@@ -89,6 +99,7 @@ export function vtdSubscribeEvents(
 
         ws.onopen = (): void => {
             attempt = 0
+            ws?.send(subscribeFrame)
             onConnectionState({kind: 'connected'})
         }
         ws.onmessage = (ev: MessageEvent): void => {

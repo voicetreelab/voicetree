@@ -1,11 +1,14 @@
-/// <reference types="vitest" />
-import { defineConfig } from "vite";
+// defineConfig from vitest/config (not vite) so the `test` block below is typed —
+// vite's own defineConfig has no `test` property, and a `/// <reference>` shim is
+// not honored under tsconfig.app.json.
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 import path from "path";
 import { createRequire } from "module";
+import { lanCspPlugin } from "./vite-plugins/lanCsp";
 
 const require = createRequire(import.meta.url);
 const ciCheckReporter = require.resolve("@vt/measures/vitest-reporter");
@@ -46,7 +49,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     wasm(),
-    topLevelAwait()
+    topLevelAwait(),
+    // Widen the static CSP to the LAN VTD origin when `vt webapp --lan` sets
+    // VITE_VTD_URL to a non-loopback host; a no-op for loopback launches.
+    lanCspPlugin()
   ],
   base: "./",
   resolve: {
@@ -83,7 +89,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: "./e2e-tests/setup.ts",
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "vite-plugins/**/*.test.ts"],
     exclude: ["node_modules/**", "dist/**", "e2e-tests/**"],
     reporters: [
       ['default', {summary: false, verbose: false}],

@@ -53,6 +53,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     stopTranscription,
     cancelTranscription,
     error,
+    isSupported: voiceInputSupported,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
     onPartialResult: onVoiceResult,  // Wire raw SDK events directly to store
@@ -267,10 +268,12 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             ssePanelMountRef={ssePanelMountRef}
             state={state}
             textInput={textInput}
+            voiceInputSupported={voiceInputSupported}
           />
           <ErrorMessages
             connectionError={connectionError}
             error={error}
+            voiceInputUnsupported={!voiceInputSupported}
             // Only show the OS-settings deep-link when the host can actually open
             // it (native mac). The browser controls mic access via site-settings.
             isMacPlatform={navigator.platform.includes('Mac') && hostCapabilities().nativeMicrophoneSettings}
