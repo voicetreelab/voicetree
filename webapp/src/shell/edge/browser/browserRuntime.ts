@@ -14,6 +14,7 @@ import {collectNodePositions} from '@/shell/edge/UI-edge/graph/collectNodePositi
 import type {mainAPI} from '@/shell/edge/main/runtime/api'
 import type {GraphDelta} from '@vt/graph-model/graph'
 import type {ConnectionState, EventFrame, GapFrame, TopicName} from '@vt/vt-daemon/transport/eventTypes'
+import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {BrowserDaemonConfig} from './browserConfig'
 import {callVtdRpc, vtdGetSettings, vtdSaveSettings, vtdSubscribeEvents, vtdSubscribeTerminalRegistry} from './vtd-clients/vtdRpc'
@@ -153,10 +154,23 @@ export function buildBrowserRuntime(cfg: BrowserDaemonConfig, sessionId: string)
     )
 
     // ── VTD terminal-registry SSE ────────────────────────────────────────────
+    // In the browser, the Electron main process — which subscribes this SSE and
+    // drives the renderer's floating-terminal UI via `uiAPI.launchTerminalOntoUI`
+    // (see edge/main/graph/watch_folder/openProject.ts) — does not exist;
+    // main+renderer collapse into this one process. So we drive the UI here:
+    // the daemon emits an imperative `terminal-ui-launch` event for every spawn,
+    // which we route through the SAME `ui:call` seam Electron uses (`pushUi`),
+    // dispatching to `uiAPIHandler.launchTerminalOntoUI`. Without this the spawn
+    // succeeds and the node broadcasts, but no terminal panel ever renders.
     vtdSubscribeTerminalRegistry(
         vtdUrl, vtdToken, currentSessionId,
         (data) => {
-            try { emit('terminal-registry', JSON.parse(data)) } catch { /* ignore */ }
+            let event: TerminalRegistryEvent
+            try { event = (JSON.parse(data) as {event: TerminalRegistryEvent}).event } catch { return }
+            emit('terminal-registry', event)
+            if (event.type === 'terminal-ui-launch') {
+                emit('ui:call', null, 'launchTerminalOntoUI', [event.nodeId, event.terminalData, event.skipFitAnimation])
+            }
         },
         (err) => console.error('[browserRuntime] terminal-registry SSE error:', err),
     )
