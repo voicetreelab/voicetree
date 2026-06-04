@@ -1,7 +1,7 @@
 import {
     buildFilesystemAuthoringPlan,
     type FilesystemAuthoringInput,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import {callDaemon, error} from '../cliDeps'
 import {
     getErrorMessage,

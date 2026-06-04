@@ -8,7 +8,7 @@ import {
     buildMarkdownBody as buildGraphToolsMarkdownBody,
     type BuildMarkdownBodyParams,
     type ComplexityScore,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 
 export type {BuildMarkdownBodyParams, ComplexityScore}
 

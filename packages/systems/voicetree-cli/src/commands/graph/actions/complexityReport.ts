@@ -1,5 +1,5 @@
 import path from 'node:path'
-import {computeComplexityFromProject, type GraphComplexityResult} from '@vt/graph-tools/node'
+import {computeComplexityFromProject, type GraphComplexityResult} from '@vt/graph-tools/node-runtime'
 import {error, handleCliError, output} from '../cliDeps'
 
 function formatHuman(r: GraphComplexityResult): string {

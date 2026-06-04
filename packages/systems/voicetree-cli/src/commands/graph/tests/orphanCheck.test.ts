@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import type {FilesystemAuthoringPlanEntry} from '@vt/graph-tools/node'
+import type {FilesystemAuthoringPlanEntry} from '@vt/graph-tools/node-runtime'
 import {
     findNodeMustHaveEdgeViolations,
     resolveFilesystemOverrides,

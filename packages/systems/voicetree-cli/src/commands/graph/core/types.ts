@@ -3,7 +3,7 @@ import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringValidationError,
     StructureManifest,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import type {OverridableRuleId} from '@vt/graph-validation'
 
 export type GraphCreateNode = Record<string, unknown> & {

@@ -9,7 +9,7 @@ import {
     parseMarkdownToGraphNode,
     type ParentLineRef,
 } from '@vt/graph-model/markdown'
-import {buildMarkdownBody} from '@vt/graph-tools/node'
+import {buildMarkdownBody} from '@vt/graph-tools/node-runtime'
 import {
     extractMermaidBlocks,
     parseDiagramParam,
