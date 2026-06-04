@@ -6,6 +6,7 @@
  */
 
 import { EditorView } from '@codemirror/view';
+import {escapeHtml} from '@/utils/escapeHtml';
 import type { HostAPI } from '@/shell/hostApi';
 
 type FocusedWindow = {
@@ -112,15 +113,6 @@ function insertTextAtCursor(view: EditorView, text: string): void {
     changes: { from: cursor, insert: text },
     selection: { anchor: cursor + text.length }
   });
-}
-
-/**
- * Escape HTML special characters to prevent XSS
- */
-function escapeHtml(text: string): string {
-  const div: HTMLDivElement = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 /**

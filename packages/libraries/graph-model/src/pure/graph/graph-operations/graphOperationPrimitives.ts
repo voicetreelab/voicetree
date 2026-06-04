@@ -1,6 +1,7 @@
 export { createEmptyGraph, createGraph } from '../construction/createGraph'
 export { applyGraphDeltaToGraph } from '../graphDelta/applyGraphDeltaToGraph'
 export { ensureUniqueNodeId } from '../nodes/ensureUniqueNodeId'
+export { nodeBasename } from './indexes/nodeBasename'
 export { getFolderDescendantNodeIds, getFolderParent } from '../nodes/folderCollapse'
 export { getNodeTitle } from '../markdown-parsing'
 export { getMarkdownLinkTargetSegments, linkMatchScore } from '../markdown-parsing/extract-edges'

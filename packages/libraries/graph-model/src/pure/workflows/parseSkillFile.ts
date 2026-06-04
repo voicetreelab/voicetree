@@ -82,6 +82,16 @@ export function parseSkillFile(content: string): ParsedSkill {
     };
 }
 
+/**
+ * Parse a skill file and render its human-readable summary in one step. The
+ * deep entry point for consumers that only want the summary string (e.g. the
+ * workflow reader) — they need not know the intermediate {@link ParsedSkill}
+ * shape nor compose parse+format themselves.
+ */
+export function summarizeSkillFile(content: string, skillPath?: string): string {
+    return formatParsedSkillSummary(parseSkillFile(content), skillPath);
+}
+
 export function formatParsedSkillSummary(skill: ParsedSkill, skillPath?: string): string {
     const parts: readonly string[] = [
         `# ${skill.title}`,

@@ -1,3 +1,5 @@
+import {escapeHtml, escapeHtmlAttr} from '@/utils/escapeHtml'
+
 export interface ExtractIntoFolderSelectedNode {
     readonly id: string
     readonly title: string
@@ -207,14 +209,4 @@ function joinForDisplay(ancestorDisplay: string, folderName: string): string {
     }
     const withTrailingSlash: string = ancestorDisplay.endsWith('/') ? ancestorDisplay : `${ancestorDisplay}/`
     return `${withTrailingSlash}${trimmedName}/`
-}
-
-function escapeHtml(text: string): string {
-    const div: HTMLDivElement = document.createElement('div')
-    div.textContent = text
-    return div.innerHTML
-}
-
-function escapeHtmlAttr(text: string): string {
-    return escapeHtml(text).replace(/"/g, '&quot;')
 }

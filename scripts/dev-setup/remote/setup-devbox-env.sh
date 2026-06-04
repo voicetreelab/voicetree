@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
 # Configure machine-local env on the remote devbox (VM).
 #
-# Default run: writes VT_DEV_ROLE + the ssh-mux block (safe to run early, before
-# git-gate exists — used by install.sh's first pass).
-# With --configure-base: ALSO turns the VM base ($VT_BASE_DIR, default
-# /root/vtrepo) into a read-only fast-forward cache of origin, creates the daily
-# worktree, installs the dev-flow commands + the systemd sync timer. Must run
-# AFTER git-gate is on PATH. See scripts/dev-setup/common/configure-base.sh.
+# Default run: writes VT_DEV_ROLE + the ssh-mux block.
+# With --configure-checkout: ALSO puts the VM checkout ($VT_BASE_DIR, default
+# /root/vtrepo) on its own writable branch ($VT_DEV_BRANCH, set in ~/.env) and
+# installs the dev-flow commands. See scripts/dev-setup/common/configure-checkout.sh.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOME_ENV_FILE="$HOME/.env"
 
-CONFIGURE_BASE=0
+CONFIGURE_CHECKOUT=0
 for arg in "$@"; do
   case "$arg" in
-    --configure-base) CONFIGURE_BASE=1 ;;
+    --configure-checkout) CONFIGURE_CHECKOUT=1 ;;
     *) echo "setup-devbox-env.sh: unknown arg: $arg" >&2; exit 64 ;;
   esac
 done
@@ -61,9 +59,8 @@ EOF
 }
 setup_ssh_mux
 
-# --- single-source base configuration (opt-in; needs git-gate on PATH) -------
-if [ "$CONFIGURE_BASE" = "1" ]; then
+# --- put the checkout on its writable machine branch (opt-in) ----------------
+if [ "$CONFIGURE_CHECKOUT" = "1" ]; then
   VT_BASE_DIR="${VT_BASE_DIR:-/root/vtrepo}" \
-  VT_WORKTREE_ROOT="${VT_WORKTREE_ROOT:-$HOME/vt-wts}" \
-    bash "$SCRIPT_DIR/../common/configure-base.sh"
+    bash "$SCRIPT_DIR/../common/configure-checkout.sh"
 fi

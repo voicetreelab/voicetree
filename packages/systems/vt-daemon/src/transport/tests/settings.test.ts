@@ -9,9 +9,8 @@ import {mkdtempSync, rmSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {tmpdir} from 'node:os'
 import {generateAuthToken} from '@vt/vt-rpc'
-import {startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
+import {startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
-const noopHook: HookHandler = (): unknown => ({ok: true})
 const emptyCatalog: ToolCatalog = new Map()
 const silentLogger = {logRequest: (): void => {}, logError: (): void => {}}
 
@@ -45,7 +44,6 @@ async function bring(): Promise<{handle: HttpDaemonServerHandle; token: string}>
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: emptyCatalog,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         allowedOrigins: [],
@@ -92,5 +90,81 @@ describe('GET /settings', (): void => {
             headers: {Authorization: 'Bearer not-the-real-token'},
         })
         expect(res.status).toBe(401)
+    })
+})
+
+async function postSettings(handle: HttpDaemonServerHandle, token: string, body: unknown): Promise<Response> {
+    return fetch(`${handle.url}/settings`, {
+        method: 'POST',
+        headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+    })
+}
+
+async function readDiskSettings(): Promise<Record<string, unknown>> {
+    const {readFileSync} = await import('node:fs')
+    return JSON.parse(readFileSync(join(homeDir, 'settings.json'), 'utf-8')) as Record<string, unknown>
+}
+
+describe('POST /settings', (): void => {
+    it('returns 401 without a bearer token (route is authenticated)', async (): Promise<void> => {
+        const {handle} = await bring()
+        const res = await fetch(`${handle.url}/settings`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({darkMode: true}),
+        })
+        expect(res.status).toBe(401)
+    })
+
+    it('persists an allowlisted field to disk and echoes a browser-safe result', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await postSettings(handle, token, {darkMode: true, vimMode: true})
+        expect(res.status).toBe(200)
+
+        const echoed = await res.json() as {darkMode?: boolean; INJECT_ENV_VARS?: Record<string, unknown>}
+        expect(echoed.darkMode).toBe(true)
+        expect(echoed.INJECT_ENV_VARS).toEqual({})
+
+        const onDisk = await readDiskSettings()
+        expect(onDisk.darkMode).toBe(true)
+        expect(onDisk.vimMode).toBe(true)
+    })
+
+    it('NEVER writes browser-supplied secrets/host fields to disk', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await postSettings(handle, token, {
+            darkMode: true,
+            INJECT_ENV_VARS: {ANTHROPIC_API_KEY: 'sk-attacker', LEAKED: 'pwned'},
+            hooks: {onNewNode: 'rm -rf /'},
+            shell: '/evil/shell',
+        })
+        expect(res.status).toBe(200)
+
+        const onDisk = await readDiskSettings()
+        expect(onDisk.darkMode).toBe(true)
+        // The pre-seeded secret survives; the attacker's value never lands.
+        expect((onDisk.INJECT_ENV_VARS as Record<string, unknown>).ANTHROPIC_API_KEY).toBe('sk-super-secret')
+        const serialized = JSON.stringify(onDisk)
+        expect(serialized).not.toContain('sk-attacker')
+        expect(serialized).not.toContain('pwned')
+        expect(serialized).not.toContain('rm -rf /')
+        expect(serialized).not.toContain('/evil/shell')
+    })
+
+    it('rejects a non-object body with 400', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await postSettings(handle, token, ['not', 'an', 'object'])
+        expect(res.status).toBe(400)
+    })
+
+    it('rejects malformed JSON with 400', async (): Promise<void> => {
+        const {handle, token} = await bring()
+        const res = await fetch(`${handle.url}/settings`, {
+            method: 'POST',
+            headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
+            body: '{not json',
+        })
+        expect(res.status).toBe(400)
     })
 })

@@ -61,12 +61,14 @@ function deriveInput(state: TerminalSignalState): TerminalSignalState {
 }
 
 function deriveAgentEvent(state: TerminalSignalState, event: Extract<TerminalEvent, { readonly type: 'agent_event' }>): TerminalSignalState {
-    // Hook events from the agent. Drive the state directly.
+    // Agent-authored status presets. Drive the state directly.
     switch (event.kind) {
-        case 'awaiting':
+        case 'awaiting_input':
             return { ...state, lifecycle: 'awaiting_input' };
         case 'done':
             return { ...state, lifecycle: 'completed' };
+        case 'failed':
+            return { ...state, lifecycle: 'errored' };
         case 'working':
             return activeFromOutput(state, event.at);
     }

@@ -48,11 +48,11 @@ describe('derive — happy path transitions', () => {
     });
 });
 
-describe('derive — agent hook events', () => {
-    it('agent_event awaiting → awaiting_input', () => {
+describe('derive — agent status presets', () => {
+    it('agent_event awaiting_input → awaiting_input', () => {
         expect(lifecycleAfter([
             { type: 'output', at: T0 + 100 },
-            { type: 'agent_event', at: T0 + 200, kind: 'awaiting' },
+            { type: 'agent_event', at: T0 + 200, kind: 'awaiting_input' },
         ])).toBe('awaiting_input');
     });
 
@@ -63,18 +63,25 @@ describe('derive — agent hook events', () => {
         ])).toBe('completed');
     });
 
+    it('agent_event failed → errored', () => {
+        expect(lifecycleAfter([
+            { type: 'output', at: T0 + 100 },
+            { type: 'agent_event', at: T0 + 200, kind: 'failed' },
+        ])).toBe('errored');
+    });
+
     it('agent_event working clears awaiting state', () => {
         expect(lifecycleAfter([
             { type: 'output', at: T0 + 100 },
-            { type: 'agent_event', at: T0 + 200, kind: 'awaiting' },
+            { type: 'agent_event', at: T0 + 200, kind: 'awaiting_input' },
             { type: 'agent_event', at: T0 + 300, kind: 'working' },
         ])).toBe('active');
     });
 
-    it('agent_event awaiting works even from spawning state', () => {
-        // Hook fires before any output — accept it.
+    it('agent_event awaiting_input works even from spawning state', () => {
+        // Status reported before any output — accept it.
         expect(lifecycleAfter([
-            { type: 'agent_event', at: T0 + 100, kind: 'awaiting' },
+            { type: 'agent_event', at: T0 + 100, kind: 'awaiting_input' },
         ])).toBe('awaiting_input');
     });
 });
@@ -120,7 +127,7 @@ describe('derive — terminal-state stickiness', () => {
         const result: TerminalSignalState = deriveAll(init(), [
             { type: 'exit', at: T0 + 100, code: 0, signal: null },
             { type: 'output', at: T0 + 200 },
-            { type: 'agent_event', at: T0 + 300, kind: 'awaiting' },
+            { type: 'agent_event', at: T0 + 300, kind: 'awaiting_input' },
             { type: 'tick', at: T0 + 9_999_999 },
         ], cfg);
         expect(result.lifecycle).toBe('completed');
@@ -167,7 +174,7 @@ describe('derive — invariants', () => {
     it('full cycle: spawn → active → awaiting → respond → working → idle → completed', () => {
         const events: readonly TerminalEvent[] = [
             { type: 'output', at: T0 + 100 },                    // → active
-            { type: 'agent_event', at: T0 + 500, kind: 'awaiting' }, // → awaiting_input
+            { type: 'agent_event', at: T0 + 500, kind: 'awaiting_input' }, // → awaiting_input
             { type: 'input', at: T0 + 1000 },                    // → active
             { type: 'output', at: T0 + 1100 },                   // → active (refresh)
             { type: 'tick', at: T0 + 1100 + cfg.inactivityThresholdMs }, // → idle

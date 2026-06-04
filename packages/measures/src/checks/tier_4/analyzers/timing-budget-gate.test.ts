@@ -13,6 +13,7 @@ type ReportInput = {
     durationMs?: number
     status?: 'pass' | 'fail' | 'skip'
     measurePath?: string
+    jobId?: string
 }
 
 type BudgetInput = {wallClockMs: number; sumMs: number | null; perCheckMaxRatio: number}
@@ -41,7 +42,7 @@ async function withFixture<T>(
             startedAt: r.startedAt,
             endedAt: r.endedAt,
             timestamp: r.endedAt,
-            details: {measurePath},
+            details: {measurePath, ...(r.jobId ? {jobId: r.jobId} : {})},
         }), 'utf8')
     }
     for (const [tierStr, budget] of Object.entries(budgets)) {
@@ -64,7 +65,7 @@ function tierTiming(result: EvaluationResult, tier: number) {
 const TIER_1_BUDGET: BudgetInput = {wallClockMs: 5_000, sumMs: 10_000, perCheckMaxRatio: 0.5}
 
 describe('runTierBudgetGate — wall-clock aggregation', () => {
-    it('computes wall-clock as max(endedAt) - min(startedAt) per tier', async () => {
+    it('collapses checks with no jobId (local single-process runs) into one tier-wide span', async () => {
         await withFixture([
             {checkId: 'a', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:05.000Z'},
             {checkId: 'b', startedAt: '2026-01-01T00:00:02.000Z', endedAt: '2026-01-01T00:00:10.000Z'},
@@ -76,6 +77,37 @@ describe('runTierBudgetGate — wall-clock aggregation', () => {
             expect(t.sumMs).toBe(13_000) // 5s + 8s
             expect(t.checkCount).toBe(2)
             expect(t.slowest).toEqual({checkId: 'b', durationMs: 8_000})
+        })
+    })
+
+    it('takes the max per-job span — runner provisioning skew between parallel jobs does not count', async () => {
+        // Two parallel jobs on separate runners. Job A did 8s of work; job B's
+        // runner was slow to provision, so its 4s of work happened 35s later. The
+        // real wall-clock is the slowest single job (8s), NOT the 39s global span
+        // — the gap between independently scheduled runners is not work.
+        await withFixture([
+            {checkId: 'a1', jobId: 'job-a', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:08.000Z'},
+            {checkId: 'b1', jobId: 'job-b', startedAt: '2026-01-01T00:00:35.000Z', endedAt: '2026-01-01T00:00:39.000Z'},
+        ], {1: {wallClockMs: 30_000, sumMs: 30_000, perCheckMaxRatio: 0.99}}, async (opts) => {
+            const {result, exitCode} = await runTierBudgetGate(opts)
+            expect(exitCode).toBe(0)
+            const t = tierTiming(result, 1)
+            expect(t.wallClockMs).toBe(8_000) // max per-job span, not 39_000
+            expect(t.sumMs).toBe(12_000) // 8s + 4s, tier-global
+            expect(t.slowest).toEqual({checkId: 'a1', durationMs: 8_000})
+        })
+    })
+
+    it("a job's span covers all its own sequential checks (min-start to max-end within the job)", async () => {
+        // Job A runs two checks back-to-back (0–3s, 3–9s) → 9s span. Job B runs a
+        // single 5s check. Tier wall-clock = max(9s, 5s) = 9s.
+        await withFixture([
+            {checkId: 'a1', jobId: 'job-a', startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:03.000Z'},
+            {checkId: 'a2', jobId: 'job-a', startedAt: '2026-01-01T00:00:03.000Z', endedAt: '2026-01-01T00:00:09.000Z'},
+            {checkId: 'b1', jobId: 'job-b', startedAt: '2026-01-01T00:00:01.000Z', endedAt: '2026-01-01T00:00:06.000Z'},
+        ], {1: {wallClockMs: 30_000, sumMs: 30_000, perCheckMaxRatio: 0.99}}, async (opts) => {
+            const {result} = await runTierBudgetGate(opts)
+            expect(tierTiming(result, 1).wallClockMs).toBe(9_000)
         })
     })
 

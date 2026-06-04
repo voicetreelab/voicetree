@@ -85,7 +85,7 @@ async function runStdinLive(
     terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'live'}>,
 ): Promise<void> {
-    const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides} =
+    const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides, agentStatus, statusPhrase} =
         await readCreateGraphPayloadFromStdin(terminalId)
     const overrides: readonly OverrideSpec[] = mergeOverrideSpecs(stdinOverrides, parsedArgs.overrides)
     const effectiveParentNodeId: string | undefined = parentNodeId ?? parsedArgs.parentNodeId
@@ -106,6 +106,8 @@ async function runStdinLive(
         ...(effectiveParentNodeId !== undefined ? {parentNodeId: effectiveParentNodeId} : {}),
         nodes,
         ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
+        ...(agentStatus !== undefined ? {agentStatus} : {}),
+        ...(statusPhrase !== undefined ? {statusPhrase} : {}),
     }
     await runLiveDaemon(daemonPayload, gateVerdicts, overrides)
 }

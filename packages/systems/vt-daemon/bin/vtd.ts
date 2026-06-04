@@ -56,20 +56,19 @@ import {resolveVoicetreeHomePath} from '@vt/paths'
 import {loadSettings} from '@vt/app-config/settings'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {createGatewayLiveUpdates} from '@vt/vt-daemon/transport/gatewayLiveUpdates.ts'
-import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
-import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
+import {parseDevCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
-import {buildGraphGatewayRoutes} from '../src/rpc/graphGatewayRoutes.ts'
+import {buildGraphGatewayRoutes} from '../src/rpc/gateway/graphGatewayRoutes.ts'
+import {buildWorktreeRoutes} from '../src/rpc/gateway/worktreeRoutes.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import {
@@ -200,7 +199,8 @@ async function main(): Promise<void> {
             contractVersion: VTD_CONTRACT_VERSION,
             commandFingerprint: {
                 executable: process.execPath,
-                args: process.argv.slice(1),
+                // execArgv carries tsx loader flags `ps` shows but argv omits — see startDaemon.ts.
+                args: [...process.execArgv, ...process.argv.slice(1)],
             },
             clock: Date.now,
         })
@@ -284,12 +284,6 @@ async function main(): Promise<void> {
     const token: string = generateAuthToken()
     await writeAuthTokenFile(args.project, token)
 
-    const hookHandler: HookHandler = (input): unknown =>
-        handleHookEventRequest(
-            {source: input.source, terminalId: input.terminalId, hookEventName: input.eventName},
-            {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
-        )
-
     const startMs: number = Date.now()
     let httpHandle: HttpDaemonServerHandle
 
@@ -311,11 +305,16 @@ async function main(): Promise<void> {
         client: gdb.client,
         ensureSession: gatewayLiveUpdates.ensureSession,
     })
+    // Worktree gateway: the browser drives git worktree ops through VTD. The
+    // repo root is read from the daemon's own loaded project (graphd's
+    // authoritative projectRoot), never from the client.
+    const worktreeRoutes = buildWorktreeRoutes({
+        getRepoRoot: async (): Promise<string> => (await gdb.client.getProject()).projectRoot,
+    })
 
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges, graphGatewayRoutes),
-            hookHandler,
+            catalog: buildDefaultToolCatalog(mcpBridges, [...graphGatewayRoutes, ...worktreeRoutes]),
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override
@@ -323,7 +322,7 @@ async function main(): Promise<void> {
             // dev on another machine dials this daemon directly.
             bindHost: process.env.VOICETREE_DAEMON_BIND ?? '127.0.0.1',
             port: args.port,
-            // Stamped into every `agent-events` SSE envelope so consumers
+            // Stamped into every `terminal-registry` SSE envelope so consumers
             // can apply the project-switch fence (BF-376 / main-host-purity
             // spec §"Project-switch fence drops stale events").
             canonicalProject: args.project,
@@ -334,6 +333,7 @@ async function main(): Promise<void> {
             // on/off` after `configureTmuxSession`. Default false keeps
             // browser-style text selection working without holding Shift.
             getTmuxMouseMode: async (): Promise<boolean> => (await loadSettings()).terminalTmuxMouseMode ?? false,
+            getProjectState: async () => gdb.client.getProject(), // allowlist for /clipboard-image + /image FS routes
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats
@@ -347,11 +347,11 @@ async function main(): Promise<void> {
                 owner: ownerHandle.health(),
                 canonicalProject: args.project,
             }),
-            // Browser-mode CORS: only localhost origins pass validation — anything
-            // that is not http://localhost:<port> or http://127.0.0.1:<port> is
-            // silently dropped. Set VOICETREE_CORS_ORIGINS to opt in, e.g.
-            //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-            allowedOrigins: parseLocalhostCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
+            // Browser-mode CORS: only loopback (localhost/127.0.0.1) and private-LAN
+            // IPv4 origins pass validation — anything else is dropped. Set
+            // VOICETREE_CORS_ORIGINS to opt in, e.g.
+            //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://192.168.1.20:3000
+            allowedOrigins: parseDevCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
             // No graphdUrl in the browser payload — under the gateway the browser
             // talks ONLY to VTD; graphd stays loopback-internal (VTD reaches it
             // via gdb.client, which already holds gdb.port).

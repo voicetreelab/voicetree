@@ -291,7 +291,19 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
     // voicetree-home.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
     // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
-    'vt-daemon -> app-config': 2,
+    //
+    // 2026-06-04 [PR #250 folder/settings relocation]: 2 -> 3 (+1).
+    // EXPLICITLY APPROVED by Lochlan (human), eyes-open, after reduction was exhausted
+    // (graph-model genuinely cut 28->27 via the AbsolutePath brand move, 3f92601c9).
+    // Relocation drove this pair 13->3 (net win), leaving it 1 over a budget calibrated
+    // for the pre-relocation distribution. Residual loadSettings/saveSettings/
+    // createDatedSubfolder are each consumed by graph-db-server + vt-daemon + webapp, so
+    // app-config is their true shared home: relocating into vt-daemon inverts the
+    // graph-db-server -> vt-daemon layer; reimplementing = knowledge dup (re-trips the dup
+    // gate). Bundling load/save into one settingsIO object (the only path to 2) is
+    // metric-driven, ~100 sites, and was rejected. Ratchet DOWN if settings IO is ever
+    // fronted by a single daemon-side gateway.
+    'vt-daemon -> app-config': 3,
     'vt-daemon -> daemon-lifecycle': 9,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
     // client (BF-375 standalone-vtd boundary). `GraphDbClient` is constructed
@@ -344,7 +356,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // rendered manual sections stay behind `vt manual`.
     // 2026-06-02 [PR #229]: 4 -> 5. vt-daemon consumes the published graph.*
     // gateway RPC contract from vt-daemon-protocol (+1 value symbol).
-    'vt-daemon -> vt-daemon-protocol': 5,
+    // 2026-06-03 [status-presets]: 5 -> 7. create_graph status reporting
+    // consumes the shared status vocabulary and phrase cap (`AGENT_STATUSES`,
+    // `MAX_STATUS_PHRASE_LENGTH`) so daemon validation, lifecycle handling, and
+    // CLI docs use one protocol contract.
+    'vt-daemon -> vt-daemon-protocol': 7,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
     // (proposed `@vt/project-paths` or `@vt/paths`). See #123 for

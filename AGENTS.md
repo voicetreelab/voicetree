@@ -1,4 +1,4 @@
-⛔ The base checkout is a READ-ONLY fast-forward cache of `origin/$VT_BASE_BRANCH` — your personal integration base (lochlan → `dev-lochlan`, manu → `dev-manu`), each continuously fed from `dev`. Never edit/commit in the base (worktrees ARE writable). `vt-worktree <name>` to work → `vt-land "msg"` to ship; `vt-sync` to update (never `git pull`). More: `scripts/dev-setup/worktree-readme.md`.
+⛔ This is a NORMAL, WRITABLE checkout of THIS machine's own branch `$VT_DEV_BRANCH` (machine-local, set in `~/.env` — e.g. `dev-mac` / `dev-remote`; never a literal in-repo; safe default `dev-new`). Edit & commit directly here (worktrees optional: `vt-worktree <name>`). `vt-sync` to pull `dev` into your branch (never `git pull`); `vt-pr "msg"` to integrate (PR → `dev`). More: `scripts/dev-setup/distributed-architecture.md`.
 
 🗺️ To locate code, read `architecture.md` (repo root) FIRST — it maps each component to its source path (drift-gated) and `refines:` into per-folder diagrams; descend those instead of grepping blind.
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.

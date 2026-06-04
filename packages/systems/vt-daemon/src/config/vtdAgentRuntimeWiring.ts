@@ -11,6 +11,7 @@
 // location, so the caller passes the already-resolved dir in here.
 
 import {existsSync} from 'node:fs'
+import * as O from 'fp-ts/lib/Option.js'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
 import {registerChildIfMonitored} from '../agent-runtime/agent-control/agent-completion-monitor.ts'
 import {configureAgentRuntime, type GraphStateBridge} from '../agent-runtime/runtime/runtime-config.ts'
@@ -31,9 +32,20 @@ export function configureAgentRuntimeForVtd(
 ): void {
     const vtBinDir: string | null = resolveVtBinDir(voicetreeCliPackageDir, existsSync)
 
+    // Project-root resolution must be exposed on the agent-runtime `env`
+    // provider, NOT only on the graph bridge: recovery discovery, the tmux
+    // namespace resolver, terminal-manager, and removePersistedAgentRecord all
+    // read `getRuntimeEnv().getProjectRoot` (and the namespace resolver falls
+    // back to `getWriteFolderPath`). Registering only `getVtBinDir` left those
+    // returning null, so `discoverRecoverableAgentSessions` enumerated zero
+    // records and the resume/Surviving-Agents UI was dark for every vtd
+    // project. Delegate to the graph bridge so there is a single source of truth.
     configureAgentRuntime({
         env: {
             getVtBinDir: (): string | null => vtBinDir,
+            getProjectRoot: (): Promise<string | null> => graph.getProjectRoot(),
+            getWriteFolderPath: async (): Promise<string | null> =>
+                O.toNullable(await graph.getWriteFolderPath()),
         },
         publishTerminalRegistryEvent,
         graph,

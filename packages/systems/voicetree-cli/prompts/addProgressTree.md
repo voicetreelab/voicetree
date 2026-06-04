@@ -59,6 +59,7 @@ Wire multi-node graphs by including `[[parent-basename]]` wikilinks in each chil
 - **`## Diagram`:** Mermaid diagram when relevant — prefer text when equally clear.
 - **Line limit** per node (default 70). If over, split into a branching tree (see examples above) — not a linear A→B→C chain.
 - **Color convention:** `green` for completed work, `blue` (default) for in-progress or planning. Set via frontmatter `color: green` or the CLI's `--color green` flag.
+- **Report your status:** the `agentStatus` field is how you tell the user what you're doing — it drives your lifecycle icon in the terminal tree. Pick one of `working` (actively progressing), `awaiting_input` (blocked, need the user), `done` (task complete), `failed` (task failed). Optionally add a short `statusPhrase` (≤80 chars) shown next to your model name, e.g. "wiring the create_graph param". Omit either to leave it unchanged.
 - **`## NOTES`:** Architecture impact, gotchas, tech debt, difficulties.
 - **Link openspec artifacts** (proposal, design, tasks) in a `## Related` section by basename, e.g. `- [proposal](proposal.md)`.
 

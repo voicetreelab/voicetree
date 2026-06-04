@@ -17,7 +17,7 @@ import {
   loadDaemonConfig,
   injectConfig,
   waitForHostApiReady,
-  waitForCytoscapeReady,
+  openProjectAndWaitForGraph,
 } from './vt-e2e-helpers.ts'
 
 test.describe('Browser VoiceTree — daemon round-trip', () => {
@@ -278,16 +278,19 @@ test.describe('Browser VoiceTree — daemon round-trip', () => {
 
   test('editor opens via node tap and closes via traffic-light button', async ({page}) => {
     const cfg = loadDaemonConfig()
-    await injectConfig(page, cfg)
-    await page.goto('/')
-    await waitForHostApiReady(page)
+    // Resilient open: retries a transient initial-fetch blip so the graph is
+    // populated before we look for a node (see openProjectAndWaitForGraph).
+    await openProjectAndWaitForGraph(page, cfg)
 
-    await page.evaluate(async (projectPath) => {
-      const api = (window as unknown as {hostAPI?: {main?: {openProject?: (p: string) => Promise<unknown>}}}).hostAPI
-      await api?.main?.openProject?.(projectPath)
-    }, cfg.projectPath)
-
-    await waitForCytoscapeReady(page)
+    // openProjectAndWaitForGraph already waited for nodes to stream in, but the
+    // graph may surface only folder compounds first; wait specifically for a
+    // non-folder LEAF (the tappable kind that opens an editor) before tapping.
+    // Tap a real cy leaf — never a reconstructed `<projectPath>/<file>` id, since
+    // node ids are not guaranteed to take that shape.
+    await page.waitForFunction(
+      () => ((window as unknown as {cytoscapeInstance?: {nodes: (s: string) => {length: number}}}).cytoscapeInstance?.nodes('[!isFolderNode]').length ?? 0) > 0,
+      {timeout: 20_000},
+    )
 
     const nodeWasTapped = await page.evaluate(() => {
       type CyNode = {emit: (ev: string) => void}

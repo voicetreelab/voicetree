@@ -44,10 +44,9 @@ export async function buildTerminalEnvVars(params: {
 
     // VOICETREE_PROJECT_PATH points at the canonical project root (where `.voicetree/` lives),
     // not the daemon's current writeFolderPath. Many consumers — the CLI's auth-token resolver
-    // (vt-rpc#authTokenFilePath), the agent hook script template
-    // (agentHookInjection.ts), tmuxPromptFile, the tmux namespace builder — all read
+    // (vt-rpc#authTokenFilePath), tmuxPromptFile, the tmux namespace builder — all read
     // `$VOICETREE_PROJECT_PATH/.voicetree/...`. Pointing the var at a subfolder writeFolderPath
-    // creates stub `.voicetree/` dirs that break the CLI up-walk and the hook script.
+    // creates stub `.voicetree/` dirs that break the CLI up-walk.
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
@@ -88,8 +87,8 @@ export async function buildTerminalEnvVars(params: {
         VOICETREE_TERMINAL_ID: params.terminalId,
         VOICETREE_CALLER_TERMINAL_ID: params.terminalId,
         AGENT_NAME: params.agentName,
-        // §5.3 — spawn pipeline injects DAEMON_URL (not the token, which the
-        // hook subprocess reads via `cat` from disk to avoid `ps` leak, §3.3).
+        // §5.3 — spawn pipeline injects DAEMON_URL (not the token, which
+        // consumers read via `cat` from disk to avoid `ps` leak, §3.3).
         // Spawned agents always run inside WSL alongside the daemon, so
         // 127.0.0.1 works in both WSL mirrored and NAT networking modes.
         ...(daemonUrl !== null ? {VOICETREE_DAEMON_URL: daemonUrl} : {}),

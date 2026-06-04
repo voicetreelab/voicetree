@@ -6,6 +6,7 @@ import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBa
 import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
 import {ProjectPathSelector} from "@/shell/UI/views/components/ProjectPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
+import {hostCapabilities} from "@/shell/runtimeCapabilities";
 import {ViewSwitcher} from "@/shell/edge/UI-edge/components/ViewSwitcher";
 import {useEffect, useRef, useState, useCallback} from "react";
 import type { JSX } from "react/jsx-runtime";
@@ -261,14 +262,17 @@ function App(): JSX.Element {
 
         return (
             <div className="flex items-center gap-1 font-mono text-xs shrink-0">
-                {/* Back button */}
-                <button
-                    onClick={() => void handleBackToProjects()}
-                    className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
-                    title="Back to project selection"
-                >
-                    ←
-                </button>
+                {/* Back button — hidden when the runtime can't switch projects
+                    (browser-mode is pinned to its launched --project daemon). */}
+                {hostCapabilities().projectSwitching && (
+                    <button
+                        onClick={() => void handleBackToProjects()}
+                        className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
+                        title="Back to project selection"
+                    >
+                        ←
+                    </button>
+                )}
                 {displayedDirectory && (
                     <>
                         <button

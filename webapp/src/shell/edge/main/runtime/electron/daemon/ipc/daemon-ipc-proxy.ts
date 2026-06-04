@@ -5,21 +5,12 @@ import type { ProjectedGraph } from '@vt/graph-state/contract'
 import type { State } from '@vt/graph-state'
 
 import { getLiveStateFromDaemon } from '@/shell/edge/main/runtime/state/daemon-live-state-rpc'
-import { uiAPI } from '@/shell/edge/main/runtime/ui-api-proxy'
+import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
 
 import { callDaemon } from '@/shell/edge/main/runtime/electron/daemon/lifecycle/graph-daemon'
 import { getNormalizedDaemonGraph } from '@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-normalization'
 import { subscribeToDaemonSSE } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-sse-subscription'
-import { getMainWindow } from '@/shell/edge/main/runtime/state/app-electron-state'
-import { buildFolderTreeSyncPayload, type FolderTreeSyncPayload } from '@/shell/edge/main/runtime/electron/daemon/sync/daemon-folder-tree-sync'
-
-function graphNodeCount(graph: Graph): number {
-  return Object.keys(graph.nodes).length
-}
-
-function recordCount(value: Record<string, unknown>): number {
-  return Object.keys(value).length
-}
+import { graphNodeCount, syncRendererFromDaemon } from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-renderer-sync'
 
 function sortStrings(values: readonly string[]): string[] {
   return [...values].sort((left, right) => left.localeCompare(right))
@@ -96,49 +87,6 @@ export async function getOrCreateRendererSession(
     subscribeRendererSessionToDaemon(client, created.sessionId)
     span.addEvent('electron.renderer-session.sse-subscribed')
     return created.sessionId
-  })
-}
-
-async function syncRendererFromDaemon(
-  client: GraphDbClient,
-  nextGraph: Graph,
-  projectState: ProjectState,
-): Promise<void> {
-  await tracing.span('electron.renderer.sync-from-daemon', async (span) => {
-    span.setAttribute('daemon.base_url', client.baseUrl)
-    span.setAttribute('graph.node.count', graphNodeCount(nextGraph))
-    span.setAttribute('project.read_path.count', projectState.readPaths.length)
-    span.setAttribute('project.write_folder', projectState.writeFolderPath)
-
-    const mainWindow: Electron.BrowserWindow | null = getMainWindow()
-    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
-      span.addEvent('electron.renderer.sync.skipped', {
-        reason: 'main-window-unavailable',
-      })
-      return
-    }
-
-    span.addEvent('electron.renderer.folder-tree-build.start')
-    const treePayload: FolderTreeSyncPayload = await buildFolderTreeSyncPayload(projectState, nextGraph)
-    span.setAttribute('folder_tree.has_root', treePayload.rootTree !== null)
-    span.setAttribute('folder_tree.starred.count', treePayload.starredFolders.length)
-    span.setAttribute('folder_tree.starred_tree.count', recordCount(treePayload.starredTrees))
-    span.setAttribute('folder_tree.external_tree.count', recordCount(treePayload.externalTrees))
-    span.addEvent('electron.renderer.folder-tree-build.complete')
-
-    uiAPI.syncProjectState({
-      readPaths: projectState.readPaths,
-      starredFolders: treePayload.starredFolders,
-      writeFolderPath: projectState.writeFolderPath,
-    })
-
-    if (treePayload.rootTree) {
-      uiAPI.syncFolderTree(treePayload.rootTree)
-    }
-
-    uiAPI.syncStarredFolderTrees(treePayload.starredTrees)
-    uiAPI.syncExternalFolderTrees(treePayload.externalTrees)
-    span.addEvent('electron.renderer.sync.sent')
   })
 }
 

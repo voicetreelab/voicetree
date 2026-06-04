@@ -16,17 +16,11 @@ import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getFolderIdentityNoteId} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {slugify} from '../tools/graph/addProgressNodeTool'
+import {slugify} from '../_shared/slugify.ts'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {
-    DEFAULT_SUBGRAPH_WARN_THRESHOLD,
-    DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
-    DEFAULT_MAX_CHILDREN_PER_NODE,
-    DEFAULT_COMPLEXITY_WARN_SCORE,
-    DEFAULT_COMPLEXITY_BLOCK_SCORE,
-} from '@vt/graph-model/settings'
+import {DEFAULT_SUBGRAPH_LIMITS} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
     type RuleViolation,
@@ -52,7 +46,8 @@ import type {
     GraphParentContext,
     Result,
 } from './createGraphTypes'
-import {listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
+import {applyAgentStatus, listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
+import type {AgentStatus} from '@vt/vt-daemon-protocol'
 
 export type {CreateGraphNodeInput}
 
@@ -62,6 +57,17 @@ export interface CreateGraphParams {
     readonly outputPath?: string
     readonly nodes: readonly CreateGraphNodeInput[]
     readonly override_with_rationale?: readonly OverrideEntry[]
+    /**
+     * Agent-authored status preset reported alongside this progress node. Drives
+     * the caller terminal's lifecycle icon in the sidebar (working→active,
+     * awaiting_input, done→completed, failed→errored).
+     */
+    readonly agentStatus?: AgentStatus
+    /**
+     * Free-text live status phrase (≤ MAX_STATUS_PHRASE_LENGTH chars) shown next
+     * to the model name in the terminal tree.
+     */
+    readonly statusPhrase?: string
 }
 
 function errorResponse(error: string): McpToolResponse {
@@ -266,11 +272,11 @@ async function validateOverridableRules(
         callerTaskNodeId,
         graph,
         lineLimit: settings.nodeLineLimit ?? 70,
-        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
-        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
-        maxChildrenPerNode: settings.maxChildrenPerNode ?? DEFAULT_MAX_CHILDREN_PER_NODE,
-        complexityWarnScore: settings.complexityWarnScore ?? DEFAULT_COMPLEXITY_WARN_SCORE,
-        complexityBlockScore: settings.complexityBlockScore ?? DEFAULT_COMPLEXITY_BLOCK_SCORE,
+        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphWarnThreshold,
+        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphErrorThreshold,
+        maxChildrenPerNode: settings.maxChildrenPerNode ?? DEFAULT_SUBGRAPH_LIMITS.maxChildrenPerNode,
+        complexityWarnScore: settings.complexityWarnScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityWarnScore,
+        complexityBlockScore: settings.complexityBlockScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityBlockScore,
         destinationFolderPath,
     })
     if (validationResult.status !== 'violations') return {error: null, warnings: []}
@@ -329,6 +335,8 @@ export async function createGraphTool(
         outputPath,
         nodes,
         override_with_rationale,
+        agentStatus,
+        statusPhrase,
     }: CreateGraphParams,
     bridge: GraphBridge,
 ): Promise<McpToolResponse> {
@@ -379,6 +387,13 @@ export async function createGraphTool(
     await appendNodesToCallerContext(callerRecord, batchResult.allNewNodeIds, bridge)
 
     resetTerminalAuditRetryCount(callerTerminalId)
+
+    // Apply the agent-authored status reported with this progress node. This is
+    // the sole driver of the caller's lifecycle icon + live status phrase now
+    // that the legacy CLI-hook adapter is gone. No-op when neither is provided.
+    if (agentStatus !== undefined || statusPhrase !== undefined) {
+        applyAgentStatus(callerTerminalId, {preset: agentStatus, phrase: statusPhrase})
+    }
 
     return buildJsonResponse({
         success: true,

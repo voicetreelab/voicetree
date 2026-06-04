@@ -13,17 +13,30 @@
  */
 
 import {readFileSync} from 'node:fs'
-import {dirname, join} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
 import {type Page} from '@playwright/test'
 
-const HERE: string = dirname(fileURLToPath(import.meta.url))
-
-// Cross-process handoff written by globalSetup, read here in worker processes.
-// Under webapp/test-results (already gitignored). daemon_integration is four
-// levels below webapp: daemon_integration -> critical_for_verification ->
-// playwright-browser -> e2e-tests -> webapp.
-export const DAEMON_CONFIG_FILE: string = join(HERE, '../../../../test-results/daemon-config.json')
+// Cross-process handoff written by globalSetup, read here in worker processes,
+// removed by globalTeardown.
+//
+// Keyed by PLAYWRIGHT_PORT so distinct concurrent runs (e.g. parallel agents on
+// different ports, or several slices sharing one checkout) write distinct
+// handoff files instead of clobbering one another. globalSetup, the workers, and
+// globalTeardown all run in processes that inherit PLAYWRIGHT_PORT for a given
+// invocation, so they agree on the path.
+//
+// Lives in the OS temp dir, NOT webapp/test-results: Playwright wipes its output
+// directory (test-results) at the START of every run, so a concurrent run on a
+// different port starting mid-flight would delete THIS run's handoff file there
+// and strand its workers with "daemon-config not found". The OS temp dir is
+// outside Playwright's purview, so per-port concurrent runs in one checkout are
+// genuinely isolated — the whole point of keying by port.
+const HANDOFF_PORT: string = process.env.PLAYWRIGHT_PORT ?? '3100'
+export const DAEMON_CONFIG_FILE: string = join(
+  tmpdir(),
+  `vt-browser-daemon-config-${HANDOFF_PORT}.json`,
+)
 
 export interface BrowserDaemonTestConfig {
   readonly vtdUrl: string
@@ -72,4 +85,52 @@ export async function waitForCytoscapeReady(page: Page, timeoutMs = 20_000): Pro
     () => (window as unknown as {cytoscapeInstance?: unknown}).cytoscapeInstance !== undefined,
     {timeout: timeoutMs},
   )
+}
+
+/**
+ * Boot the page, install the browser runtime, openProject, and wait until the
+ * projection has actually streamed nodes into Cytoscape — the precondition every
+ * graph-surface / node-tap test needs.
+ *
+ * RESILIENT BY DESIGN. The browser runtime reaches VTD over HTTP+SSE and (per its
+ * reconnect policy) recovers from a transient `Failed to fetch` / `network error`
+ * — which DOES happen on the initial projected-graph subscription under load (this
+ * daemon tier shares one machine with sibling daemons). The product self-heals via
+ * reconnect; a test that fires openProject once and assumes the first fetch landed
+ * is racing that blip. So we retry the openProject→nodes-appear step a bounded
+ * number of times: a transient first-fetch miss is re-driven instead of failing
+ * the run. This aligns the test with the product's real (reconnect-based)
+ * behaviour rather than masking a logic bug — a persistent failure still throws on
+ * the final attempt with the full 20s window.
+ */
+export async function openProjectAndWaitForGraph(
+  page: Page,
+  cfg: BrowserDaemonTestConfig,
+  attempts = 3,
+): Promise<void> {
+  await injectConfig(page, cfg)
+  await page.goto('/')
+  await waitForHostApiReady(page)
+  await waitForCytoscapeReady(page)
+
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await page.evaluate(async (projectPath) => {
+      const api = (window as unknown as {hostAPI?: {main?: {openProject?: (p: string) => Promise<unknown>}}}).hostAPI
+      await api?.main?.openProject?.(projectPath)
+    }, cfg.projectPath)
+    try {
+      // Instance existing != projection laid in. Wait for real rendered nodes.
+      // Shorter window on the non-final attempts so a transient miss is re-driven
+      // promptly; the final attempt gets the full budget before it gives up.
+      await page.waitForFunction(
+        () => ((window as unknown as {cytoscapeInstance?: {nodes: () => {length: number}}}).cytoscapeInstance?.nodes().length ?? 0) > 0,
+        {timeout: attempt < attempts - 1 ? 8_000 : 20_000},
+      )
+      return
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
 }

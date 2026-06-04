@@ -8,8 +8,8 @@
 import {loadSettings, saveSettings as saveSettings} from '@/shell/edge/main/settings/settings_IO'
 import type {VTSettings} from '@vt/graph-model/settings'
 import type {SavedProject} from '@vt/graph-model/project'
-import {getWatchStatus, stopFileWatching, getProjectPaths, getReadPaths, getWriteFolderPath, getAvailableFoldersForSelector, createDatedVoiceTreeFolder, createSubfolder, openProject, getStartupProjectHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
-import {getDirectoryTree} from '@/shell/edge/main/graph/watch_folder/folderScanning'
+import {getWatchStatus, stopFileWatching, getProjectPaths, getReadPaths, getWriteFolderPath, createDatedVoiceTreeFolder, openProject, getStartupProjectHint} from '@/shell/edge/main/graph/watch_folder/watchFolder'
+import {getDirectoryTree, getAvailableFoldersForSelector, createSubfolder, getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from '@/shell/edge/main/graph/watch_folder/folderQueries'
 import {getBackendPort, getVoicetreeHomePath} from "@/shell/edge/main/runtime/state/app-electron-state";
 import {createContextNodeThroughDaemon as createContextNode} from './electron/daemon/queries/daemon-graph-queries'
 import {getPreviewContainedNodeIdsThroughDaemon as getPreviewContainedNodeIds} from './electron/daemon/queries/daemon-graph-queries'
@@ -54,8 +54,7 @@ import {saveClipboardImage} from '@/shell/edge/main/workspace/clipboard/saveClip
 import {readImageAsDataUrl} from '@/shell/edge/main/workspace/clipboard/readImageAsDataUrl';
 import {findFileByNameThroughDaemon as findFileByName} from './electron/daemon/queries/daemon-graph-queries';
 import {runAgentOnSelectedNodes} from '@/shell/edge/main/agent/runAgentOnSelectedNodes';
-import {listWorktrees, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand} from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
-import {createWorktreeWithHooks as createWorktree} from '@/shell/edge/main/workspace/worktree/createWorktreeWithHooks';
+import {listWorktrees, generateWorktreeName, removeWorktree, getRemoveWorktreeCommand, createWorktree} from '@/shell/edge/main/workspace/worktree/worktreeQueries';
 import {scanForProjects, getDefaultSearchDirectories} from '@/shell/edge/main/workspace/project-scanner';
 import {loadProjects, saveProject, removeProject} from '@/shell/edge/main/workspace/project-store';
 import {showFolderPicker, createNewProject} from '@/shell/edge/main/workspace/show-folder-picker';
@@ -66,7 +65,6 @@ import {
   requestMicrophonePermission,
   openMicrophoneSettings
 } from './microphone-permissions';
-import {getStarredFolders, addStarredFolder, removeStarredFolder, isStarred, copyNodeToFolder} from '@/shell/edge/main/graph/watch_folder/starredFolders';
 import {listWorkflows, readSkillFile, readSkillFileSummary} from '@/shell/edge/main/workflows/workflowHandlers';
 import {
   addReadPathThroughDaemon as addReadPath,

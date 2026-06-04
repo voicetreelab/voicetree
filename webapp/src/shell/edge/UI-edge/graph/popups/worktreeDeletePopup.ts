@@ -6,6 +6,8 @@
  * Call again with previousError to offer force-delete after a failure.
  */
 
+import {escapeHtml} from '@/utils/escapeHtml';
+
 export interface WorktreeDeleteResult {
     readonly force: boolean;
 }
@@ -13,12 +15,6 @@ export interface WorktreeDeleteResult {
 /** Build the git worktree remove command string (pure, no IPC) */
 function buildRemoveCommand(worktreePath: string, force: boolean): string {
     return `git worktree remove ${force ? '--force ' : ''}"${worktreePath}"`;
-}
-
-function escapeHtml(text: string): string {
-    const div: HTMLDivElement = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 /**

@@ -15,6 +15,7 @@
 
 import {spawn, type ChildProcess} from 'node:child_process'
 import {existsSync} from 'node:fs'
+import {networkInterfaces} from 'node:os'
 import {resolve} from 'node:path'
 import {error} from '../output'
 import {readRequiredFlagValue} from './argv'
@@ -25,12 +26,16 @@ import {ensureBothDaemons, type EnsuredDaemons} from './serve'
 const DEFAULT_PORT: number = 3000
 
 const WEBAPP_USAGE: string =
-    'Usage: vt webapp --project <path> [--port <n>] [--no-open]\n'
+    'Usage: vt webapp --project <path> [--port <n>] [--lan] [--no-open]\n'
 
 type WebappArgs = {
     readonly project: string
     readonly port: number
     readonly open: boolean
+    // --lan: serve on the LAN (vite --host) and point the renderer at this
+    // machine's LAN IP so a phone/tablet on the same network can use the app.
+    // Default false keeps everything bound to loopback (the secure default).
+    readonly lan: boolean
 }
 
 // Resolve the repo root by walking up to the `.git` marker rather than counting
@@ -46,6 +51,7 @@ function parseWebappArgs(argv: readonly string[]): WebappArgs {
     let project: string | undefined
     let port: number = DEFAULT_PORT
     let open: boolean = true
+    let lan: boolean = false
 
     for (let index: number = 0; index < argv.length; index += 1) {
         const arg: string = argv[index]
@@ -53,6 +59,10 @@ function parseWebappArgs(argv: readonly string[]): WebappArgs {
         if (arg === '--help' || arg === '-h') {
             process.stdout.write(WEBAPP_USAGE)
             process.exit(0)
+        }
+        if (arg === '--lan') {
+            lan = true
+            continue
         }
         if (arg === '--project') {
             project = readRequiredValue(argv, index, '--project')
@@ -83,16 +93,50 @@ function parseWebappArgs(argv: readonly string[]): WebappArgs {
     if (!project) error(`missing required --project <path>\n\n${WEBAPP_USAGE}`)
     if (!Number.isInteger(port) || port <= 0) error(`--port must be a positive integer\n\n${WEBAPP_USAGE}`)
 
-    return {project: resolve(project), port, open}
+    return {project: resolve(project), port, open, lan}
+}
+
+// First non-internal IPv4 address — this machine's LAN IP, used in --lan mode so
+// the renderer (and any LAN device loading it) reaches VTD at a routable address
+// rather than 127.0.0.1. Errors out if the machine is offline / has no LAN IPv4.
+function resolveLanIPv4(): string {
+    for (const addrs of Object.values(networkInterfaces())) {
+        for (const addr of addrs ?? []) {
+            if (addr.family === 'IPv4' && !addr.internal) return addr.address
+        }
+    }
+    error('vt webapp --lan: could not determine this machine\'s LAN IPv4 address (offline?)')
+}
+
+// Rewrite only the host of a URL, preserving protocol + port.
+function withHost(url: string, host: string): string {
+    const parsed: URL = new URL(url)
+    return `${parsed.protocol}//${host}:${parsed.port}`
 }
 
 // CORS must be configured BEFORE the ensure spawns vt-daemon, so a freshly
 // launched daemon accepts the browser dev origin. A daemon that is merely
 // reused keeps its existing CORS — hence the reuse note printed below.
-function applyDevCorsOrigins(port: number): void {
-    const devOrigins: string = [`http://localhost:${port}`, `http://127.0.0.1:${port}`].join(',')
+function applyDevCorsOrigins(port: number, lanIp: string | null): void {
+    const origins: string[] = [`http://localhost:${port}`, `http://127.0.0.1:${port}`]
+    // In --lan mode the page is also loaded from this machine's LAN IP (on the
+    // phone/tablet), so that origin must pass VTD's CORS gate too.
+    if (lanIp) origins.push(`http://${lanIp}:${port}`)
+    const devOrigins: string = origins.join(',')
     const existing: string | undefined = process.env.VOICETREE_CORS_ORIGINS
     process.env.VOICETREE_CORS_ORIGINS = existing ? `${existing},${devOrigins}` : devOrigins
+}
+
+// In --lan mode the renderer is served to LAN devices and pointed at VTD via this
+// machine's LAN IP, so VTD must listen on that interface — not just loopback. Bind
+// it to 0.0.0.0 (all interfaces), which keeps loopback working for the Mac's own
+// localhost too. Like applyDevCorsOrigins, this must run BEFORE the ensure spawns
+// vt-daemon (vtd.ts reads VOICETREE_DAEMON_BIND at startup); a reused daemon keeps
+// its existing bind — hence the reuse note. graph-db stays loopback-internal: the
+// renderer never talks to it directly, only VTD does (same machine). VTD's bearer
+// token + CORS gate remain the access boundary on the now-LAN-exposed port.
+function applyLanDaemonBind(): void {
+    process.env.VOICETREE_DAEMON_BIND = '0.0.0.0'
 }
 
 function resolveViteBin(): string {
@@ -147,28 +191,44 @@ export async function runWebappCommand(argv: string[]): Promise<void> {
     }
     const viteBin: string = resolveViteBin()
 
-    applyDevCorsOrigins(args.port)
+    const lanIp: string | null = args.lan ? resolveLanIPv4() : null
+    applyDevCorsOrigins(args.port, lanIp)
+    if (args.lan) applyLanDaemonBind()
 
     const {graphd, vtd}: EnsuredDaemons = await ensureBothDaemons(args.project, {exclusive: false})
     const vtdUrl: string = vtd.client.baseUrl
+    // The renderer (served to every client, including LAN devices) must reach VTD
+    // at a routable address. In --lan mode that's this machine's LAN IP, not 127.0.0.1.
+    const clientVtdUrl: string = lanIp ? withHost(vtdUrl, lanIp) : vtdUrl
     const webUrl: string = `http://localhost:${args.port}`
+    const lanUrl: string | null = lanIp ? `http://${lanIp}:${args.port}` : null
 
     process.stdout.write(
         `vt webapp: vt-daemon on ${vtdUrl} (pid ${vtd.pid}), `
         + `graph-db on http://127.0.0.1:${graphd.port} (loopback-internal), project=${args.project}\n`
-        + `Serving webapp → ${webUrl}\n`,
+        + `Serving webapp → ${webUrl}\n`
+        + (lanUrl ? `LAN mode: open on another device on this network → ${lanUrl} (renderer → VTD at ${clientVtdUrl})\n` : ''),
     )
     if (!vtd.launched) {
         process.stdout.write(
-            'note: reused an already-running vt-daemon. If the browser shows CORS errors, stop it and '
-            + `rerun — its VOICETREE_CORS_ORIGINS must include ${webUrl}.\n`,
+            'note: reused an already-running vt-daemon — it keeps the CORS origins and bind '
+            + 'interface it was launched with. '
+            + (lanIp
+                ? `For LAN mode it must be bound to 0.0.0.0 and allow ${lanUrl}; if the page can't `
+                  + 'reach VTD, stop the existing daemon and rerun so this command relaunches it.\n'
+                : `If the browser shows CORS errors, stop it and rerun — its VOICETREE_CORS_ORIGINS `
+                  + `must include ${webUrl}.\n`),
         )
     }
 
+    const viteArgs: string[] = ['--port', String(args.port), '--strictPort']
+    // --host binds vite to 0.0.0.0 so LAN devices can load the page; without it
+    // vite listens on localhost only.
+    if (args.lan) viteArgs.push('--host')
     const vite: ChildProcess = spawn(
         viteBin,
-        ['--port', String(args.port), '--strictPort'],
-        {cwd: WEBAPP_DIR, stdio: 'inherit', env: {...process.env, VITE_VTD_URL: vtdUrl}},
+        viteArgs,
+        {cwd: WEBAPP_DIR, stdio: 'inherit', env: {...process.env, VITE_VTD_URL: clientVtdUrl}},
     )
 
     const stopVite = (): void => {

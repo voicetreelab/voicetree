@@ -248,7 +248,6 @@ export class VerticalMenuService {
                     await window.hostAPI?.main.runAgentOnSelectedNodes({
                         selectedNodeIds,
                         taskDescription: result.taskDescription,
-                        position,
                     });
                 } catch (error: unknown) {
                     console.error('[VerticalMenuService] Failed to run agent on selected nodes:', error);
