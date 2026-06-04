@@ -120,8 +120,9 @@ export namespace GraphGetProject {
 /**
  * Whole-graph snapshot. Over the wire the `Graph`-level Map indexes
  * (`incomingEdgesIndex`, `nodeByBaseName`, `unresolvedLinksIndex`) serialize as
- * plain objects and `nodes` as a record; the consumer rehydrates the Maps the
- * same way the daemon-side `normalizeDaemonGraph` does.
+ * plain objects and `nodes` as a record; the consumer MUST rehydrate the Maps
+ * via `rehydrateSerializedGraph` (`@vt/graph-model`) before treating the result
+ * as a usable `Graph`.
  */
 export namespace GraphGetGraph {
     export type Request = Record<string, never>
