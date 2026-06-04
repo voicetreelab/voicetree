@@ -1,9 +1,11 @@
 import {requireTerminalId} from '../graph/core/args'
 import {callDaemon} from '../daemon-client'
 import {error, output} from '../output'
+import {formatForkResult, type ForkOutcome} from './agentForkFormat'
 import {formatResumeResult, type ResumeOutcome} from './agentResumeFormat'
 import {
     AGENT_CLOSE_SPEC,
+    AGENT_FORK_SPEC,
     AGENT_LIST_SPEC,
     AGENT_OUTPUT_SPEC,
     AGENT_RESUME_SPEC,
@@ -404,6 +406,36 @@ export async function agentResume(
     }
 
     const outcome: ResumeOutcome = formatResumeResult(targetTerminalId, record)
+    if (!outcome.ok) {
+        error(outcome.message)
+    }
+
+    output(record, (): string => outcome.message)
+}
+
+export async function agentFork(
+    terminalId: string | undefined,
+    args: string[]
+): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_FORK_SPEC)
+        return
+    }
+
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_FORK_SPEC)
+
+    if (parsedArgs.positionals.length > 1) {
+        error('`agent fork` accepts at most one source terminal ID')
+    }
+
+    const sourceTerminalId: string = parsedArgs.positionals[0] ?? requireTerminalId(terminalId)
+    const payload: unknown = await callDaemon('forkAgentSession', {sourceTerminalId})
+    const record: JsonRecord | undefined = asRecord(payload)
+    if (!record) {
+        error('Voicetree daemon returned an unexpected payload')
+    }
+
+    const outcome: ForkOutcome = formatForkResult(sourceTerminalId, record)
     if (!outcome.ok) {
         error(outcome.message)
     }
