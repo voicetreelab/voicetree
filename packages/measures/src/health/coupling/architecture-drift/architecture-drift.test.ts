@@ -5,6 +5,7 @@ import {join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {recordHealthMetric} from '../../../_shared/writers/report-writer'
+import {gitEnvWithoutLocationOverrides} from '../../../_shared/discovery/run-git'
 import {discoverArchitectureFiles, validateArchitectureDrift} from './validate-architecture-drift'
 
 const THIS_FILE = fileURLToPath(import.meta.url)
@@ -69,8 +70,12 @@ describe('architecture discovery', () => {
             await mkdir(churningRuntimeDir, {recursive: true})
             await writeFile(join(sandbox, 'storage', 'architecture.md'), '```mermaid\nflowchart TD\n  x[x]\n```\n')
 
-            execFileSync('git', ['init', '-q'], {cwd: sandbox})
-            execFileSync('git', ['add', 'architecture.md', '.gitignore'], {cwd: sandbox})
+            // Scrub leaked GIT_DIR/GIT_WORK_TREE/… so `git init` lands in the sandbox
+            // rather than re-targeting the enclosing hook's repo (this test runs under a
+            // git hook during a local push, which exports those vars into the worker).
+            const gitEnv = gitEnvWithoutLocationOverrides()
+            execFileSync('git', ['init', '-q'], {cwd: sandbox, env: gitEnv})
+            execFileSync('git', ['add', 'architecture.md', '.gitignore'], {cwd: sandbox, env: gitEnv})
 
             const discovered = (await discoverArchitectureFiles(sandbox))
                 .map(file => relative(sandbox, file.absPath))
