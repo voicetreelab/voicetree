@@ -181,6 +181,8 @@ export const CREATE_GRAPH_SPEC: ToolSpec = {
         '',
         `**Folder gardening:** ${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatManualGuidance()}`,
         '',
+        '**Status (required from an agent terminal):** pass `--status <working|awaiting_input|done|failed>` (one status for the whole call — it is *your* lifecycle status, not the node\'s). It drives your terminal-tree icon. Filesystem mode reports it to the daemon after writing; live mode carries it in the payload. Offline authoring (no terminal) may omit it. To declare status without creating a node, use `vt agent status`.',
+        '',
         '**Modes:**',
         '- *Filesystem mode* — pass one or more `<file.md>` positional paths. The CLI parses frontmatter and `[[wikilinks]]` to build the create payload locally.',
         '- *Live mode* — pass `--node "title::summary[::content]"` (repeatable) and/or `--nodes-file FILE`, or pipe a JSON `{nodes, overrides?}` payload to stdin. The CLI forwards the payload to the daemon\'s `create_graph` RPC.',
@@ -234,6 +236,18 @@ export const CREATE_GRAPH_SPEC: ToolSpec = {
             cliBulletLabel: '--override VALUE',
             annotation: 'repeatable, RPC: override_with_rationale[]',
             description: `Override a blocking validation rule, formatted \`<ruleId>:<rationale>\`. ${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatOverrideDescription()}`,
+        },
+        {
+            rpcName: 'agentStatus',
+            cliBulletLabel: '--status VALUE',
+            annotation: 'required from an agent terminal; RPC: agentStatus',
+            description: 'Your lifecycle status reported with this create — one of `working` | `awaiting_input` | `done` | `failed`. Required whenever you run from an agent terminal; one status per call (yours, not the node\'s). Omit only for offline authoring with no terminal.',
+        },
+        {
+            rpcName: 'statusPhrase',
+            cliBulletLabel: '--phrase VALUE',
+            annotation: 'RPC: statusPhrase',
+            description: 'Optional short free-text status (≤ 80 chars) shown next to your model name in the terminal tree, e.g. "wiring the create_graph param".',
         },
     ],
 }
