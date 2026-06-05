@@ -8,7 +8,7 @@ import {
     resolveLinkTarget,
     scanMarkdownFiles,
     type StructureNode,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 

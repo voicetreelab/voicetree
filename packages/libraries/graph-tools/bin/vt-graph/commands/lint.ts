@@ -2,7 +2,7 @@ import {
   formatLintReportHuman,
   formatLintReportJson,
   lintGraphWithFixes,
-} from '../../../src/node'
+} from '../../../src/node-runtime'
 import {fail} from '../shared'
 
 export async function runLintCommand(args: readonly string[]): Promise<void> {

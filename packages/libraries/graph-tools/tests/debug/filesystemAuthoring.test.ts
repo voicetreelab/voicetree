@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import path from 'node:path'
 import {describe, expect, it} from 'vitest'
-import * as graphTools from '../../src/node'
+import * as graphTools from '../../src/node-runtime'
 import {buildMarkdownBody as legacyBuildMarkdownBody} from '../../../../systems/vt-daemon/src/tools/graph/addProgressNodeTool'
 
 type BuildMarkdownBodyParams = {

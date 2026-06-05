@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./node": "./src/node.ts",
+    "./node-runtime": "./src/node-runtime.ts",
     "./graphLint": "./src/lint/graphLint.ts",
     "./autoView": "./src/view/autoView.ts",
     "./debug/*": "./src/debug/*.ts",

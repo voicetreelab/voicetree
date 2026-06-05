@@ -19,7 +19,7 @@ import { getTerminalId, getShadowNodeId, type TerminalId } from '@/shell/edge/UI
 import { getDisplayOrderForNavigation } from '@/shell/UI/views/treeStyleTerminalTabs/terminalTabUtils';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from 'fp-ts/lib/Option.js';
-import { linkMatchScore, getPathComponents } from '@vt/graph-model/markdown';
+import { getMarkdownLinkTargetSegments, linkMatchScore } from '@vt/graph-model/markdown';
 import { getVisibleViewportMetrics, type VisibleViewportMetrics } from '@/utils/visibleViewport';
 import { getEditorByNodeId } from '@/shell/edge/UI-edge/state/stores/EditorStore';
 import type { NodeIdAndFilePath } from '@vt/graph-model/graph';
@@ -202,7 +202,7 @@ export class GraphNavigationService { // TODO MAKE THIS NOT USE A CLASS
     // Fallback: fuzzy suffix matching (same logic as wikilink resolution)
     // Handles SSE events that send relative paths while cytoscape uses absolute paths
     if (node.length === 0) {
-      const linkComponents: readonly string[] = getPathComponents(nodeId);
+      const linkComponents: readonly string[] = getMarkdownLinkTargetSegments(nodeId);
       if (linkComponents.length > 0) {
         const match: { node: NodeSingular | null; score: number } = { node: null, score: 0 };
         // [L2-seam-residual] cy-only: fuzzy ID matching requires node metadata (isShadowNode, etc.)

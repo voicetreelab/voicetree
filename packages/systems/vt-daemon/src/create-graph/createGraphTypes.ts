@@ -1,5 +1,5 @@
 import type {NodeDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import type {ComplexityScore} from '@vt/graph-tools/node'
+import type {ComplexityScore} from '@vt/graph-tools/node-runtime'
 
 export interface CreateGraphNodeInput {
     readonly filename: string

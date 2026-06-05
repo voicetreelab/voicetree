@@ -8,7 +8,7 @@ import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-stor
 import {
     formatLintReportHuman,
     lintGraph,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import {
     createEmptyGraph,
 } from '@vt/graph-model'

@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {CliError} from './output.ts'
 import {CliExitError, EXIT} from './util/exitCodes'
-import {runViewCommand} from './node/view.ts'
+import {runViewCommand} from './graph-node/view.ts'
 import {runProjectCommand} from './runtime/project.ts'
 import {main} from '../voicetree-cli.ts'
 

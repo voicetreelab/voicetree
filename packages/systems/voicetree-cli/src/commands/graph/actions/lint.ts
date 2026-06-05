@@ -5,7 +5,7 @@ import {
     formatLintReportJson,
     lintGraph,
     type LintConfig,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import {error, isJsonMode, handleCliError} from '../cliDeps'
 import {getRequiredValue} from '../core/args'
 import {withDaemonGraphSnapshot} from './snapshot'

@@ -4,7 +4,7 @@ import {
     type DaemonRouteId,
 } from '@vt/graph-db-server/daemonRouteParity'
 import {describe, expect, it, vi, type MockInstance} from 'vitest'
-import {runViewCommand} from '../node/view.ts'
+import {runViewCommand} from '../graph-node/view.ts'
 import {CliExitError, EXIT} from '../util/exitCodes.ts'
 import {
     CLI_DAEMON_ROUTE_COVERAGE,
@@ -205,7 +205,7 @@ describe('daemon CLI route parity', () => {
 
 // ────────────────────────────────────────────────────────────────────────
 // REC 7: the coverage table must not fabricate `vt view` verbs/flags that
-// the real parser (commands/node/view.ts) does not accept. The two historic
+// the real parser (commands/graph-node/view.ts) does not accept. The two historic
 // over-claims were a `vt view set-folder --batch` flag and a `vt view state`
 // verb; `vt view create` was the same class of fabrication. These tests pin
 // the table to the actual `vt view` surface by driving the real command.
@@ -339,7 +339,7 @@ describe('every daemon-routed `vt view ...` coverage entry maps to a real parser
             (token): boolean => !recognized.has(token),
         )
         // If this fails, the coverage table advertises a `vt view <token>`
-        // command whose token is not a real branch in commands/node/view.ts.
+        // command whose token is not a real branch in commands/graph-node/view.ts.
         expect(unrecognized).toEqual([])
     })
 

@@ -276,7 +276,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // tool), `findSpecByCliVerb` (verb resolution). These are the minimum
     // necessary — each verb of `vt manual` calls exactly one of them.
     'voicetree-cli -> vt-daemon-protocol': 4,
-    'voicetree-cli -> vt-rpc': 9,
+    // 2026-06-05 [cross-project agent send]: 9 -> 10. `vt agent send
+    // <project>/<terminalId>` resolves and talks to ANOTHER project's daemon,
+    // so the CLI now imports `discoverDaemonEndpointForProject` (the explicit-
+    // path endpoint resolver) alongside the cwd-relative `discoverDaemonEndpoint`
+    // it already used. The two are genuinely distinct entry points — one
+    // discovers from the ambient project, one from a caller-supplied path.
+    'voicetree-cli -> vt-rpc': 10,
     // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is now
     // sourced from @vt/app-config (the canonical single-line resolver), not
     // from a CLI-local mirrored copy. The function body is 1 line — the

@@ -2502,6 +2502,7 @@ dependencies = [
     { name = "termcolor" },
     { name = "typing-extensions" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -2547,6 +2548,7 @@ requires-dist = [
     { name = "termcolor", specifier = ">=2.0.0" },
     { name = "typing-extensions", specifier = ">=4.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.23.0" },
+    { name = "websockets", specifier = ">=13.0" },
 ]
 provides-extras = ["dev"]
 

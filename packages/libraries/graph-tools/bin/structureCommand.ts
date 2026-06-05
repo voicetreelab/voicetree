@@ -3,7 +3,7 @@ import {
   renderGraphView,
   createLiveTransport,
   type ViewFormat,
-} from '../src/node'
+} from '../src/node-runtime'
 import {buildAutoViewGraph, renderTreeCover} from '../src/view/autoView'
 
 function fail(message: string): never {

@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position } from '../..'
 import { getIncomingEdgesToSubgraph } from '../merge/getIncomingEdgesToSubgraph'
 import { redirectEdgeTarget } from '../merge/redirectEdgeTarget'
-import { getFolderDescendantNodeIds, getFolderParent, getPathComponents, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
+import { getFolderDescendantNodeIds, getFolderParent, getMarkdownLinkTargetSegments, linkMatchScore, stableIdSuffix } from '../graphOperationPrimitives'
 
 export interface ExtractIntoFolderSelectionSupport {
     readonly canExtract: boolean
@@ -142,7 +142,7 @@ function replaceTargetPlaceholders(
         if (linkMatchScore(linkText, oldTargetId) <= 0) {
             return match
         }
-        if (!targetIsFolder && getPathComponents(linkText).length <= 1) {
+        if (!targetIsFolder && getMarkdownLinkTargetSegments(linkText).length <= 1) {
             return match
         }
         return `[${newTargetId}]*`

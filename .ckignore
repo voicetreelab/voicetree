@@ -42,7 +42,9 @@
 
 # 6. Foreign trees mounted in the worktree but NOT part of the product source —
 #    each is its own nested git repo (untracked by this repo, so isProductionSourcePath
-#    never sees them): the standalone `brain` automation/agent repo and the
-#    vendored Quartz static-site generator for the website.
+#    never sees them): the standalone `brain` automation/agent repo, the
+#    vendored Quartz static-site generator for the website, and the standalone
+#    voicetree-evals benchmark repo.
 /brain/
 /vt-website-quartz/
+/voicetree-evals/

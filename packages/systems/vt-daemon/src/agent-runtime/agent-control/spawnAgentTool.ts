@@ -69,7 +69,8 @@ type BudgetResult = { readonly allowed: boolean; readonly childBudget: number | 
 
 type SpawnRuntime = {
     readonly callerTerminalId: string
-    readonly callerRecord: TerminalRecord
+    readonly callerRecord?: TerminalRecord
+    readonly isExternalCaller: boolean
     readonly resolvedAgentCommand: string | undefined
     readonly resolvedSpawnDirectory: string | undefined
     readonly envOverrides: Record<string, string>
@@ -102,8 +103,14 @@ function findCallerRecord(callerTerminalId: string, terminalRecords: readonly Te
     return {ok: true, value: callerRecord}
 }
 
-function resolveChildDepthBudget(depthBudget: number | undefined, callerRecord: TerminalRecord): number | undefined {
+function isScopedExternalCaller(callerTerminalId: string): boolean {
+    const slashIndex: number = callerTerminalId.indexOf('/')
+    return slashIndex > 0 && slashIndex < callerTerminalId.length - 1
+}
+
+function resolveChildDepthBudget(depthBudget: number | undefined, callerRecord: TerminalRecord | undefined): number | undefined {
     if (depthBudget !== undefined) return depthBudget
+    if (!callerRecord) return undefined
 
     const parentDepthBudget: string | undefined = callerRecord.terminalData.initialEnvVars?.DEPTH_BUDGET
     if (!parentDepthBudget) return undefined
@@ -133,10 +140,10 @@ function resolveNamedAgentCommand(agentName: string, agents: readonly AgentSetti
 
 async function resolveAgentCommand(
     agentName: string | undefined,
-    callerRecord: TerminalRecord,
+    callerRecord: TerminalRecord | undefined,
     deps: SpawnAgentDeps,
 ): Promise<Result<string | undefined>> {
-    const callerAgentTypeName: string | undefined = callerRecord.terminalData.agentTypeName
+    const callerAgentTypeName: string | undefined = callerRecord?.terminalData.agentTypeName
     if (!agentName && !callerAgentTypeName) return {ok: true, value: undefined}
 
     const settings: VTSettings = await deps.loadAgentSettings()
@@ -149,15 +156,15 @@ async function resolveAgentCommand(
     return {ok: true, value: inheritedAgent?.command}
 }
 
-function resolveSpawnDirectory(spawnDirectory: string | undefined, callerRecord: TerminalRecord): string | undefined {
-    return spawnDirectory ?? callerRecord.terminalData.initialSpawnDirectory
-}
-
 async function prepareSpawnRuntime(
     params: SpawnAgentParams,
     deps: SpawnAgentDeps,
-    callerRecord: TerminalRecord,
+    callerRecord: TerminalRecord | undefined,
 ): Promise<Result<SpawnRuntime>> {
+    if (!callerRecord && params.replaceSelf) {
+        return {ok: false, error: 'Cannot replace self from a scoped external caller'}
+    }
+
     const childDepthBudget: number | undefined = resolveChildDepthBudget(params.depthBudget, callerRecord)
     const budgetResult: BudgetResult = deps.consumeBudget(params.callerTerminalId)
     if (!budgetResult.allowed) return {ok: false, error: 'Global spawn budget exhausted'}
@@ -170,8 +177,9 @@ async function prepareSpawnRuntime(
         value: {
             callerTerminalId: params.callerTerminalId,
             callerRecord,
+            isExternalCaller: !callerRecord,
             resolvedAgentCommand: agentCommandResult.value,
-            resolvedSpawnDirectory: resolveSpawnDirectory(params.spawnDirectory, callerRecord),
+            resolvedSpawnDirectory: params.spawnDirectory ?? callerRecord?.terminalData.initialSpawnDirectory,
             envOverrides: buildEnvOverrides(childDepthBudget, budgetResult.childBudget),
             childDepthBudget,
         }
@@ -201,10 +209,10 @@ function taskNodeIdFromDelta(taskNodeDelta: GraphDelta): NodeIdAndFilePath | und
 
 function buildCallerContextUpdateDelta(
     graph: Graph,
-    callerRecord: TerminalRecord,
+    callerRecord: TerminalRecord | undefined,
     taskNodeId: NodeIdAndFilePath,
 ): GraphDelta {
-    const callerContextNodeId: string | undefined = callerRecord.terminalData.attachedToContextNodeId
+    const callerContextNodeId: string | undefined = callerRecord?.terminalData.attachedToContextNodeId
     if (!callerContextNodeId) return []
 
     const callerContextNode: GraphNode | undefined = graph.nodes[callerContextNodeId]
@@ -243,7 +251,7 @@ function claimNodeDelta(targetNode: GraphNode): GraphDelta {
 
 function parentTerminalIdForSpawn(runtime: SpawnRuntime, replaceSelf: boolean | undefined): string | undefined {
     return replaceSelf
-        ? (runtime.callerRecord.terminalData.parentTerminalId ?? undefined)
+        ? (runtime.callerRecord?.terminalData.parentTerminalId ?? undefined)
         : runtime.callerTerminalId
 }
 
@@ -270,10 +278,16 @@ async function spawnTerminalForNode(
 }
 
 function rememberAndMonitorChild(terminalId: string, params: SpawnAgentParams, runtime: SpawnRuntime, deps: SpawnAgentDeps): void {
-    if (params.replaceSelf) return
+    if (params.replaceSelf || runtime.isExternalCaller) return
 
     deps.rememberChild(runtime.callerTerminalId, terminalId)
     deps.monitorChildren(runtime.callerTerminalId, [terminalId], 5000)
+}
+
+function spawnSuccessMessage(baseMessage: string, runtime: SpawnRuntime): string {
+    return runtime.isExternalCaller
+        ? `${baseMessage} No local completion monitor was started for external caller ${runtime.callerTerminalId}.`
+        : `${baseMessage} You will be notified when the agent completes.`
 }
 
 async function spawnAgentForTask(
@@ -319,7 +333,7 @@ async function spawnAgentForTask(
             depthBudget: runtime.childDepthBudget,
             message: params.replaceSelf
                 ? `Replaced self — successor agent running as "${terminalId}"`
-                : `Created task node and spawned agent for "${taskDescription}". You will be notified when the agent completes.`
+                : spawnSuccessMessage(`Created task node and spawned agent for "${taskDescription}".`, runtime)
         })
     } catch (error) {
         return errorResponse(errorMessage(error))
@@ -352,7 +366,7 @@ async function spawnAgentForExistingNode(
             depthBudget: runtime.childDepthBudget,
             message: params.replaceSelf
                 ? `Replaced self — successor agent running as "${terminalId}"`
-                : `Spawned agent for node ${resolvedNodeId}. You will be notified when the agent completes.`
+                : spawnSuccessMessage(`Spawned agent for node ${resolvedNodeId}.`, runtime)
         })
     } catch (error) {
         return errorResponse(errorMessage(error))
@@ -365,9 +379,15 @@ export async function spawnAgentTool(
 ): Promise<ToolResponse> {
     const terminalRecords: TerminalRecord[] = deps.listTerminalRecords()
     const callerRecordResult: Result<TerminalRecord> = findCallerRecord(params.callerTerminalId, terminalRecords)
-    if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
+    if (!callerRecordResult.ok && !isScopedExternalCaller(params.callerTerminalId)) {
+        return errorResponse(callerRecordResult.error)
+    }
 
-    const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(params, deps, callerRecordResult.value)
+    const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(
+        params,
+        deps,
+        callerRecordResult.ok ? callerRecordResult.value : undefined,
+    )
     if (!runtimeResult.ok) return errorResponse(runtimeResult.error)
 
     const writeFolderPathResult: Result<string> = await loadWriteFolderPath(deps)

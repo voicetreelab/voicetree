@@ -1,4 +1,4 @@
-import type {FilesystemAuthoringPlanEntry} from '@vt/graph-tools/node'
+import type {FilesystemAuthoringPlanEntry} from '@vt/graph-tools/node-runtime'
 import type {OverridableRuleId, OverrideEntry} from '@vt/graph-validation'
 import {normalizeRef} from '../core/util'
 
