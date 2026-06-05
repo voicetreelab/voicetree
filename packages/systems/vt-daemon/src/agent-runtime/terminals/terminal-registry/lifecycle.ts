@@ -131,6 +131,7 @@ export function applyAgentStatus(terminalId: string, update: AgentStatusUpdate):
     const isSticky: boolean = currentLifecycle === 'completed' || currentLifecycle === 'errored'
 
     let nextLifecycle: TerminalLifecycle = currentLifecycle
+    let nextReportedStatus: AgentStatus | null = record.terminalData.lastReportedStatus
     if (update.preset !== undefined && !isSticky) {
         recordTierEvent({
             ts: Date.now(),
@@ -139,6 +140,12 @@ export function applyAgentStatus(terminalId: string, update: AgentStatusUpdate):
             kind: update.preset,
         })
         nextLifecycle = lifecycleFromAgentStatus(record, update.preset)
+        // Record what the agent *declared*, independent of the orchestrator
+        // downgrade that may render done/awaiting as idle. The finish gate reads
+        // this — so e.g. an orchestrator that reported `done` (lifecycle stays
+        // `idle`) must still persist `done` here even though no lifecycle change
+        // would otherwise be written below.
+        nextReportedStatus = update.preset
     }
 
     const nextPhrase: string | undefined = update.phrase === undefined
@@ -147,7 +154,8 @@ export function applyAgentStatus(terminalId: string, update: AgentStatusUpdate):
 
     const lifecycleChanged: boolean = nextLifecycle !== currentLifecycle
     const phraseChanged: boolean = nextPhrase !== undefined && nextPhrase !== record.terminalData.statusPhrase
-    if (!lifecycleChanged && !phraseChanged) return
+    const reportedStatusChanged: boolean = nextReportedStatus !== record.terminalData.lastReportedStatus
+    if (!lifecycleChanged && !phraseChanged && !reportedStatusChanged) return
 
     terminalRecords.set(terminalId, {
         ...record,
@@ -155,6 +163,7 @@ export function applyAgentStatus(terminalId: string, update: AgentStatusUpdate):
             ...record.terminalData,
             ...(lifecycleChanged ? {lifecycle: nextLifecycle} : {}),
             ...(phraseChanged ? {statusPhrase: nextPhrase} : {}),
+            ...(reportedStatusChanged ? {lastReportedStatus: nextReportedStatus} : {}),
         },
     })
     notifyRegistrySubscribers()

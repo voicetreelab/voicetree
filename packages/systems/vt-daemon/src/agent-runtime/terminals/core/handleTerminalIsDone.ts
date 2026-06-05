@@ -22,9 +22,18 @@ export function handleTerminalIsDone(
 ): { state: TerminalRecord; commands: Command[]; response: TerminalIsDoneResponse } {
     const wasNotDone: boolean = !record.terminalData.isDone
     const lifecycle: TerminalLifecycle = lifecycleFromDoneSignal(record, input.isDone, input.records)
+    // Re-entering `active` means a new turn began (output resumed after idle), so
+    // any status the agent declared in the prior turn is stale — clear it, else a
+    // previous `done` would wrongly satisfy this turn's finish gate.
+    const enteringActive: boolean = lifecycle === 'active' && record.terminalData.lifecycle !== 'active'
     const nextRecord: TerminalRecord = {
         ...record,
-        terminalData: {...record.terminalData, isDone: input.isDone, lifecycle},
+        terminalData: {
+            ...record.terminalData,
+            isDone: input.isDone,
+            lifecycle,
+            ...(enteringActive ? {lastReportedStatus: null} : {}),
+        },
     }
     const commands: Command[] = [
         {type: 'SetTerminalRecord', terminalId: record.terminalId, record: nextRecord},
