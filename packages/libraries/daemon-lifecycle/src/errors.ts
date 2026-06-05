@@ -73,3 +73,23 @@ export class OwnerWaitTimeoutError extends Error {
     this.name = 'OwnerWaitTimeoutError'
   }
 }
+
+/**
+ * Stale reclamation was authorised but the recorded owner could not be
+ * proven dead — it survived both SIGTERM and SIGKILL within the reclaim
+ * deadline (or its liveness could not be read). We refuse to delete the
+ * owner record and spawn a replacement under this condition, because
+ * doing so would leave the un-killable process running alongside the new
+ * daemon — the exact duplicate-daemon leak reclamation exists to prevent.
+ */
+export class OwnerReclaimFailedError extends Error {
+  constructor(
+    public readonly project: string,
+    public readonly recordedPid: number,
+  ) {
+    super(
+      `failed to terminate stale daemon owner for project ${project} (pid ${recordedPid}) — survived SIGTERM and SIGKILL; refusing to spawn a duplicate`,
+    )
+    this.name = 'OwnerReclaimFailedError'
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --import tsx
 import { resolve } from 'node:path'
 import { startDaemon } from '../src/daemon/server.ts'
-import { startParentPidWatchdog } from '@vt/daemon-lifecycle'
+import { runGracefulShutdown, startParentPidWatchdog } from '@vt/daemon-lifecycle'
 import { tracing } from '@vt/observability'
 import { perfProbeFromEnv } from '@vt/perf-analysis/perf-probe'
 
@@ -107,19 +107,30 @@ async function main() {
     `vt-graphd: listening on http://127.0.0.1:${handle.port} for project root ${args.projectRoot}\n`,
   )
 
+  // Per-step ceiling and absolute backstop for teardown. Only bite when a
+  // step hangs; a healthy shutdown finishes in single-digit ms.
+  const SHUTDOWN_STEP_TIMEOUT_MS = 2_000
+  const SHUTDOWN_HARD_DEADLINE_MS = 8_000
   let shuttingDown = false
   const shutdown = async (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
     process.stderr.write(`vt-graphd: ${signal} received, shutting down\n`)
-    try {
-      await handle.stop()
-      await stopPerfProbe?.()
-      process.exit(0)
-    } catch (err) {
-      process.stderr.write(`vt-graphd: shutdown error: ${(err as Error).message}\n`)
-      process.exit(1)
-    }
+    // Each step is independently time-boxed so a stalled close (e.g. an HTTP
+    // listener whose stop never resolves) cannot wedge the process into an
+    // immortal zombie — every step is attempted and the process always exits.
+    await runGracefulShutdown({
+      stepTimeoutMs: SHUTDOWN_STEP_TIMEOUT_MS,
+      hardDeadlineMs: SHUTDOWN_HARD_DEADLINE_MS,
+      exit: (code: number): void => process.exit(code),
+      onStepIssue: (label: string, error: Error): void => {
+        process.stderr.write(`vt-graphd: shutdown step ${label} failed: ${error.message}\n`)
+      },
+      steps: [
+        { label: 'handle.stop', run: (): Promise<void> => handle.stop() },
+        { label: 'stopPerfProbe', run: (): Promise<void> | void => stopPerfProbe?.() },
+      ],
+    })
   }
   process.on('SIGINT', () => void shutdown('SIGINT'))
   process.on('SIGTERM', () => void shutdown('SIGTERM'))

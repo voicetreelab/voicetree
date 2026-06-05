@@ -17,7 +17,7 @@
  * tears the daemon down on a transient probe failure.
  */
 
-import { isOwnerPidAlive } from './ownerRecordIo.ts'
+import { isOwnerPidAlive } from '../ownerRecordIo.ts'
 
 export type ParentPidWatchdogOptions = {
   parentPid: number
