@@ -53,11 +53,10 @@ describe('uniqueAgentName (random source)', () => {
     });
 
     it('repeated draws of one base name are distinct', () => {
-        // 46,656 ids per base name — a handful of draws colliding is astronomically
-        // unlikely, which is the whole point of the hash.
-        const ids: Set<string> = new Set(
-            Array.from({length: 50}, () => uniqueAgentName('Sam', new Set())),
-        );
+        const ids: Set<string> = new Set();
+        for (let index: number = 0; index < 50; index += 1) {
+            ids.add(uniqueAgentName('Sam', ids));
+        }
         expect(ids.size).toBe(50);
     });
 });
