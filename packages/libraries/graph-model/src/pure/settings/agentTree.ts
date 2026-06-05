@@ -116,7 +116,7 @@ export function mapAgentTreeByCommand(
     newCommand: string,
 ): readonly AgentConfig[] {
     return agents.map((node: AgentConfig): AgentConfig => {
-        const rewrittenCommand: string = node.command === oldCommand ? newCommand : node.command;
+        const rewrittenCommand: string | undefined = node.command === oldCommand ? newCommand : node.command;
         const rewrittenChildren: readonly AgentConfig[] | undefined = node.children
             ? mapAgentTreeByCommand(node.children, oldCommand, newCommand)
             : undefined;

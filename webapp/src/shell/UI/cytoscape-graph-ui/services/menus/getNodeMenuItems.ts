@@ -21,8 +21,8 @@ import {
     writeMarkdownFileFromUI
 } from "@/shell/edge/UI-edge/floating-windows/editors/writeMarkdownFileFromUI";
 import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
-import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
-import { getDefaultAgent } from "@vt/graph-model/settings";
+import type { VTSettings, AgentConfig, ResolvedAgent } from "@vt/graph-model/settings";
+import { resolveDefaultAgent, composeAgentStep, isAgentCategory, mapAgentTreeByCommand } from "@vt/graph-model/settings";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
@@ -62,14 +62,45 @@ function createRunButtonSliderConfig(
     };
 }
 
-async function spawnCurrentAgentByName(nodeId: string, cy: Core, agentName: string): Promise<void> {
-    const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
-    const agent: AgentConfig | undefined = settings?.agents?.find((candidate: AgentConfig) => candidate.name === agentName);
-    if (!agent?.command) {
-        console.error(`[getNodeMenuItems] Agent "${agentName}" is no longer present in settings.agents`);
-        return;
-    }
-    await spawnTerminalWithNewContextNode(nodeId, cy, agent.command);
+/**
+ * Build the agent tree into a cascade of hover submenus (mirrors the Workflows
+ * menu). A category node expands into its children; a leaf spawns its resolved
+ * command with the env accumulated down the path (delivered via envOverrides).
+ * `inherited` threads the composed (command, env) from ancestors, so a leaf that
+ * only sets `{ EFFORT: "xhigh" }` inherits its branch's base command.
+ */
+function buildAgentMenuItems(
+    nodeId: string,
+    cy: Core,
+    isContextNode: boolean,
+    agents: readonly AgentConfig[],
+    inherited: {readonly command: string; readonly env: Readonly<Record<string, string>>},
+): HorizontalMenuItem[] {
+    return agents.map((node: AgentConfig): HorizontalMenuItem => {
+        const composed = composeAgentStep(inherited, node);
+        if (isAgentCategory(node)) {
+            return {
+                icon: FolderOpen,
+                label: node.name,
+                color: '#6366f1',
+                action: () => {}, // category: submenu handles interaction
+                getSubMenuItems: async (): Promise<HorizontalMenuItem[]> =>
+                    buildAgentMenuItems(nodeId, cy, isContextNode, node.children ?? [], composed),
+            };
+        }
+        return {
+            icon: Play,
+            label: node.name,
+            color: '#6366f1', // indigo to distinguish from the default green Run
+            action: async () => {
+                await spawnTerminalWithNewContextNode(nodeId, cy, composed.command, undefined, composed.env);
+            },
+            onHoverEnter: isContextNode
+                ? () => highlightContainedNodes(cy, nodeId)
+                : () => highlightPreviewNodes(cy, nodeId),
+            onHoverLeave: () => clearContainedHighlights(cy),
+        };
+    });
 }
 
 /**
@@ -176,7 +207,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
 
             // Auto-run checkbox: only for claude commands, toggles --dangerously-skip-permissions
             const currentSettings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
-            const defaultAgent: AgentConfig | undefined = currentSettings ? getDefaultAgent(currentSettings.agents ?? [], currentSettings.defaultAgent) : undefined;
+            const defaultAgent: ResolvedAgent | undefined = currentSettings ? resolveDefaultAgent(currentSettings.agents ?? [], currentSettings.defaultAgent) : undefined;
             const defaultCommand: string = defaultAgent?.command ?? '';
             if (defaultCommand.toLowerCase().includes('claude')) {
                 items.push({
@@ -189,7 +220,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                         const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
                         if (!settings) return;
                         const currentAgents: readonly AgentConfig[] = settings.agents ?? [];
-                        const defAgent: AgentConfig | undefined = getDefaultAgent(currentAgents, settings.defaultAgent);
+                        const defAgent: ResolvedAgent | undefined = resolveDefaultAgent(currentAgents, settings.defaultAgent);
                         if (!defAgent) return;
                         const cmd: string = defAgent.command;
                         const hasFlag: boolean = cmd.includes(AUTO_RUN_FLAG);
@@ -204,10 +235,8 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                             }
                         }
 
-                        const updatedAgents: readonly AgentConfig[] = currentAgents.map(
-                            (agent: AgentConfig): AgentConfig =>
-                                agent.name === defAgent.name ? { ...agent, command: newCommand } : agent
-                        );
+                        // Rewrite whichever tree node defines that command (any depth).
+                        const updatedAgents: readonly AgentConfig[] = mapAgentTreeByCommand(currentAgents, cmd, newCommand);
                         await window.hostAPI?.main.saveSettings({ ...settings, agents: updatedAgents });
                     },
                 });
@@ -297,25 +326,10 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         },
     ];
 
-    // Add non-default agents (skip first which is default, used by Run button)
-    for (const agent of agents.slice(1)) {
-        moreSubMenu.push({
-            icon: Play,
-            label: agent.name,
-            color: '#6366f1', // indigo to distinguish from default Run
-            action: async () => {
-                await spawnCurrentAgentByName(nodeId, cy, agent.name);
-            },
-            // Context nodes: show contained nodes. Normal nodes: preview what would be captured.
-            onHoverEnter: isContextNode
-                ? () => highlightContainedNodes(cy, nodeId)
-                : () => highlightPreviewNodes(cy, nodeId),
-            onHoverLeave: () => clearContainedHighlights(cy),
-            // TODO: Re-enable slider for secondary agents once hover leniency is improved
-            // (slider should stay open when navigating between button and slider, not just on direct hover)
-            // sliderConfig,
-        });
-    }
+    // The full agent tree as a cascading submenu: hover a model (Codex) -> its
+    // categories (Local/Remote) -> the leaf (Medium/XHigh) that spawns it. The
+    // Run button still quick-launches the default leaf.
+    moreSubMenu.push(...buildAgentMenuItems(nodeId, cy, isContextNode, agents, {command: '', env: {}}));
     menuItems.push({
         icon: ChevronDown,
         label: 'More',

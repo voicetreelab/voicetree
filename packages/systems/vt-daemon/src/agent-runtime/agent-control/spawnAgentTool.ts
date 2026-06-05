@@ -8,7 +8,8 @@ import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-mo
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
-import type {VTSettings} from '@vt/graph-model/settings'
+import type {VTSettings, AgentConfig, ResolvedAgent} from '@vt/graph-model/settings'
+import {flattenAgentTree, agentPathLabel} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {startMonitor} from './agent-completion-monitor.ts'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
@@ -60,8 +61,6 @@ export function makeSpawnAgentDeps(bridge: GraphBridge): SpawnAgentDeps {
             startMonitor(callerTerminalId, terminalIds, bridge, pollIntervalMs),
     }
 }
-
-type AgentSetting = { readonly name: string; readonly command: string }
 
 type Result<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string }
 
@@ -121,32 +120,34 @@ function buildEnvOverrides(childDepthBudget: number | undefined, childGlobalBudg
     }
 }
 
-function resolveNamedAgentCommand(agentName: string, agents: readonly AgentSetting[]): Result<string> {
-    const matchedAgent: AgentSetting | undefined = agents.find((agent: AgentSetting) => agent.name === agentName)
-    if (matchedAgent) return {ok: true, value: matchedAgent.command}
-
-    return {
-        ok: false,
-        error: `Agent "${agentName}" not found in settings.agents. Available: ${agents.map((agent: AgentSetting) => agent.name).join(', ')}`
-    }
+/** Find a spawnable leaf by its full path label ('Codex / Remote / XHigh') or, failing that, its leaf name. */
+function findAgentLeaf(agents: readonly AgentConfig[], name: string): ResolvedAgent | undefined {
+    const leaves: ResolvedAgent[] = flattenAgentTree(agents)
+    return leaves.find(leaf => agentPathLabel(leaf.path) === name) ?? leaves.find(leaf => leaf.name === name)
 }
 
-async function resolveAgentCommand(
+function resolveNamedAgent(agentName: string, agents: readonly AgentConfig[]): Result<ResolvedAgent> {
+    const matched: ResolvedAgent | undefined = findAgentLeaf(agents, agentName)
+    if (matched) return {ok: true, value: matched}
+
+    const available: string = flattenAgentTree(agents).map(leaf => agentPathLabel(leaf.path)).join(', ')
+    return {ok: false, error: `Agent "${agentName}" not found in settings.agents. Available: ${available}`}
+}
+
+/** Resolve the leaf to spawn — explicit `agentName`, else inherit the caller's agent type, else none. */
+async function resolveAgentSelection(
     agentName: string | undefined,
     callerRecord: TerminalRecord,
     deps: SpawnAgentDeps,
-): Promise<Result<string | undefined>> {
+): Promise<Result<ResolvedAgent | undefined>> {
     const callerAgentTypeName: string | undefined = callerRecord.terminalData.agentTypeName
     if (!agentName && !callerAgentTypeName) return {ok: true, value: undefined}
 
     const settings: VTSettings = await deps.loadAgentSettings()
-    const agents: readonly AgentSetting[] = settings?.agents ?? []
-    if (agentName) return resolveNamedAgentCommand(agentName, agents)
+    const agents: readonly AgentConfig[] = settings?.agents ?? []
+    if (agentName) return resolveNamedAgent(agentName, agents)
 
-    const inheritedAgent: AgentSetting | undefined = agents.find(
-        (agent: AgentSetting) => agent.name === callerAgentTypeName
-    )
-    return {ok: true, value: inheritedAgent?.command}
+    return {ok: true, value: callerAgentTypeName ? findAgentLeaf(agents, callerAgentTypeName) : undefined}
 }
 
 function resolveSpawnDirectory(spawnDirectory: string | undefined, callerRecord: TerminalRecord): string | undefined {
@@ -162,17 +163,20 @@ async function prepareSpawnRuntime(
     const budgetResult: BudgetResult = deps.consumeBudget(params.callerTerminalId)
     if (!budgetResult.allowed) return {ok: false, error: 'Global spawn budget exhausted'}
 
-    const agentCommandResult: Result<string | undefined> = await resolveAgentCommand(params.agentName, callerRecord, deps)
-    if (!agentCommandResult.ok) return agentCommandResult
+    const selectionResult: Result<ResolvedAgent | undefined> = await resolveAgentSelection(params.agentName, callerRecord, deps)
+    if (!selectionResult.ok) return selectionResult
+    const selection: ResolvedAgent | undefined = selectionResult.value
 
     return {
         ok: true,
         value: {
             callerTerminalId: params.callerTerminalId,
             callerRecord,
-            resolvedAgentCommand: agentCommandResult.value,
+            resolvedAgentCommand: selection?.command,
             resolvedSpawnDirectory: resolveSpawnDirectory(params.spawnDirectory, callerRecord),
-            envOverrides: buildEnvOverrides(childDepthBudget, budgetResult.childBudget),
+            // The leaf's env (e.g. { EFFORT }) plus the budget env. Budget vars are
+            // spread last so user env can never clobber DEPTH_BUDGET / spawn budget.
+            envOverrides: {...selection?.env, ...buildEnvOverrides(childDepthBudget, budgetResult.childBudget)},
             childDepthBudget,
         }
     }
