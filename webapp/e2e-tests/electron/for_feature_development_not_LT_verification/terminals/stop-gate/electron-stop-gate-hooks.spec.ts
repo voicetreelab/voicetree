@@ -29,14 +29,25 @@ function runCliCommand<T = CliPayload>(daemonPort: number, args: string[], termi
   return runCliCommandRaw<T>(VOICETREE_CLI_PATH, PROJECT_ROOT, daemonPort, args, terminalId);
 }
 
+// Narrow a spawn payload's optional terminalId to the string the test relies on,
+// failing loudly (with the same assertion intent) when the spawn produced none.
+function requireTerminalId(payload: { terminalId?: string } | undefined): string {
+  const terminalId = payload?.terminalId;
+  if (!terminalId) {
+    throw new Error('spawn payload should include terminalId');
+  }
+  return terminalId;
+}
+
 async function waitForCliReady(daemonPort: number, terminalId?: string): Promise<void> {
   return waitForCliReadyRaw(VOICETREE_CLI_PATH, PROJECT_ROOT, daemonPort, terminalId);
 }
 
 const PROJECT_ROOT = path.resolve(process.cwd());
-const REPO_ROOT = path.resolve(PROJECT_ROOT, '..');
 const VOICETREE_CLI_PATH = path.join(PROJECT_ROOT, 'src', 'shell', 'edge', 'main', 'cli', 'voicetree-cli.ts');
-const STOP_GATE_SCRIPT_SOURCE = path.join(REPO_ROOT, 'brain', 'automation', 'stop-gate-audit.ts');
+// brain is no longer vendored under the repo; it lives at the canonical ~/brain.
+// The stop-gate audit script moved under self-improvement-system/ in the brain restructure.
+const STOP_GATE_SCRIPT_SOURCE = path.join(os.homedir(), 'brain', 'self-improvement-system', 'automation', 'stop-gate-audit.ts');
 const TARGET_NODE_ID = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md';
 const NO_PROGRESS_TASK_NODE_ID = 'e2e-stop-gate-cli-no-progress-task.md';
 const PASS_TASK_NODE_ID = 'e2e-stop-gate-cli-pass-task.md';
@@ -298,8 +309,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     expect(spawnResult.status, `CLI spawn failed: ${spawnResult.stderr}`).toBe(0);
     const spawnPayload = spawnResult.payload;
     expect(spawnPayload?.success, `spawn payload: ${spawnResult.stdout}`).toBe(true);
-    const spawnedAgentId = spawnPayload?.terminalId;
-    expect(spawnedAgentId, 'spawn payload should include terminalId').toBeTruthy();
+    const spawnedAgentId = requireTerminalId(spawnPayload);
 
     const closeResult = runCliCommand<{ success: boolean; error?: string }>(
       daemonPort,
@@ -340,8 +350,7 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
     expect(spawnResult.status, `CLI spawn failed: ${spawnResult.stderr}`).toBe(0);
     const spawnPayload = spawnResult.payload;
     expect(spawnPayload?.success, `spawn payload: ${spawnResult.stdout}`).toBe(true);
-    const spawnedAgentId = spawnPayload?.terminalId;
-    expect(spawnedAgentId, 'spawn payload should include terminalId').toBeTruthy();
+    const spawnedAgentId = requireTerminalId(spawnPayload);
 
     await createProgressNode(
       fixtureProjectPath,
@@ -386,9 +395,8 @@ test.describe('Stop Gate Hook Runner E2E (BF-047)', () => {
       CALLER_TERMINAL_ID
     );
 
-    const spawnedAgentId = spawnResult.payload?.terminalId;
     expect(spawnResult.payload?.success).toBe(true);
-    expect(spawnedAgentId, 'spawn payload should include terminalId').toBeTruthy();
+    const spawnedAgentId = requireTerminalId(spawnResult.payload);
 
     let agent: {
       terminalId: string;

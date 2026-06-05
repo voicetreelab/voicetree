@@ -63,7 +63,7 @@
 import {Node, SyntaxKind, type SourceFile as MorphSourceFile} from 'ts-morph'
 import {registerMeasure} from '../../_internal/registry.ts'
 
-const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-implicit-globals.md'
+const SKILL_DOC = '~/brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-implicit-globals.md'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,

@@ -17,7 +17,6 @@ const config: KnipConfig = {
                 'vitest.config.fuzz.ts',
             ],
             ignore: [
-                'brain/**',
                 'vt-website-quartz/**',
                 'voicetree-evals/**',
                 'tools/**',

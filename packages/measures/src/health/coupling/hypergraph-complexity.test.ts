@@ -4,7 +4,7 @@ import {buildImportGraph} from '../../_shared/graph/import-graph'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 
-const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-bci.md'
+const SKILL_DOC = '~/brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-bci.md'
 
 // ── Types ──
 

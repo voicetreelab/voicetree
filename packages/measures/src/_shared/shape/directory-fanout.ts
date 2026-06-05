@@ -10,7 +10,7 @@
 import {DEFAULT_REPO_ROOT, discoverPackages} from '../discovery/discover-packages.ts'
 import {walkDirectories} from '../walk-directories.ts'
 
-const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-directory-fanout.md'
+const SKILL_DOC = '~/brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-directory-fanout.md'
 
 // Hard design limit set 2026-05-15: a directory with more than 15 children
 // has stopped being a coherent module and should be split.

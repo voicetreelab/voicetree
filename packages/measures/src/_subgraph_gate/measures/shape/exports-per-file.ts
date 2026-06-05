@@ -30,7 +30,7 @@ import {ts} from 'ts-morph'
 import {communityForFile} from '../../../_shared/community/community-at-depth.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 
-const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
+const SKILL_DOC = '~/brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
 import type {
     Severity,
     SubgraphMeasure,

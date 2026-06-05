@@ -1,4 +1,5 @@
 import { existsSync, promises as fs } from 'fs'
+import { homedir } from 'os'
 import path from 'path'
 
 import * as E from 'fp-ts/lib/Either.js'
@@ -13,18 +14,12 @@ import {
 import { configureRootIO } from '../../src/rootIO.ts'
 
 export function resolveFolderNodesProject(): string {
-    const candidates = [
-        path.resolve('brain/working-memory/tasks/folder-nodes'),
-        path.resolve('brain/mem/tasks/folder-nodes'),
-        path.resolve('../brain/mem/tasks/folder-nodes'),
-        path.resolve('../../brain/mem/tasks/folder-nodes'),
-        path.resolve('../../../brain/mem/tasks/folder-nodes'),
-    ]
-    const match = candidates.find((candidate) => existsSync(candidate))
-    if (!match) {
-        throw new Error(`folder-nodes project fixture source not found. Checked: ${candidates.join(', ')}`)
+    // brain is no longer vendored under the repo; it lives at the canonical ~/brain.
+    const source = path.join(homedir(), 'brain', 'mem', 'tasks', 'folder-nodes')
+    if (!existsSync(source)) {
+        throw new Error(`folder-nodes project fixture source not found at ${source}`)
     }
-    return match
+    return source
 }
 
 async function getDirectoryTreeFromDisk(rootPath: string): Promise<DirectoryEntry> {

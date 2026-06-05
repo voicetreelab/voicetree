@@ -36,7 +36,7 @@ import {exportedSymbolNames} from '../../../_shared/complexity/exported-symbols.
 import type {SourceFile} from '../../../_shared/graph/import-graph.ts'
 import {registerMeasure} from '../../_internal/registry.ts'
 
-const SKILL_DOC = 'brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
+const SKILL_DOC = '~/brain/workflows/engineering/architectural-complexity/fp-rearchitecting/address_measures/address-boundary-width.md'
 import type {
     SubgraphMeasure,
     SubgraphMeasureInput,
