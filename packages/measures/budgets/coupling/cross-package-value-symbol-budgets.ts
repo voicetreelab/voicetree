@@ -343,7 +343,12 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
-    'vt-daemon -> graph-model': 27,
+    // 2026-06-05: hierarchical agent commands. The daemon spawn path now resolves
+    // the agent *tree* instead of a flat list, so it depends on the shared
+    // resolver: 27 -> 28 (+2 flattenAgentTree / resolveDefaultAgent, -1 the
+    // removed flat getDefaultAgent). Kept to +1 net by inlining the resolvable-
+    // command set in agentCommand.ts and reading the path label off ResolvedAgent.
+    'vt-daemon -> graph-model': 28,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated

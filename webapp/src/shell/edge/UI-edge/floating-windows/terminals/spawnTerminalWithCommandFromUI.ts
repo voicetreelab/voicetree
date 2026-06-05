@@ -1,7 +1,7 @@
 /** Terminal Flow - V2: Uses types.ts with flat TerminalData type. IDs derived, ui populated after DOM creation. */
 import type { NodeIdAndFilePath, GraphNode } from "@vt/graph-model/graph";
 import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
-import { getDefaultAgent } from "@vt/graph-model/settings";
+import { resolveDefaultAgent, mapAgentTreeByCommand, type ResolvedAgent } from "@vt/graph-model/settings";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import type { Core } from "cytoscape";
 import '@/shell/hostApi.d.ts';
@@ -50,7 +50,7 @@ export async function spawnTerminalWithCommandEditor(
 
     // Determine the command to use
     const agents: readonly AgentConfig[] = settings.agents ?? [];
-    const command: string = agentCommand ?? getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
+    const command: string = agentCommand ?? resolveDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
     if (!command) {
         console.error('[spawnTerminalWithCommandEditor] No agent command available');
         return;
@@ -72,20 +72,10 @@ export async function spawnTerminalWithCommandEditor(
     // Check if user modified the command
     const commandChanged: boolean = result.command !== command;
 
-    // Update the agent's command in settings if it was modified
-    let updatedAgents: readonly AgentConfig[] = settings.agents;
-    if (commandChanged) {
-        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            // Update the agent whose command matches the original command
-            if (agent.command === command) {
-                return {
-                    ...agent,
-                    command: result.command,
-                };
-            }
-            return agent;
-        });
-    }
+    // Update the tree node(s) whose command matches the original, at any depth.
+    const updatedAgents: readonly AgentConfig[] = commandChanged
+        ? mapAgentTreeByCommand(settings.agents, command, result.command)
+        : settings.agents;
 
     // Save settings if agent prompt changed or command was modified
     const promptChanged: boolean = result.agentPrompt !== currentAgentPrompt;
@@ -128,6 +118,7 @@ export async function spawnTerminalWithNewContextNode(
     _cy: Core,
     agentCommand?: string,
     spawnDirectory?: string,
+    envOverrides?: Readonly<Record<string, string>>,
 ): Promise<void> {
     // Flush any pending editor content for this node before creating context
     // This ensures the context node has the latest typed content (bypasses 300ms debounce)
@@ -148,9 +139,21 @@ export async function spawnTerminalWithNewContextNode(
         return;
     }
 
-    // Determine the command to use
+    // Determine the command + env to use. An explicit command (from a resolved
+    // leaf or the worktree run) is launched as-is with the caller's envOverrides.
+    // With no command we resolve the default leaf and carry ITS env too, so a
+    // default that "just adds a parameter" still gets it (caller env wins).
     const agents: readonly AgentConfig[] = settings.agents ?? [];
-    let command: string = agentCommand ?? getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
+    let command: string;
+    let resolvedEnv: Record<string, string>;
+    if (agentCommand !== undefined) {
+        command = agentCommand;
+        resolvedEnv = {...envOverrides};
+    } else {
+        const defaultAgent: ResolvedAgent | undefined = resolveDefaultAgent(agents, settings.defaultAgent);
+        command = defaultAgent?.command ?? '';
+        resolvedEnv = {...defaultAgent?.env, ...envOverrides};
+    }
     if (!command) {
         console.error('[spawnTerminalWithNewContextNode] No agent command available');
         return;
@@ -177,12 +180,14 @@ export async function spawnTerminalWithNewContextNode(
 
     const terminalCount: number = getNextTerminalCount(terminalsMap, parentNodeId);
 
-    // Delegate to main process which has immediate graph access
+    // Delegate to main process which has immediate graph access. The resolved
+    // env rides the spawn RPC's envOverrides channel -> tmux `-e KEY=VALUE`.
     await window.hostAPI?.main.spawnTerminalWithContextNode({
         taskNodeId: parentNodeId,
         agentCommand: command,
         terminalCount,
         spawnDirectory,
+        ...(Object.keys(resolvedEnv).length > 0 ? {envOverrides: resolvedEnv} : {}),
     });
 }
 

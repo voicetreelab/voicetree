@@ -7,7 +7,7 @@ import * as O from 'fp-ts/lib/Option.js';
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph';
 import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings';
 import type {VTSettings} from '@vt/graph-model/settings';
-import {getUniqueAgentName, getDefaultAgent, pickAgentName} from '@vt/graph-model/settings';
+import {getUniqueAgentName, resolveDefaultAgent, pickAgentName, type ResolvedAgent} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import {getExistingAgentNames} from '@vt/vt-daemon-client';
 import {getActiveProject, getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding';
@@ -52,8 +52,8 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
 
   // 4. Load settings
   const settings: VTSettings = await loadSettings();
-  const agents: readonly { readonly name: string; readonly command: string }[] = settings.agents ?? [];
-  const command: string = getDefaultAgent(agents, settings.defaultAgent)?.command ?? '';
+  const defaultAgent: ResolvedAgent | undefined = resolveDefaultAgent(settings.agents ?? [], settings.defaultAgent);
+  const command: string = defaultAgent?.command ?? '';
 
   if (!command) {
     throw new Error('No agent command available');
@@ -103,6 +103,9 @@ export async function askModeCreateAndSpawn(relevantNodeIds: readonly string[], 
     VOICETREE_TERMINAL_ID: agentName, // Same as AGENT_NAME
     AGENT_NAME: agentName,
     ...resolvedEnvVars,
+    // The resolved default leaf's env (e.g. { EFFORT: "xhigh" }) — same channel
+    // the daemon spawn path delivers via envOverrides.
+    ...(defaultAgent?.env ?? {}),
   };
   const expandedEnvVars: Record<string, string> = expandEnvVarsInValues(unexpandedEnvVars);
 

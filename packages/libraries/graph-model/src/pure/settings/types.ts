@@ -1,15 +1,23 @@
 export interface AgentConfig {
     readonly name: string;
-    readonly command: string;
-}
-
-/** Returns the default agent (by name match), falling back to agents[0]. */
-export function getDefaultAgent(agents: readonly AgentConfig[], defaultAgentName?: string): AgentConfig | undefined {
-    if (defaultAgentName) {
-        const found: AgentConfig | undefined = agents.find(a => a.name === defaultAgentName);
-        if (found) return found;
-    }
-    return agents[0];
+    /**
+     * Command to launch this agent. Omitted on pure category/folder nodes (which
+     * only group `children` and are never spawned directly). A leaf inherits the
+     * nearest ancestor's command unless it defines its own. See `agentTree.ts`.
+     */
+    readonly command?: string;
+    /**
+     * Extra environment variables this node contributes. Merged down the
+     * root→leaf path (deeper wins) and delivered to the spawned process via the
+     * spawn RPC's `envOverrides` channel — this is how a child "just adds a
+     * parameter" (e.g. `{ EFFORT: "xhigh" }`) without re-spelling the command.
+     */
+    readonly env?: Readonly<Record<string, string>>;
+    /**
+     * Child agents. Present => this node is a category (renders as a hover
+     * submenu, not spawnable). Absent/empty => this node is a spawnable leaf.
+     */
+    readonly children?: readonly AgentConfig[];
 }
 
 export const AGENT_NAMES: readonly string[] = [

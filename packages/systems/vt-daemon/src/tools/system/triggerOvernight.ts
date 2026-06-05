@@ -5,7 +5,8 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
-import type {VTSettings} from '@vt/graph-model/settings'
+import type {VTSettings, ResolvedAgent} from '@vt/graph-model/settings'
+import {flattenAgentTree} from '@vt/graph-model/settings'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
 import {spawnContextTerminal} from '@vt/vt-daemon/agent-runtime/agent-control/agentControlRuntime.ts'
@@ -81,11 +82,10 @@ export async function triggerOvernight(
 
     await applyMcpGraphDelta(bridge, taskNodeDelta)
 
-    // Resolve Opus agent command (find "Claude" in settings.agents)
+    // Resolve the Opus agent (the "Claude" leaf of the agent tree).
     const settings: VTSettings = await loadSettings()
-    const agents: readonly {readonly name: string; readonly command: string}[] = settings?.agents ?? []
-    const claudeAgent: {readonly name: string; readonly command: string} | undefined =
-        agents.find((a: {readonly name: string; readonly command: string}) => a.name === 'Claude')
+    const claudeAgent: ResolvedAgent | undefined =
+        flattenAgentTree(settings?.agents ?? []).find(leaf => leaf.name === 'Claude')
     const agentCommand: string | undefined = claudeAgent?.command
 
     // Build meta-observer prompt with parameters
@@ -122,7 +122,7 @@ export async function triggerOvernight(
         undefined,    // promptTemplate
         false,        // headless
         undefined,    // inheritTerminalId
-        {DEPTH_BUDGET: '3', AGENT_PROMPT: agentPrompt}
+        {...claudeAgent?.env, DEPTH_BUDGET: '3', AGENT_PROMPT: agentPrompt}
     )
 
     return {success: true, terminalId, taskNodeId}
