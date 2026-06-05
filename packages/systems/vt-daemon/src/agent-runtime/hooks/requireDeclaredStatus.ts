@@ -23,11 +23,15 @@
 import type {AgentStatus, TerminalRecord} from '@vt/vt-daemon-protocol'
 import type {StopHookResult} from './stopGateHookRunner.ts'
 
-const TERMINAL_DECLARED_STATUSES: ReadonlySet<AgentStatus> = new Set<AgentStatus>([
-    'done',
-    'failed',
-    'awaiting_input',
-])
+/**
+ * The lifecycle presets that count as a deliberate close-out at finish.
+ * `working` is intentionally excluded — see the module doc. A pure predicate
+ * (rather than a module-level `Set`) keeps this file free of top-level mutable
+ * state and stays exhaustive over the `AgentStatus` union.
+ */
+function isTerminalDeclaredStatus(status: AgentStatus): boolean {
+    return status === 'done' || status === 'failed' || status === 'awaiting_input'
+}
 
 const NUDGE_MESSAGE: string =
     'You have stopped but not declared your status. Run `vt agent status done` '
@@ -36,7 +40,7 @@ const NUDGE_MESSAGE: string =
 
 export function requireDeclaredStatus(record: TerminalRecord): StopHookResult {
     const declared: AgentStatus | null = record.terminalData.lastReportedStatus
-    if (declared !== null && TERMINAL_DECLARED_STATUSES.has(declared)) {
+    if (declared !== null && isTerminalDeclaredStatus(declared)) {
         return {passed: true}
     }
     return {passed: false, message: NUDGE_MESSAGE}
