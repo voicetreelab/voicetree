@@ -22,7 +22,7 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/editors/writeMarkdownFileFromUI";
 import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import type { VTSettings, AgentConfig, ResolvedAgent } from "@vt/graph-model/settings";
-import { resolveDefaultAgent, composeAgentStep, isAgentCategory, mapAgentTreeByCommand } from "@vt/graph-model/settings";
+import { resolveDefaultAgent, isAgentCategory, mapAgentTreeByCommand, flattenAgentTree, agentPathLabel } from "@vt/graph-model/settings";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
@@ -63,21 +63,41 @@ function createRunButtonSliderConfig(
 }
 
 /**
+ * Spawn an agent leaf identified by its stable path label, re-resolving from
+ * FRESH settings at click time (so an edit between menu-open and click is
+ * honoured) and delivering the leaf's composed env via envOverrides.
+ */
+async function spawnAgentByPath(nodeId: string, cy: Core, pathLabel: string): Promise<void> {
+    const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
+    const leaf: ResolvedAgent | undefined = settings
+        ? flattenAgentTree(settings.agents ?? []).find((candidate: ResolvedAgent) => agentPathLabel(candidate.path) === pathLabel)
+        : undefined;
+    if (!leaf?.command) {
+        console.error(`[getNodeMenuItems] Agent "${pathLabel}" is no longer resolvable from settings.agents`);
+        return;
+    }
+    if (Object.keys(leaf.env).length > 0) {
+        await spawnTerminalWithNewContextNode(nodeId, cy, leaf.command, undefined, leaf.env);
+    } else {
+        await spawnTerminalWithNewContextNode(nodeId, cy, leaf.command);
+    }
+}
+
+/**
  * Build the agent tree into a cascade of hover submenus (mirrors the Workflows
- * menu). A category node expands into its children; a leaf spawns its resolved
- * command with the env accumulated down the path (delivered via envOverrides).
- * `inherited` threads the composed (command, env) from ancestors, so a leaf that
- * only sets `{ EFFORT: "xhigh" }` inherits its branch's base command.
+ * menu): a category node expands into its children; a leaf spawns the agent at
+ * its path. `pathNames` accumulates the root->here labels so a leaf can be
+ * re-resolved against fresh settings at click time.
  */
 function buildAgentMenuItems(
     nodeId: string,
     cy: Core,
     isContextNode: boolean,
     agents: readonly AgentConfig[],
-    inherited: {readonly command: string; readonly env: Readonly<Record<string, string>>},
+    pathNames: readonly string[],
 ): HorizontalMenuItem[] {
     return agents.map((node: AgentConfig): HorizontalMenuItem => {
-        const composed = composeAgentStep(inherited, node);
+        const here: readonly string[] = [...pathNames, node.name];
         if (isAgentCategory(node)) {
             return {
                 icon: FolderOpen,
@@ -85,7 +105,7 @@ function buildAgentMenuItems(
                 color: '#6366f1',
                 action: () => {}, // category: submenu handles interaction
                 getSubMenuItems: async (): Promise<HorizontalMenuItem[]> =>
-                    buildAgentMenuItems(nodeId, cy, isContextNode, node.children ?? [], composed),
+                    buildAgentMenuItems(nodeId, cy, isContextNode, node.children ?? [], here),
             };
         }
         return {
@@ -93,7 +113,7 @@ function buildAgentMenuItems(
             label: node.name,
             color: '#6366f1', // indigo to distinguish from the default green Run
             action: async () => {
-                await spawnTerminalWithNewContextNode(nodeId, cy, composed.command, undefined, composed.env);
+                await spawnAgentByPath(nodeId, cy, agentPathLabel(here));
             },
             onHoverEnter: isContextNode
                 ? () => highlightContainedNodes(cy, nodeId)
@@ -329,7 +349,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
     // The full agent tree as a cascading submenu: hover a model (Codex) -> its
     // categories (Local/Remote) -> the leaf (Medium/XHigh) that spawns it. The
     // Run button still quick-launches the default leaf.
-    moreSubMenu.push(...buildAgentMenuItems(nodeId, cy, isContextNode, agents, {command: '', env: {}}));
+    moreSubMenu.push(...buildAgentMenuItems(nodeId, cy, isContextNode, agents, []));
     menuItems.push({
         icon: ChevronDown,
         label: 'More',

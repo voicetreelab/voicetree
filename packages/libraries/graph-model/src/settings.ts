@@ -13,6 +13,13 @@ export {
     mapAgentTreeByCommand,
 } from './pure/settings/agentTree'
 export {
+    type AgentPath,
+    updateAgentAt,
+    removeAgentAt,
+    addChildAt,
+    appendAgent,
+} from './pure/settings/agentTreeEdit'
+export {
     type Persona,
     SILICON_VALLEY_ROSTER,
     SILICON_VALLEY_IDS,
