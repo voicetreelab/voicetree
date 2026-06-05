@@ -69,7 +69,7 @@ export function agentBaseName(agentId: string): string {
  * Build a unique agent id by appending a hash to the base name,
  * regenerating on the rare chance the candidate collides with a live id.
  * `generateHash` is injectable so callers and tests can supply any source.
- * For production use with a random source, use `uniqueAgentName` from `agentId.ts`.
+ * For production use with a random source, use `uniqueAgentName` from `../../settings`.
  */
 export function getUniqueAgentName(
     baseName: string,
