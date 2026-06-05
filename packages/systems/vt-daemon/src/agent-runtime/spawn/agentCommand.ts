@@ -1,4 +1,4 @@
-import {collectResolvableCommands, resolveDefaultAgent} from '@vt/graph-model/settings'
+import {flattenAgentTree, resolveDefaultAgent} from '@vt/graph-model/settings'
 import type {AgentConfig, VTSettings} from '@vt/graph-model/settings'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
@@ -20,7 +20,8 @@ export function resolveAgentCommand(
 
     const agents: readonly AgentConfig[] = settings.agents ?? []
     if (agentCommand !== undefined) {
-        if (!collectResolvableCommands(agents).has(agentCommand)) {
+        const resolvable: Set<string> = new Set(flattenAgentTree(agents).map(leaf => leaf.command).filter(command => command.length > 0))
+        if (!resolvable.has(agentCommand)) {
             throw new Error('Invalid agent command - must be a command resolvable from settings.agents')
         }
         return agentCommand

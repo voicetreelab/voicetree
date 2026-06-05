@@ -2,12 +2,8 @@ import {describe, it, expect} from 'vitest';
 import type {AgentConfig} from './types';
 import {
     type ResolvedAgent,
-    composeAgentStep,
-    isAgentCategory,
     flattenAgentTree,
-    collectResolvableCommands,
     resolveDefaultAgent,
-    agentPathLabel,
     mapAgentTreeByCommand,
 } from './agentTree';
 
@@ -47,8 +43,8 @@ const REMOTE_BASE: string = 'CODEX_REASONING_EFFORT="$EFFORT" bash /Users/bob/.v
 describe('flattenAgentTree — golden resolution of the Codex tree', () => {
     const leaves: ResolvedAgent[] = flattenAgentTree(CODEX_TREE);
 
-    it('yields exactly the five spawnable leaves in pre-order', () => {
-        expect(leaves.map(leaf => agentPathLabel(leaf.path))).toEqual([
+    it('yields exactly the five spawnable leaves (with path labels) in pre-order', () => {
+        expect(leaves.map(leaf => leaf.label)).toEqual([
             'Claude',
             'Codex / Local / Medium',
             'Codex / Local / XHigh',
@@ -78,10 +74,12 @@ describe('flattenAgentTree — golden resolution of the Codex tree', () => {
 describe('flattenAgentTree — robustness invariants (must hold for any tree)', () => {
     it('never emits a category node as a leaf', () => {
         for (const leaf of flattenAgentTree(CODEX_TREE)) {
-            expect(leaf.name).not.toBe('Codex');
-            expect(leaf.name).not.toBe('Local');
-            expect(leaf.name).not.toBe('Remote');
+            expect(['Codex', 'Local', 'Remote']).not.toContain(leaf.name);
         }
+    });
+
+    it('every leaf resolves to a non-empty command (the daemon-validatable set)', () => {
+        for (const leaf of flattenAgentTree(CODEX_TREE)) expect(leaf.command.length).toBeGreaterThan(0);
     });
 
     it('command = the deepest path node that defines a non-empty command', () => {
@@ -93,11 +91,11 @@ describe('flattenAgentTree — robustness invariants (must hold for any tree)', 
                 ]},
             ]},
         ];
-        const byPath: Record<string, string> = Object.fromEntries(
-            flattenAgentTree(tree).map(l => [agentPathLabel(l.path), l.command]),
+        const byLabel: Record<string, string> = Object.fromEntries(
+            flattenAgentTree(tree).map(l => [l.label, l.command]),
         );
-        expect(byPath['a / b / inherit']).toBe('A');
-        expect(byPath['a / b / override']).toBe('B');
+        expect(byLabel['a / b / inherit']).toBe('A');
+        expect(byLabel['a / b / override']).toBe('B');
     });
 
     it('env shallow-merges down the path with deeper-wins precedence', () => {
@@ -115,23 +113,9 @@ describe('flattenAgentTree — robustness invariants (must hold for any tree)', 
             {name: 'Codex', command: 'codex --yolo "$AGENT_PROMPT"'},
         ];
         expect(flattenAgentTree(flat)).toEqual([
-            {name: 'Gemini', path: ['Gemini'], command: 'gemini -i "$AGENT_PROMPT"', env: {}},
-            {name: 'Codex', path: ['Codex'], command: 'codex --yolo "$AGENT_PROMPT"', env: {}},
+            {name: 'Gemini', path: ['Gemini'], label: 'Gemini', command: 'gemini -i "$AGENT_PROMPT"', env: {}},
+            {name: 'Codex', path: ['Codex'], label: 'Codex', command: 'codex --yolo "$AGENT_PROMPT"', env: {}},
         ]);
-    });
-});
-
-describe('collectResolvableCommands — the daemon validation set', () => {
-    it('contains every leaf command so a valid leaf is never rejected', () => {
-        const commands: Set<string> = collectResolvableCommands(CODEX_TREE);
-        for (const leaf of flattenAgentTree(CODEX_TREE)) {
-            expect(commands.has(leaf.command)).toBe(true);
-        }
-    });
-
-    it('collapses leaves that share a base command (Local Medium/XHigh)', () => {
-        // Both Local leaves resolve to CODEX_BASE; they differ only by env.
-        expect(collectResolvableCommands(CODEX_TREE).has(CODEX_BASE)).toBe(true);
     });
 });
 
@@ -145,14 +129,6 @@ describe('resolveDefaultAgent', () => {
         expect(resolveDefaultAgent(CODEX_TREE, 'Claude')?.name).toBe('Claude');
         expect(resolveDefaultAgent(CODEX_TREE, 'does-not-exist')?.name).toBe('Claude');
         expect(resolveDefaultAgent(CODEX_TREE)?.name).toBe('Claude');
-    });
-});
-
-describe('isAgentCategory', () => {
-    it('is true only for nodes with children', () => {
-        expect(isAgentCategory({name: 'Codex', command: 'x', children: [{name: 'L', command: 'y'}]})).toBe(true);
-        expect(isAgentCategory({name: 'leaf', command: 'y'})).toBe(false);
-        expect(isAgentCategory({name: 'empty', command: 'y', children: []})).toBe(false);
     });
 });
 

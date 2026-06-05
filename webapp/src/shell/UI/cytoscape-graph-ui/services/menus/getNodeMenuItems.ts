@@ -22,7 +22,7 @@ import {
 } from "@/shell/edge/UI-edge/floating-windows/editors/writeMarkdownFileFromUI";
 import { createAnchoredFloatingEditor } from "@/shell/edge/UI-edge/floating-windows/editors/FloatingEditorCRUD";
 import type { VTSettings, AgentConfig, ResolvedAgent } from "@vt/graph-model/settings";
-import { resolveDefaultAgent, isAgentCategory, mapAgentTreeByCommand, flattenAgentTree, agentPathLabel } from "@vt/graph-model/settings";
+import { resolveDefaultAgent, mapAgentTreeByCommand, flattenAgentTree } from "@vt/graph-model/settings";
 import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
@@ -70,7 +70,7 @@ function createRunButtonSliderConfig(
 async function spawnAgentByPath(nodeId: string, cy: Core, pathLabel: string): Promise<void> {
     const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
     const leaf: ResolvedAgent | undefined = settings
-        ? flattenAgentTree(settings.agents ?? []).find((candidate: ResolvedAgent) => agentPathLabel(candidate.path) === pathLabel)
+        ? flattenAgentTree(settings.agents ?? []).find((candidate: ResolvedAgent) => candidate.label === pathLabel)
         : undefined;
     if (!leaf?.command) {
         console.error(`[getNodeMenuItems] Agent "${pathLabel}" is no longer resolvable from settings.agents`);
@@ -98,7 +98,8 @@ function buildAgentMenuItems(
 ): HorizontalMenuItem[] {
     return agents.map((node: AgentConfig): HorizontalMenuItem => {
         const here: readonly string[] = [...pathNames, node.name];
-        if (isAgentCategory(node)) {
+        const isCategory: boolean = (node.children?.length ?? 0) > 0;
+        if (isCategory) {
             return {
                 icon: FolderOpen,
                 label: node.name,
@@ -113,7 +114,7 @@ function buildAgentMenuItems(
             label: node.name,
             color: '#6366f1', // indigo to distinguish from the default green Run
             action: async () => {
-                await spawnAgentByPath(nodeId, cy, agentPathLabel(here));
+                await spawnAgentByPath(nodeId, cy, here.join(' / '));
             },
             onHoverEnter: isContextNode
                 ? () => highlightContainedNodes(cy, nodeId)

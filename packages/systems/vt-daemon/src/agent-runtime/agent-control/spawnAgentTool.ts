@@ -9,7 +9,7 @@ import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings, AgentConfig, ResolvedAgent} from '@vt/graph-model/settings'
-import {flattenAgentTree, agentPathLabel} from '@vt/graph-model/settings'
+import {flattenAgentTree} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {startMonitor} from './agent-completion-monitor.ts'
 import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
@@ -123,14 +123,14 @@ function buildEnvOverrides(childDepthBudget: number | undefined, childGlobalBudg
 /** Find a spawnable leaf by its full path label ('Codex / Remote / XHigh') or, failing that, its leaf name. */
 function findAgentLeaf(agents: readonly AgentConfig[], name: string): ResolvedAgent | undefined {
     const leaves: ResolvedAgent[] = flattenAgentTree(agents)
-    return leaves.find(leaf => agentPathLabel(leaf.path) === name) ?? leaves.find(leaf => leaf.name === name)
+    return leaves.find(leaf => leaf.label === name) ?? leaves.find(leaf => leaf.name === name)
 }
 
 function resolveNamedAgent(agentName: string, agents: readonly AgentConfig[]): Result<ResolvedAgent> {
     const matched: ResolvedAgent | undefined = findAgentLeaf(agents, agentName)
     if (matched) return {ok: true, value: matched}
 
-    const available: string = flattenAgentTree(agents).map(leaf => agentPathLabel(leaf.path)).join(', ')
+    const available: string = flattenAgentTree(agents).map(leaf => leaf.label).join(', ')
     return {ok: false, error: `Agent "${agentName}" not found in settings.agents. Available: ${available}`}
 }
 

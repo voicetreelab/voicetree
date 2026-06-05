@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { Plus, X, CornerDownRight } from 'lucide-react';
-import type { AgentConfig, AgentPath } from '@vt/graph-model/settings';
+import type { AgentConfig } from '@vt/graph-model/settings';
+import {
+  flattenAgentTree,
+  resolveDefaultAgent,
+} from '@vt/graph-model/settings';
 import {
   updateAgentAt,
   removeAgentAt,
   addChildAt,
   appendAgent,
-  flattenAgentTree,
-  agentPathLabel,
-  isAgentCategory,
-  resolveDefaultAgent,
-} from '@vt/graph-model/settings';
+  type AgentPath,
+} from './agentTreeEdit';
 
 interface AgentListFieldProps {
   value: readonly AgentConfig[];
@@ -72,12 +73,12 @@ function EnvEditor({ env, onChange }: { env: Readonly<Record<string, string>> | 
 export function AgentListField({ value, onChange, defaultAgent, onDefaultChange }: AgentListFieldProps): JSX.Element {
   // The default is stored as a leaf path label ('Codex / Remote / XHigh').
   const defaultLeaf = resolveDefaultAgent(value, defaultAgent);
-  const effectiveDefaultLabel: string = defaultLeaf ? agentPathLabel(defaultLeaf.path) : '';
+  const effectiveDefaultLabel: string = defaultLeaf ? defaultLeaf.label : '';
 
   /** Apply a tree edit and keep `defaultAgent` pointing at the same leaf (or reset if it vanished). */
   function applyChange(next: AgentConfig[]): void {
-    const before: string[] = flattenAgentTree(value).map((l) => agentPathLabel(l.path));
-    const after: string[] = flattenAgentTree(next).map((l) => agentPathLabel(l.path));
+    const before: string[] = flattenAgentTree(value).map((l) => l.label);
+    const after: string[] = flattenAgentTree(next).map((l) => l.label);
     onChange(next);
     if (after.includes(effectiveDefaultLabel)) return; // default leaf still present
     const defIdx: number = before.indexOf(effectiveDefaultLabel);
@@ -88,8 +89,8 @@ export function AgentListField({ value, onChange, defaultAgent, onDefaultChange 
   }
 
   function renderNode(node: AgentConfig, path: AgentPath, depth: number): JSX.Element[] {
-    const label: string = agentPathLabel([...flattenLabelPrefix(value, path)]);
-    const isLeaf: boolean = !isAgentCategory(node);
+    const label: string = flattenLabelPrefix(value, path).join(' / ');
+    const isLeaf: boolean = (node.children?.length ?? 0) === 0;
     const rows: JSX.Element[] = [
       <div key={path.join('.')} className="flex items-center gap-2" style={{ paddingLeft: depth * 18 }}>
         {isLeaf ? (
@@ -120,7 +121,7 @@ export function AgentListField({ value, onChange, defaultAgent, onDefaultChange 
           className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <CornerDownRight size={14} />
         </button>
-        <button type="button" aria-label={`Remove agent ${node.name || agentPathLabel(path.map(String))}`}
+        <button type="button" aria-label={`Remove agent ${node.name || path.join('.')}`}
           onClick={() => applyChange(removeAgentAt(value, path))}
           className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <X size={14} />

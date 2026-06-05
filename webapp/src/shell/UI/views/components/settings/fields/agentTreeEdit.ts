@@ -1,4 +1,4 @@
-import type {AgentConfig} from './types';
+import type {AgentConfig} from '@vt/graph-model/settings';
 
 /** An index path into the agent tree: [2] = 3rd top-level node, [2,0] = its 1st child. */
 export type AgentPath = readonly number[];

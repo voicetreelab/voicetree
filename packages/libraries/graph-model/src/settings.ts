@@ -4,21 +4,10 @@ export { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD, DEFA
 export { AGENT_NAMES, getNextAgentName } from './pure/settings/types'
 export {
     type ResolvedAgent,
-    isAgentCategory,
-    agentPathLabel,
-    composeAgentStep,
     flattenAgentTree,
-    collectResolvableCommands,
     resolveDefaultAgent,
     mapAgentTreeByCommand,
 } from './pure/settings/agentTree'
-export {
-    type AgentPath,
-    updateAgentAt,
-    removeAgentAt,
-    addChildAt,
-    appendAgent,
-} from './pure/settings/agentTreeEdit'
 export {
     type Persona,
     SILICON_VALLEY_ROSTER,

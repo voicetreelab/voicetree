@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import type {AgentConfig} from './types';
+import type {AgentConfig} from '@vt/graph-model/settings';
 import {updateAgentAt, removeAgentAt, addChildAt, appendAgent} from './agentTreeEdit';
 
 const TREE: readonly AgentConfig[] = [

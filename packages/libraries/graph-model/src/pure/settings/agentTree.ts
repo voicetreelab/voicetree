@@ -10,6 +10,8 @@ export interface ResolvedAgent {
     readonly name: string;
     /** Full root→leaf path of node names, e.g. ['Codex', 'Remote', 'XHigh']. */
     readonly path: readonly string[];
+    /** Human-readable path, e.g. 'Codex / Remote / XHigh'. The stable id of a leaf. */
+    readonly label: string;
     /**
      * The command of the deepest node on the path that defines a non-empty
      * command. Empty only if no node on the path defines one (a misconfigured
@@ -22,14 +24,9 @@ export interface ResolvedAgent {
 
 const EMPTY_ENV: Readonly<Record<string, string>> = Object.freeze({});
 
-/** A node is a (non-spawnable) category iff it has children. */
-export function isAgentCategory(node: AgentConfig): boolean {
+/** A node is a (non-spawnable) category iff it has children. Internal to flattening. */
+function isCategory(node: AgentConfig): boolean {
     return (node.children?.length ?? 0) > 0;
-}
-
-/** Human-readable label for a resolved path, e.g. 'Codex / Remote / XHigh'. */
-export function agentPathLabel(path: readonly string[]): string {
-    return path.join(' / ');
 }
 
 /**
@@ -38,7 +35,7 @@ export function agentPathLabel(path: readonly string[]): string {
  *   - command: the node's own command wins if non-empty, else it is inherited.
  *   - env:     shallow-merge — the node's own keys override inherited ones.
  */
-export function composeAgentStep(
+function composeAgentStep(
     inherited: {readonly command: string; readonly env: Readonly<Record<string, string>>},
     node: AgentConfig,
 ): {readonly command: string; readonly env: Readonly<Record<string, string>>} {
@@ -66,23 +63,14 @@ export function flattenAgentTree(agents: readonly AgentConfig[]): ResolvedAgent[
     ): void => {
         const composed = composeAgentStep(inherited, node);
         const here: readonly string[] = [...path, node.name];
-        if (isAgentCategory(node)) {
+        if (isCategory(node)) {
             for (const child of node.children ?? []) walk(child, composed, here);
         } else {
-            out.push({name: node.name, path: here, command: composed.command, env: composed.env});
+            out.push({name: node.name, path: here, label: here.join(' / '), command: composed.command, env: composed.env});
         }
     };
     for (const agent of agents) walk(agent, {command: '', env: EMPTY_ENV}, []);
     return out;
-}
-
-/**
- * Every distinct, non-empty command a leaf can resolve to — the exact set the
- * daemon validates an incoming command against. Built from {@link flattenAgentTree}
- * so a valid leaf command is never rejected.
- */
-export function collectResolvableCommands(agents: readonly AgentConfig[]): Set<string> {
-    return new Set(flattenAgentTree(agents).map(leaf => leaf.command).filter(command => command.length > 0));
 }
 
 /**
@@ -96,8 +84,8 @@ export function resolveDefaultAgent(
 ): ResolvedAgent | undefined {
     const leaves: ResolvedAgent[] = flattenAgentTree(agents);
     if (defaultAgentName) {
-        const byPath: ResolvedAgent | undefined = leaves.find(leaf => agentPathLabel(leaf.path) === defaultAgentName);
-        if (byPath) return byPath;
+        const byLabel: ResolvedAgent | undefined = leaves.find(leaf => leaf.label === defaultAgentName);
+        if (byLabel) return byLabel;
         const byName: ResolvedAgent | undefined = leaves.find(leaf => leaf.name === defaultAgentName);
         if (byName) return byName;
     }

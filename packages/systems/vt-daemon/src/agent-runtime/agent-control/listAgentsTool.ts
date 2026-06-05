@@ -8,7 +8,7 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {flattenAgentTree, agentPathLabel} from '@vt/graph-model/settings'
+import {flattenAgentTree} from '@vt/graph-model/settings'
 import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {getAgentNodes} from './completion/agentNodeIndex.ts'
 import {getNewNodesForAgentIdentities} from './completion/getNewNodesForAgent.ts'
@@ -123,7 +123,7 @@ export async function listAgentsTool(bridge: GraphBridge): Promise<McpToolRespon
     // labels of the agent tree (e.g. 'Codex / Remote / XHigh'), not categories.
     const settings: VTSettings = await loadSettings()
     const availableAgents: readonly string[] = flattenAgentTree(settings?.agents ?? []).map(
-        leaf => agentPathLabel(leaf.path)
+        leaf => leaf.label
     )
 
     return buildJsonResponse({success: true, agents, availableAgents})
