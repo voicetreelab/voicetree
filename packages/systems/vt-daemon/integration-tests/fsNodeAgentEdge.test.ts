@@ -5,7 +5,7 @@
  * from `graph-model-init.ts` (Electron-only) — that callback finds the
  * terminal with a matching `agent_name` and registers an FS-written
  * progress node against it. Move stays mechanical: drive the same
- * agent-runtime helpers directly. No vt-daemon MCP server involved
+ * agent-runtime helpers directly. No vt-daemon RPC server involved
  * (the bridge lives in Electron Main), so this file lives in
  * vt-daemon/integration-tests because that is where the
  * agent-runtime-backed tests now collect.

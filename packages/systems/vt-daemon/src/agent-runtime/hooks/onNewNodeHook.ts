@@ -23,7 +23,7 @@ export type OnNewNodeHookDispatcher = (
 
 /**
  * Max new nodes per delta before hook dispatch is skipped.
- * Prevents hook spam from batch operations (MCP create_graph, wikilink resolution).
+ * Prevents hook spam from batch operations (RPC create_graph, wikilink resolution).
  * Individual FS events (1 node each) and small UI actions pass through normally.
  */
 const MAX_NEW_NODES_PER_DELTA: number = 2

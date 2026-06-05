@@ -1,7 +1,7 @@
 // The `graph.*` gateway RPC routes (RE-PLAN B). VTD fronts the loopback-only
 // vt-graphd for browser clients: each route here delegates to the per-boot
 // `@vt/graph-db-client` (`gdb.client`) that bin/vtd.ts already holds. Registered
-// on the internal RPC bucket (NOT the agent MCP `TOOL_CATALOG`) via
+// on the internal RPC bucket (NOT the agent RPC `TOOL_CATALOG`) via
 // `buildCatalogDispatchMap(bridges, extraRoutes)`.
 //
 // Unlike the terminal `RPC_ROUTES` (which bind a module-level
@@ -55,7 +55,7 @@ import {
 } from '@vt/vt-daemon/workspace/folders/index.ts'
 import {createDatedSubfolder} from '@vt/app-config/project'
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {RpcRoute} from '../RpcRoute.ts'
 
 export interface GraphGatewayDeps {
@@ -72,7 +72,7 @@ export interface GraphGatewayDeps {
 
 const M = GATEWAY_METHODS.graph
 
-function json(payload: unknown): McpToolResponse {
+function json(payload: unknown): ToolResponse {
     return buildJsonResponse(payload)
 }
 
@@ -83,7 +83,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         // --- Boot --------------------------------------------------------------
         {
             name: M.openProject,
-            handler: async (): Promise<McpToolResponse> => {
+            handler: async (): Promise<ToolResponse> => {
                 const sessionId: string = await ensureSession()
                 const [projectState, initialProjectedGraph] = await Promise.all([
                     client.getProject(),
@@ -101,16 +101,16 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         // --- Reads -------------------------------------------------------------
         {
             name: M.getProject,
-            handler: async (): Promise<McpToolResponse> => json(await client.getProject()),
+            handler: async (): Promise<ToolResponse> => json(await client.getProject()),
         },
         {
             name: M.getGraph,
-            handler: async (): Promise<McpToolResponse> => json(await client.getGraph()),
+            handler: async (): Promise<ToolResponse> => json(await client.getGraph()),
         },
         {
             name: M.getNode,
             inputShape: {nodeId: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {nodeId} = args as unknown as GraphGetNode.Request
                 const graph = await client.getGraph()
                 return json(graph.nodes[nodeId] ?? null)
@@ -118,7 +118,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         },
         {
             name: M.getProjectedGraph,
-            handler: async (): Promise<McpToolResponse> => {
+            handler: async (): Promise<ToolResponse> => {
                 const sessionId: string = await ensureSession()
                 return json(await client.getProjectedGraph(sessionId))
             },
@@ -131,7 +131,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
                 delta: z.array(z.unknown()),
                 recordForUndo: z.boolean().optional(),
             },
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {delta, recordForUndo} = args as unknown as GraphApplyDelta.Request
                 const sessionId: string = await ensureSession()
                 await client.applyGraphDelta(delta as unknown as unknown[], {
@@ -148,7 +148,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
                 body: z.string(),
                 editorId: z.string(),
             },
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {absolutePath, body, editorId} = args as unknown as GraphWriteMarkdownFile.Request
                 // Defence in depth: a browser may only write inside the project
                 // allowlist. Legitimate saves target loaded node paths (always
@@ -166,7 +166,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
             inputShape: {
                 positions: z.record(z.string(), z.object({x: z.number(), y: z.number()})),
             },
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {positions} = args as unknown as GraphWritePositions.Request
                 return json(await client.writeNodeLayout(positions))
             },
@@ -174,7 +174,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.findFileByName,
             inputShape: {name: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {name} = args as unknown as GraphFindFileByName.Request
                 return json(await client.findFileByName(name))
             },
@@ -182,7 +182,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.getPreviewContainedNodeIds,
             inputShape: {nodeId: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {nodeId} = args as unknown as GraphGetPreviewContainedNodeIds.Request
                 return json(await client.getPreviewContainedNodeIds(nodeId))
             },
@@ -193,23 +193,23 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
                 parentNodeId: z.string(),
                 semanticNodeIds: z.array(z.string()),
             },
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {parentNodeId, semanticNodeIds} = args as unknown as GraphCreateContextNode.Request
                 return json(await client.createContextNode(parentNodeId, [...semanticNodeIds]))
             },
         },
         {
             name: M.undo,
-            handler: async (): Promise<McpToolResponse> => json(await client.undo()),
+            handler: async (): Promise<ToolResponse> => json(await client.undo()),
         },
         {
             name: M.redo,
-            handler: async (): Promise<McpToolResponse> => json(await client.redo()),
+            handler: async (): Promise<ToolResponse> => json(await client.redo()),
         },
         {
             name: M.setWriteFolderPath,
             inputShape: {path: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {path} = args as unknown as GraphSetWriteFolderPath.Request
                 // The write folder must stay inside the allowlist: graphd loads
                 // (reads) the target and persists it as the write destination, so
@@ -227,12 +227,12 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         // --- Views -------------------------------------------------------------
         {
             name: M.listViews,
-            handler: async (): Promise<McpToolResponse> => json(await client.views.list()),
+            handler: async (): Promise<ToolResponse> => json(await client.views.list()),
         },
         {
             name: M.activateView,
             inputShape: {viewId: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {viewId} = args as unknown as GraphActivateView.Request
                 return json(await client.views.activate(viewId))
             },
@@ -240,7 +240,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.cloneView,
             inputShape: {srcViewId: z.string(), name: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {srcViewId, name} = args as unknown as GraphCloneView.Request
                 return json(await client.views.clone(srcViewId, name))
             },
@@ -248,7 +248,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.deleteView,
             inputShape: {viewId: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {viewId} = args as unknown as GraphDeleteView.Request
                 await client.views.delete(viewId)
                 return json(null)
@@ -262,7 +262,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         // allowlist return an empty/null/failed result rather than reaching disk.
         {
             name: M.getFolderTreeSync,
-            handler: async (): Promise<McpToolResponse> => {
+            handler: async (): Promise<ToolResponse> => {
                 const [projectState, graph] = await Promise.all([client.getProject(), client.getGraph()])
                 const payload = await buildFolderTreeSyncPayload(
                     projectState,
@@ -279,7 +279,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.getAvailableFolders,
             inputShape: {searchQuery: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {searchQuery} = args as unknown as GraphGetAvailableFolders.Request
                 return json(await selectAvailableFolders(await client.getProject(), searchQuery))
             },
@@ -287,7 +287,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.getDirectoryTree,
             inputShape: {rootPath: z.string(), maxDepth: z.number().optional()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {rootPath, maxDepth} = args as unknown as GraphGetDirectoryTree.Request
                 const projectState = await client.getProject()
                 if (!(await isPathWithinAllowlist(rootPath, projectState))) return json(null)
@@ -300,7 +300,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.createSubfolder,
             inputShape: {parentPath: z.string(), folderName: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {parentPath, folderName} = args as unknown as GraphCreateSubfolder.Request
                 const projectState = await client.getProject()
                 if (!(await isPathWithinAllowlist(parentPath, projectState))) {
@@ -311,7 +311,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         },
         {
             name: M.createDatedVoiceTreeFolder,
-            handler: async (): Promise<McpToolResponse> => {
+            handler: async (): Promise<ToolResponse> => {
                 try {
                     const {projectRoot} = await client.getProject()
                     const newPath: string = await createDatedSubfolder(projectRoot)
@@ -330,12 +330,12 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         },
         {
             name: M.getStarredFolders,
-            handler: async (): Promise<McpToolResponse> => json(await getStarredFolders()),
+            handler: async (): Promise<ToolResponse> => json(await getStarredFolders()),
         },
         {
             name: M.addStarredFolder,
             inputShape: {folderPath: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {folderPath} = args as unknown as GraphAddStarredFolder.Request
                 const projectState = await client.getProject()
                 // Starred trees are scanned by getFolderTreeSync, so a starred path
@@ -348,7 +348,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.removeStarredFolder,
             inputShape: {folderPath: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {folderPath} = args as unknown as GraphRemoveStarredFolder.Request
                 await removeStarredFolder(folderPath)
                 return json(null)
@@ -357,7 +357,7 @@ export function buildGraphGatewayRoutes(deps: GraphGatewayDeps): readonly RpcRou
         {
             name: M.copyNodeToFolder,
             inputShape: {nodeId: z.string(), targetFolderPath: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {nodeId, targetFolderPath} = args as unknown as GraphCopyNodeToFolder.Request
                 const projectState = await client.getProject()
                 if (!(await isPathWithinAllowlist(targetFolderPath, projectState))) {

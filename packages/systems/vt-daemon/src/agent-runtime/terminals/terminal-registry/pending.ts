@@ -6,7 +6,7 @@ import {
 
 /**
  * Reserve a terminalId before its PTY/process exists. Used by spawn_agent
- * to return its MCP response early while terminal prep runs in the background.
+ * to return its RPC response early while terminal prep runs in the background.
  *
  * No-op if the terminal is already registered (running) — the running record
  * wins. The pending entry is cleared on recordTerminalSpawn or
@@ -46,7 +46,7 @@ export function enqueuePendingMessage(terminalId: string, prefixedMessage: strin
 
 /**
  * Drop a pending terminal entry without draining. For use when async spawn
- * prep fails — the caller's MCP response said success, but follow-up tool
+ * prep fails — the caller's RPC response said success, but follow-up tool
  * calls will now correctly report "Terminal not found".
  */
 export function clearPendingTerminal(terminalId: string): void {

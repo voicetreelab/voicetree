@@ -105,11 +105,22 @@ export const AGENT_FORK_SPEC: SubcommandSpec = {
     flags: [],
 }
 
+export const AGENT_STATUS_SPEC: SubcommandSpec = {
+    verb: 'vt agent status',
+    rpcTool: 'apply_agent_status',
+    usageTail: '<working|awaiting_input|done|failed> [--phrase TEXT]',
+    summary: 'Declare your own lifecycle status without creating a node.',
+    flags: [
+        {flag: '--phrase', kind: 'value', rpcParam: 'statusPhrase',
+            description: 'Optional short free-text status (≤80 chars) shown next to your model name.'},
+    ],
+}
+
 export const AGENT_SEND_SPEC: SubcommandSpec = {
     verb: 'vt agent send',
     rpcTool: 'send_message',
-    usageTail: '<terminalId> <message>...',
-    summary: 'Send a message into an agent terminal (carriage return appended).',
+    usageTail: '<terminalId|project/terminalId> <message>...',
+    summary: 'Send a message into an agent terminal. Use project/terminalId for cross-project sends.',
     flags: [],
 }
 

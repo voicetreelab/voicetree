@@ -10,7 +10,7 @@
 //
 // HTTP routes accept ONLY (1). WS upgrade routes accept EITHER.
 //
-// The subprotocol mechanism overrides docs/step9-design.md §4.3 per
+// The subprotocol mechanism supersedes the original header-only auth design per
 // `ctx-nodes/.../step9-design-override-ws-subprotocol-auth.md` (Gus, 2026-05-22),
 // surfaced mid-9e by Iris when the renderer hit "Server sent no subprotocol"
 // against a header-only 9b daemon. RFC 6455 §1.9 permits arbitrary subprotocol

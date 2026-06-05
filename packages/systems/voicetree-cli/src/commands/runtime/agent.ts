@@ -1,8 +1,14 @@
+import {existsSync} from 'node:fs'
+import {basename, dirname, isAbsolute, resolve} from 'node:path'
 import {requireTerminalId} from '../graph/core/args'
-import {callDaemon} from '../daemon-client'
+import {loadProjects} from '@vt/app-config/project'
+import {hasVoicetreeMarker} from '@vt/paths'
+import type {SavedProject} from '@vt/graph-model/project'
+import {callDaemon, callDaemonForProject} from '../daemon-client'
 import {error, output} from '../output'
 import {formatForkResult, type ForkOutcome} from './agentForkFormat'
 import {formatResumeResult, type ResumeOutcome} from './agentResumeFormat'
+import {AGENT_STATUSES} from '@vt/vt-daemon-protocol'
 import {
     AGENT_CLOSE_SPEC,
     AGENT_FORK_SPEC,
@@ -11,6 +17,7 @@ import {
     AGENT_RESUME_SPEC,
     AGENT_SEND_SPEC,
     AGENT_SPAWN_SPEC,
+    AGENT_STATUS_SPEC,
     AGENT_WAIT_SPEC,
     booleanFlagNames,
     formatHelp,
@@ -179,6 +186,59 @@ type AgentListItem = {
     title: string
     status: string
     isHeadless?: boolean
+}
+
+type ScopedAgentAddress = {
+    projectRef: string
+    terminalId: string
+}
+
+function parseScopedAgentAddress(raw: string): ScopedAgentAddress | null {
+    if (raw.startsWith('/') || raw.startsWith('./') || raw.startsWith('../')) return null
+    const slashIndex: number = raw.indexOf('/')
+    if (slashIndex <= 0 || slashIndex === raw.length - 1) return null
+    return {
+        projectRef: raw.slice(0, slashIndex),
+        terminalId: raw.slice(slashIndex + 1),
+    }
+}
+
+function projectMatchesRef(project: SavedProject, projectRef: string): boolean {
+    return project.id === projectRef ||
+        project.name === projectRef ||
+        basename(project.path) === projectRef
+}
+
+function candidateProjectPaths(projectRef: string, currentProject: string | undefined): readonly string[] {
+    const fromRef: string = isAbsolute(projectRef) ? projectRef : resolve(process.cwd(), projectRef)
+    const candidates: string[] = [fromRef]
+    if (currentProject) {
+        candidates.push(resolve(dirname(currentProject), projectRef))
+    }
+    return [...new Set(candidates)]
+}
+
+async function resolveProjectRef(projectRef: string): Promise<string> {
+    const savedProjects: SavedProject[] = await loadProjects()
+    const savedMatch: SavedProject | undefined = savedProjects.find(
+        (project: SavedProject): boolean => projectMatchesRef(project, projectRef),
+    )
+    if (savedMatch) return savedMatch.path
+
+    const currentProject: string | undefined = process.env.VOICETREE_PROJECT_PATH
+    const existingCandidate: string | undefined = candidateProjectPaths(projectRef, currentProject)
+        .find((candidate: string): boolean => existsSync(candidate) && hasVoicetreeMarker(candidate))
+    if (existingCandidate) return existingCandidate
+
+    error(
+        `Unknown project "${projectRef}" in scoped agent address. ` +
+        'Use a saved project name/id/basename, or run from a sibling project path.',
+    )
+}
+
+function currentProjectScope(): string {
+    const projectPath: string | undefined = process.env.VOICETREE_PROJECT_PATH
+    return projectPath && projectPath.length > 0 ? basename(projectPath) : basename(process.cwd())
 }
 
 function formatAgentList(payload: JsonRecord): string {
@@ -383,6 +443,39 @@ export async function agentClose(
     output(payload, formatStandardResponse)
 }
 
+export async function agentSetStatus(
+    terminalId: string | undefined,
+    args: string[]
+): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_STATUS_SPEC)
+        return
+    }
+
+    const callerTerminalId: string = requireTerminalId(terminalId)
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_STATUS_SPEC)
+
+    if (parsedArgs.positionals.length !== 1) {
+        error(`\`agent status\` requires exactly one preset: ${AGENT_STATUSES.join(' | ')}`)
+    }
+    const preset: string = parsedArgs.positionals[0]
+    if (!(AGENT_STATUSES as readonly string[]).includes(preset)) {
+        error(`Invalid status "${preset}". Must be one of: ${AGENT_STATUSES.join(' | ')}`)
+    }
+
+    const payload: JsonRecord = ensureSuccessfulPayload(
+        await callDaemon('apply_agent_status', {
+            callerTerminalId,
+            preset,
+            ...(parsedArgs.values.has('--phrase')
+                ? {statusPhrase: requireNonEmptyValue(parsedArgs.values.get('--phrase'), '`--phrase` requires a value')}
+                : {}),
+        })
+    )
+
+    output(payload, formatStandardResponse)
+}
+
 export async function agentResume(
     _terminalId: string | undefined,
     args: string[]
@@ -462,6 +555,22 @@ export async function agentSend(
     const message: string = messageParts.join(' ').trim()
     if (message.length === 0) {
         error('`agent send` requires a non-empty message')
+    }
+
+    const scopedTarget: ScopedAgentAddress | null = parseScopedAgentAddress(targetTerminalId)
+    if (scopedTarget) {
+        const targetProjectPath: string = await resolveProjectRef(scopedTarget.projectRef)
+        const scopedCallerTerminalId: string = `${currentProjectScope()}/${callerTerminalId}`
+        const payload: JsonRecord = ensureSuccessfulPayload(
+            await callDaemonForProject(targetProjectPath, 'send_message', {
+                callerTerminalId: scopedCallerTerminalId,
+                terminalId: scopedTarget.terminalId,
+                message,
+            })
+        )
+
+        output(payload, formatStandardResponse)
+        return
     }
 
     const payload: JsonRecord = ensureSuccessfulPayload(

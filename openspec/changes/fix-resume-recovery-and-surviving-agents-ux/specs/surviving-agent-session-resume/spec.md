@@ -96,7 +96,7 @@ Claude resolver `reason` values:
 #### Scenario: Marker mismatch reports actionable detail
 - **WHEN** the resolver finds candidate rows but none contain `VOICETREE_TERMINAL_ID = <id>` matched against this project
 - **THEN** `not-found` reason is `marker-mismatch`
-- **AND** the UI says: "No matching session — likely the project was moved or the task node renamed since spawn"
+- **AND** the UI says: "No saved transcript matched this session — its conversation log may have been deleted or never recorded"
 
 ### Requirement: Codex Resume produces a manually-runnable `codex resume` command
 

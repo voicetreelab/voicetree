@@ -15,7 +15,7 @@ import {
 
 const asTerminalId = (id: string): TerminalId => id as TerminalId
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {
     startHttpDaemonServer,
     type HttpDaemonServerHandle,
@@ -29,8 +29,8 @@ import {
     type TerminalRegistryEnvelope,
 } from '../sse/terminalRegistrySse.ts'
 
-const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([
-    ['echo', async (args): Promise<McpToolResponse> => buildJsonResponse({echoed: args})],
+const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<ToolResponse>>([
+    ['echo', async (args): Promise<ToolResponse> => buildJsonResponse({echoed: args})],
 ])
 
 interface Ctx {

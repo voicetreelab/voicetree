@@ -1,4 +1,4 @@
-// Late-bound bridges into Electron-only state that the MCP tool surface still
+// Late-bound bridges into Electron-only state that the RPC tool surface still
 // reaches through. Both Electron and the standalone vtd binary construct
 // their own concrete implementations at boot and pass them explicitly into
 // `buildToolCatalog` / `buildCatalogDispatchMap` — there is no module-level
@@ -34,7 +34,7 @@ export type GraphBridge = {
     readonly applyGraphDelta: (delta: GraphDelta, recordForUndo?: boolean) => Promise<void>
 }
 
-export type McpToolBridges = {
+export type ToolBridges = {
     readonly graph: GraphBridge
     readonly search?: SearchBridge
 }

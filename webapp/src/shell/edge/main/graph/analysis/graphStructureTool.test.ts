@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
-import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import { graphStructureTool } from '@vt/vt-daemon/tools/graph/graphStructureTool.ts'
 let tempDir: string = ''
 
@@ -22,7 +22,7 @@ describe('graphStructureTool', () => {
     writeFileSync(path.join(tempDir, 'child-b.md'), '# Child B')
     writeFileSync(path.join(tempDir, 'grandchild.md'), '# Grandchild')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
+    const response: ToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
     const result: { success: boolean; nodeCount: number; ascii: string; orphanCount: number } =
       JSON.parse(response.content[0].text)
 
@@ -37,7 +37,7 @@ describe('graphStructureTool', () => {
   })
 
   it('empty folder — returns nodeCount 0', async () => {
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir })
+    const response: ToolResponse = await graphStructureTool({ folderPath: tempDir })
     const result: { success: boolean; nodeCount: number } =
       JSON.parse(response.content[0].text)
 
@@ -50,7 +50,7 @@ describe('graphStructureTool', () => {
     mkdirSync(path.join(tempDir, 'ctx-nodes'))
     writeFileSync(path.join(tempDir, 'ctx-nodes', 'hidden.md'), '# Hidden Context Node')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
+    const response: ToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
     const result: { success: boolean; nodeCount: number; ascii: string } =
       JSON.parse(response.content[0].text)
 
@@ -65,7 +65,7 @@ describe('graphStructureTool', () => {
     writeFileSync(path.join(tempDir, 'island-b.md'), '# Island B')
     writeFileSync(path.join(tempDir, 'island-c.md'), '# Island C')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
+    const response: ToolResponse = await graphStructureTool({ folderPath: tempDir, withSummaries: false })
     const result: { success: boolean; nodeCount: number; orphanCount: number; ascii: string } =
       JSON.parse(response.content[0].text)
 
@@ -81,7 +81,7 @@ describe('graphStructureTool', () => {
     writeFileSync(path.join(tempDir, 'root.md'), '# Root\nFirst detail\nSecond detail\n[[child]]\n')
     writeFileSync(path.join(tempDir, 'child.md'), '# Child\nOnly child detail\n')
 
-    const response: McpToolResponse = await graphStructureTool({ folderPath: tempDir })
+    const response: ToolResponse = await graphStructureTool({ folderPath: tempDir })
     const result: { success: boolean; nodeCount: number; ascii: string } =
       JSON.parse(response.content[0].text)
 
@@ -114,7 +114,7 @@ describe('graphStructureTool', () => {
       ''
     ].join('\n'))
 
-    const response: McpToolResponse = await graphStructureTool({
+    const response: ToolResponse = await graphStructureTool({
       folderPath: tempDir,
       withSummaries: true
     })

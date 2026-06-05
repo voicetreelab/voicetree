@@ -1,16 +1,16 @@
 /**
- * MCP Tool: wait_for_agents (async)
+ * RPC Tool: wait_for_agents (async)
  * Validates inputs, starts a background monitor, and returns immediately.
  * The monitor polls agent completion and notifies the caller terminal when all agents are done.
  */
 
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
-} from './agent-completion-monitor'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
-import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
+} from '../agent-completion-monitor'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
+import {listTerminalRecords, type TerminalRecord} from '../agentControlRuntime'
 
 export interface WaitForAgentsParams {
     terminalIds: string[]
@@ -25,7 +25,7 @@ export function waitForAgentsTool(
         pollIntervalMs = 5000,
     }: WaitForAgentsParams,
     bridge: GraphBridge,
-): McpToolResponse {
+): ToolResponse {
     // 1. Validate caller terminal exists
     const records: TerminalRecord[] = listTerminalRecords()
     if (!records.some((r: TerminalRecord) => r.terminalId === callerTerminalId)) {

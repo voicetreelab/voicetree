@@ -13,25 +13,25 @@ import {
     readSkillFileSummary,
 } from '@vt/vt-daemon/tools/workflows/workflowReader.ts'
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const listWorkflowsRoute: RpcRoute = {
     name: 'workflows.list',
-    handler: async (): Promise<McpToolResponse> =>
+    handler: async (): Promise<ToolResponse> =>
         buildJsonResponse(await listWorkflows()),
 }
 
 const readSkillRoute: RpcRoute = {
     name: 'workflows.readSkill',
     inputShape: {workflowPath: z.string()},
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> =>
         buildJsonResponse(await readSkillFile(args.workflowPath as string)),
 }
 
 const readSkillSummaryRoute: RpcRoute = {
     name: 'workflows.readSkillSummary',
     inputShape: {workflowPath: z.string()},
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> =>
         buildJsonResponse(await readSkillFileSummary(args.workflowPath as string)),
 }
 

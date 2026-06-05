@@ -12,7 +12,7 @@ import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime
 import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {hasSession, killSession} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager.ts'
 import type {TerminalRegistryEvent} from '@vt/vt-daemon-protocol'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {closeAgentTool} from './closeAgentTool'
 
 const tempDirs: Set<string> = new Set<string>()

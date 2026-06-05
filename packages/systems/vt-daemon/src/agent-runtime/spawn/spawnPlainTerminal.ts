@@ -8,7 +8,7 @@ import type {Position} from '@vt/graph-model/graph';
 import {createNewNodeNoParent} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown';
 import type {VTSettings} from '@vt/graph-model/settings';
-import {getUniqueAgentName, pickAgentName} from '@vt/graph-model/settings';
+import {uniqueAgentName, pickAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts';
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
 import {getTerminalManager} from '@vt/vt-daemon/agent-runtime/terminals/manager/terminal-manager-instance.ts';
@@ -40,7 +40,7 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
   // Plain terminals still need unique IDs for registry tracking
   const baseAgentName: string = pickAgentName(settings);
   const existingNames: Set<string> = getExistingAgentNames();
-  const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
+  const agentName: string = uniqueAgentName(baseAgentName, existingNames);
   // terminalId = agentName (unified identification)
   const terminalId: TerminalId = agentName as TerminalId;
 

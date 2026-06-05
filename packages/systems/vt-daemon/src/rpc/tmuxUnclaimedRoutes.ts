@@ -10,14 +10,14 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const attachUnclaimedTmuxSessionRoute: RpcRoute = {
     name: 'attachUnclaimedTmuxSession',
     inputShape: {
         sessionName: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: AttachUnclaimedTmuxSession.Request = args as unknown as AttachUnclaimedTmuxSession.Request
         const result: AttachUnclaimedTmuxSession.Response = await agentRuntime.attachUnclaimedTmuxSession(req.sessionName)
         return buildJsonResponse(result)
@@ -26,7 +26,7 @@ const attachUnclaimedTmuxSessionRoute: RpcRoute = {
 
 const listUnclaimedTmuxSessionsRoute: RpcRoute = {
     name: 'listUnclaimedTmuxSessions',
-    handler: async (): Promise<McpToolResponse> => {
+    handler: async (): Promise<ToolResponse> => {
         const result: ListUnclaimedTmuxSessions.Response = await agentRuntime.listUnclaimedTmuxSessions()
         return buildJsonResponse(result)
     },
@@ -37,7 +37,7 @@ const killUnclaimedTmuxSessionRoute: RpcRoute = {
     inputShape: {
         sessionName: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: KillUnclaimedTmuxSession.Request = args as unknown as KillUnclaimedTmuxSession.Request
         const result: KillUnclaimedTmuxSession.Response = await agentRuntime.killUnclaimedTmuxSession(req.sessionName)
         return buildJsonResponse(result)

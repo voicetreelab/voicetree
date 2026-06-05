@@ -74,12 +74,13 @@ describe('vt-daemon-client wrappers — recovery facade', (): void => {
             resume: {cliType: 'claude'},
         },
     ]
-    const resumeResult: ResumePersistedResult = {kind: 'spawned', pid: 4242, command: 'claude --resume'}
+    const resumeResult: ResumePersistedResult = {kind: 'spawned', pid: 4242, command: 'claude --resume', terminalData: makeTerminalData('resume-1')}
     const forkResult: ForkAgentSessionResult = {
         kind: 'spawned',
         forkedTerminalId: 'forked-1' as TerminalId,
         pid: 4243,
         command: 'claude --resume --fork',
+        terminalData: makeTerminalData('forked-1'),
     }
 
     beforeEach(async (): Promise<void> => {

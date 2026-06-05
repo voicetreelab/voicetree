@@ -40,10 +40,10 @@ vi.mock('../src/agent-runtime/agent-control/agentControlRuntime', async (importO
     }
 })
 
-import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/agent-runtime/agent-control/spawnAgentTool'
-import type {GraphBridge} from '../src/config/mcpBridges.ts'
+import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/agent-runtime/agent-control/tools/spawnAgentTool'
+import type {GraphBridge} from '../src/config/toolBridges.ts'
 
-const TMP_ROOT: string = path.join(os.tmpdir(), `vt-mcp-real-deps-${process.pid}`)
+const TMP_ROOT: string = path.join(os.tmpdir(), `vt-rpc-real-deps-${process.pid}`)
 
 const PARENT_NODE_ID: NodeIdAndFilePath = '/project/parent.md' as NodeIdAndFilePath
 const CALLER_TERMINAL_ID: string = 'caller-real-deps'

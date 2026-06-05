@@ -77,10 +77,10 @@ if (app.isPackaged) {
 initializeGraphModel();
 
 // Note: vt-daemon's tool server runs out-of-process inside the per-project VTD
-// child. The in-process `configureMcpServer` call that used to live here
-// wired in-process bridges (`getMcpGraph`, `getLiveStateBridge`, …) against
+// child. The in-process tool-server configuration call that used to live here
+// wired in-process bridges (`getToolGraph`, `getLiveStateBridge`, …) against
 // vt-daemon's module-level state. After BF-375/BF-376 those bridges are
-// consumed only by the vtd binary's own `configureHeadlessMcpBridges` —
+// consumed only by the vtd binary's own headless tool-bridge configuration —
 // webapp's in-process copy was a no-op.
 
 const {autoUpdater} = electronUpdater;

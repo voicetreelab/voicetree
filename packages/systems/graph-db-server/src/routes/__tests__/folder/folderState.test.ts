@@ -15,6 +15,10 @@ import {
   clearWatchFolderState,
   setProjectRoot,
 } from '../../../state/watch-folder-store.ts'
+import {
+  subscribeToProjectedGraph,
+  type ProjectedGraphEvent,
+} from '../../../state/events/projectedGraphEventBus.ts'
 
 async function createTempProject(): Promise<string> {
   return await mkdtemp(join(tmpdir(), 'graphd-folder-state-test-'))
@@ -169,6 +173,49 @@ describe('folderState routes', () => {
     )
     expect(batch.status).toBe(200)
     expect(registry.get(session.id)?.collapseSet).toEqual(new Set([`${notesPath}/`]))
+  })
+
+  test('PATCH collapsed broadcasts a re-projection to live renderers', async () => {
+    await openFolderVisibilityForProject(project)
+    setProjectRoot(project as never)
+    const registry = new SessionRegistry()
+    const app = createDaemonApp({
+      registry,
+      readHealth: () => ({
+        version: 'test',
+        project,
+        uptimeSeconds: 0,
+        sessionCount: registry.size(),
+        owner: null,
+      }),
+      onShutdown: () => {},
+    })
+    const session = registry.create()
+    const docsPath = join(project, 'docs')
+
+    const broadcasts: ProjectedGraphEvent[] = []
+    const unsubscribe = subscribeToProjectedGraph((event) => {
+      if (event.sessionId === session.id) broadcasts.push(event)
+    })
+
+    try {
+      const collapsed = await app.request(
+        `/sessions/${session.id}/folder-state/${encodeURIComponent(docsPath)}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ state: 'collapsed' }),
+        },
+      )
+      expect(collapsed.status).toBe(200)
+    } finally {
+      unsubscribe()
+    }
+
+    // A `collapsed` transition changes the projection (hides loaded nodes) but
+    // not the node set, so no graph delta fires. The route must therefore push
+    // a fresh projection itself; otherwise live renderers never see the change.
+    expect(broadcasts.length).toBeGreaterThan(0)
   })
 
   test('new sessions hydrate collapseSet from current folder visibility rows', async () => {

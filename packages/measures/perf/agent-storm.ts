@@ -52,7 +52,7 @@ import {
     startHttpDaemonServer,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
-import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {ToolBridges} from '@vt/vt-daemon/config/toolBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
@@ -189,7 +189,7 @@ async function main(): Promise<void> {
     // plain objects; createGraphTool assumes the Map types. `rehydrateSerializedGraph`
     // (the canonical graph-model helper, also used by the webapp and daemon bridges)
     // rebuilds them, so the perf harness exercises the same production path.
-    const mcpBridges: McpToolBridges = {
+    const toolBridges: ToolBridges = {
         graph: {
             getGraph: async (): Promise<Graph> => {
                 const raw = await daemonClient.getGraph()
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
     let httpHandle: HttpDaemonServerHandle
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges),
+            catalog: buildDefaultToolCatalog(toolBridges),
             token,
             bindHost: '127.0.0.1',
             port: undefined,

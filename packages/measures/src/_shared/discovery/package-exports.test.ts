@@ -122,11 +122,11 @@ describe('resolveWorkspaceBasePath', () => {
             srcRoot: '/repo/vt-daemon/src',
             exports: {
                 '.': './src/agents/index.ts',
-                './mcp-config': './src/config/mcp-config-public.ts',
+                './tool-config': './src/config/toolConfigPublic.ts',
             },
         })
-        expect(resolveWorkspaceBasePath(pkg, '@vt/vt-daemon/mcp-config'))
-            .toBe('/repo/vt-daemon/src/config/mcp-config-public.ts')
+        expect(resolveWorkspaceBasePath(pkg, '@vt/vt-daemon/tool-config'))
+            .toBe('/repo/vt-daemon/src/config/toolConfigPublic.ts')
     })
 
     it('resolves subpath imports via wildcard exports that remap segments', () => {

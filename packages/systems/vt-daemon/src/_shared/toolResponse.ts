@@ -1,13 +1,13 @@
 /**
- * Shared types and utilities for MCP tools.
+ * Shared types and utilities for RPC tools.
  */
 
-export type McpToolResponse = {
+export type ToolResponse = {
     content: Array<{type: 'text'; text: string}>
     isError?: boolean
 }
 
-export function buildJsonResponse(payload: unknown, isError?: boolean): McpToolResponse {
+export function buildJsonResponse(payload: unknown, isError?: boolean): ToolResponse {
     return {
         content: [{type: 'text', text: JSON.stringify(payload)}],
         isError

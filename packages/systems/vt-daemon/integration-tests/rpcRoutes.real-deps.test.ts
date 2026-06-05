@@ -52,7 +52,7 @@ import {
 } from '@vt/vt-daemon-protocol'
 
 import {buildCatalogDispatchMap, type CatalogHandler} from '../src/tools/catalog'
-import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 // ─── Test scaffold ───────────────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ function dispatch(): ReadonlyMap<string, CatalogHandler> {
     return buildCatalogDispatchMap()
 }
 
-function parseResult(response: McpToolResponse): unknown {
+function parseResult(response: ToolResponse): unknown {
     const text: string = response.content[0]?.text ?? ''
     if (text === '') return null
     return JSON.parse(text)
@@ -157,7 +157,7 @@ describe('rpc routes — coverage', () => {
         for (const method of TERMINAL_RPC_METHODS) {
             expect(map.has(method), `missing handler for ${method}`).toBe(true)
         }
-        // And we registered exactly 20 RPC routes (catalog also has the 12 MCP
+        // And we registered exactly 20 RPC routes (catalog also has the 12 RPC
         // tools, but those don't appear in TERMINAL_RPC_METHODS). The 20th is
         // `removePersistedAgentRecord` — added so the renderer's Surviving
         // Agents "delete record" UX can reach the on-disk metadata cleanup
@@ -189,7 +189,7 @@ describe('rpc routes — spawn', () => {
 describe('rpc routes — inject', () => {
     it('sendTextToTerminal returns a failure operation-result for an unknown terminalId', async () => {
         const handler: CatalogHandler = dispatch().get('sendTextToTerminal')!
-        const response: McpToolResponse = await handler({
+        const response: ToolResponse = await handler({
             terminalId: 'no-such-terminal',
             text: 'hello',
         } satisfies SendTextToTerminal.Request)
@@ -199,7 +199,7 @@ describe('rpc routes — inject', () => {
 
     it('injectNodesIntoTerminal returns {success:false,injectedCount:0} when the terminal is unknown', async () => {
         const handler: CatalogHandler = dispatch().get('injectNodesIntoTerminal')!
-        const response: McpToolResponse = await handler({
+        const response: ToolResponse = await handler({
             terminalId: 'no-such-terminal',
             nodeIds: ['/project/x.md', '/project/y.md'],
         } satisfies InjectNodesIntoTerminal.Request)
@@ -216,7 +216,7 @@ describe('rpc routes — read', () => {
         recordTerminalSpawn(terminalId, makeFixtureRecord(terminalId))
 
         const handler: CatalogHandler = dispatch().get('getTerminalRecords')!
-        const response: McpToolResponse = await handler({})
+        const response: ToolResponse = await handler({})
         const result = parseResult(response) as GetTerminalRecords.Response
 
         expect(result.some((r) => r.terminalId === terminalId)).toBe(true)
@@ -225,7 +225,7 @@ describe('rpc routes — read', () => {
 
     it('getExistingAgentNames returns a JSON array (Set converted at the wire boundary)', async () => {
         const handler: CatalogHandler = dispatch().get('getExistingAgentNames')!
-        const response: McpToolResponse = await handler({})
+        const response: ToolResponse = await handler({})
         const result = parseResult(response) as GetExistingAgentNames.Response
         expect(Array.isArray(result)).toBe(true)
     })
@@ -235,7 +235,7 @@ describe('rpc routes — read', () => {
         recordTerminalSpawn(terminalId, makeFixtureRecord(terminalId))
 
         const handler: CatalogHandler = dispatch().get('getUnseenNodesForTerminal')!
-        const response: McpToolResponse = await handler({
+        const response: ToolResponse = await handler({
             terminalId,
         } satisfies GetUnseenNodesForTerminal.Request)
         const result = parseResult(response) as GetUnseenNodesForTerminal.Response
@@ -248,7 +248,7 @@ describe('rpc routes — read', () => {
 describe('rpc routes — tmux-unclaimed', () => {
     it('listUnclaimedTmuxSessions returns an array (possibly empty) without throwing', async () => {
         const handler: CatalogHandler = dispatch().get('listUnclaimedTmuxSessions')!
-        const response: McpToolResponse = await handler({})
+        const response: ToolResponse = await handler({})
         const result: unknown = parseResult(response)
         expect(Array.isArray(result)).toBe(true)
     })
@@ -284,7 +284,7 @@ describe('rpc routes — headless', () => {
         events.length = 0
 
         const handler: CatalogHandler = dispatch().get('closeHeadlessAgent')!
-        const response: McpToolResponse = await handler({terminalId} satisfies CloseHeadlessAgent.Request)
+        const response: ToolResponse = await handler({terminalId} satisfies CloseHeadlessAgent.Request)
         const result = parseResult(response) as CloseHeadlessAgent.Response
 
         expect(result).toEqual({closed: true, wasRunning: true})
@@ -317,7 +317,7 @@ describe('rpc routes — headless', () => {
         )
 
         const handler: CatalogHandler = dispatch().get('getHeadlessAgentOutput')!
-        const response: McpToolResponse = await handler({terminalId})
+        const response: ToolResponse = await handler({terminalId})
         const result: unknown = parseResult(response)
         expect(typeof result).toBe('string')
     }, 15000)
@@ -344,7 +344,7 @@ describe('rpc routes — recovery', () => {
         })
 
         const handler: CatalogHandler = dispatch().get('discoverRecoverableAgentSessions')!
-        const response: McpToolResponse = await handler({})
+        const response: ToolResponse = await handler({})
         const result: unknown = parseResult(response)
 
         // Discovery may legitimately return [] if no recoverable sessions are
@@ -381,7 +381,7 @@ describe('rpc routes — registry', () => {
             {kind: 'done', value: true},
         ]
         for (const patch of patches) {
-            const response: McpToolResponse = await patchHandler({terminalId, patch} satisfies PatchTerminalRecord.Request)
+            const response: ToolResponse = await patchHandler({terminalId, patch} satisfies PatchTerminalRecord.Request)
             expect(parseResult(response)).toBeNull()
         }
         const recordChanged = events.filter(
@@ -401,7 +401,7 @@ describe('rpc routes — registry', () => {
         events.length = 0
 
         const handler: CatalogHandler = dispatch().get('removeTerminalFromRegistry')!
-        const response: McpToolResponse = await handler({terminalId} satisfies RemoveTerminalFromRegistry.Request)
+        const response: ToolResponse = await handler({terminalId} satisfies RemoveTerminalFromRegistry.Request)
         expect(parseResult(response)).toBeNull()
 
         expect(getTerminalRecords().some((r) => r.terminalId === terminalId)).toBe(false)
@@ -420,7 +420,7 @@ describe('rpc routes — hooks', () => {
         // the observable contract is "completes without throwing and
         // produces no terminal-registry side effects".
         const handler: CatalogHandler = dispatch().get('dispatchOnNewNodeHooks')!
-        const response: McpToolResponse = await handler({
+        const response: ToolResponse = await handler({
             delta: [],
             hookCommand: 'echo noop',
         } satisfies DispatchOnNewNodeHooks.Request)

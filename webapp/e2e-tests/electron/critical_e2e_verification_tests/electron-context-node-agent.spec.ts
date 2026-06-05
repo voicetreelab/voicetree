@@ -27,6 +27,7 @@
 import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { agentBaseName } from '@vt/graph-model/settings';
 import { test, type ExtendedWindow } from './electron-context-node-agent-fixtures';
 
 const TEST_AGENT_COMMAND = 'CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT"';
@@ -206,10 +207,14 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 7: Verify spawned agent appears in the terminal tree sidebar ===');
     await expect(appWindow.getByTestId('terminal-tree-sidebar')).toBeVisible({ timeout: 15000 });
+    // Identity (with hash) is verified by the data-terminal-id locator above.
+    // The visible text shows the hash-stripped base name — the sidebar strips the
+    // uniqueness suffix for display, so assert on agentBaseName(), the same pure
+    // helper the sidebar renders with.
     const terminalTreeRow = appWindow.locator(`[data-testid="terminal-tree-sidebar"] [data-terminal-id="${terminalId}"]`);
     await expect(terminalTreeRow).toBeVisible({ timeout: 15000 });
-    await expect(terminalTreeRow).toContainText(terminalId);
-    console.log(`✓ Terminal tree sidebar shows spawned agent: ${terminalId}`);
+    await expect(terminalTreeRow).toContainText(agentBaseName(terminalId));
+    console.log(`✓ Terminal tree sidebar shows spawned agent: ${terminalId} (displayed as "${agentBaseName(terminalId)}")`);
 
     console.log('');
     console.log('=== TEST SUMMARY ===');

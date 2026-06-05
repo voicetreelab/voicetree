@@ -1,5 +1,5 @@
 /**
- * MCP Tool: spawn_agent
+ * RPC Tool: spawn_agent
  * Spawns an agent in the Voicetree graph.
  */
 
@@ -10,17 +10,17 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings, AgentConfig, ResolvedAgent} from '@vt/graph-model/settings'
 import {flattenAgentTree} from '@vt/graph-model/settings'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import {startMonitor} from './agent-completion-monitor.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {startMonitor} from '../agent-completion-monitor.ts'
+import {applyToolGraphDelta, getToolGraph, getToolWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {
     consumeSpawnBudget,
     listTerminalRecords,
     rememberChildTerminal,
     spawnContextTerminal,
     type TerminalRecord,
-} from './agentControlRuntime'
+} from '../agentControlRuntime'
 
 export interface SpawnAgentParams {
     nodeId?: string
@@ -52,9 +52,9 @@ export function makeSpawnAgentDeps(bridge: GraphBridge): SpawnAgentDeps {
         listTerminalRecords,
         consumeBudget: consumeSpawnBudget,
         loadAgentSettings: () => loadSettings(),
-        loadWriteFolderPath: () => getMcpWriteFolderPath(bridge),
-        loadGraph: () => getMcpGraph(bridge),
-        applyDelta: (delta, recordForUndo) => applyMcpGraphDelta(bridge, delta, recordForUndo),
+        loadWriteFolderPath: () => getToolWriteFolderPath(bridge),
+        loadGraph: () => getToolGraph(bridge),
+        applyDelta: (delta, recordForUndo) => applyToolGraphDelta(bridge, delta, recordForUndo),
         spawnTerminal: spawnContextTerminal,
         rememberChild: rememberChildTerminal,
         monitorChildren: (callerTerminalId, terminalIds, pollIntervalMs) =>
@@ -68,7 +68,8 @@ type BudgetResult = { readonly allowed: boolean; readonly childBudget: number | 
 
 type SpawnRuntime = {
     readonly callerTerminalId: string
-    readonly callerRecord: TerminalRecord
+    readonly callerRecord?: TerminalRecord
+    readonly isExternalCaller: boolean
     readonly resolvedAgentCommand: string | undefined
     readonly resolvedSpawnDirectory: string | undefined
     readonly envOverrides: Record<string, string>
@@ -85,7 +86,7 @@ type SpawnedTerminal = {
     readonly contextNodeId: string
 }
 
-function errorResponse(error: string): McpToolResponse {
+function errorResponse(error: string): ToolResponse {
     return buildJsonResponse({success: false, error}, true)
 }
 
@@ -101,8 +102,14 @@ function findCallerRecord(callerTerminalId: string, terminalRecords: readonly Te
     return {ok: true, value: callerRecord}
 }
 
-function resolveChildDepthBudget(depthBudget: number | undefined, callerRecord: TerminalRecord): number | undefined {
+function isScopedExternalCaller(callerTerminalId: string): boolean {
+    const slashIndex: number = callerTerminalId.indexOf('/')
+    return slashIndex > 0 && slashIndex < callerTerminalId.length - 1
+}
+
+function resolveChildDepthBudget(depthBudget: number | undefined, callerRecord: TerminalRecord | undefined): number | undefined {
     if (depthBudget !== undefined) return depthBudget
+    if (!callerRecord) return undefined
 
     const parentDepthBudget: string | undefined = callerRecord.terminalData.initialEnvVars?.DEPTH_BUDGET
     if (!parentDepthBudget) return undefined
@@ -137,10 +144,10 @@ function resolveNamedAgent(agentName: string, agents: readonly AgentConfig[]): R
 /** Resolve the leaf to spawn — explicit `agentName`, else inherit the caller's agent type, else none. */
 async function resolveAgentSelection(
     agentName: string | undefined,
-    callerRecord: TerminalRecord,
+    callerRecord: TerminalRecord | undefined,
     deps: SpawnAgentDeps,
 ): Promise<Result<ResolvedAgent | undefined>> {
-    const callerAgentTypeName: string | undefined = callerRecord.terminalData.agentTypeName
+    const callerAgentTypeName: string | undefined = callerRecord?.terminalData.agentTypeName
     if (!agentName && !callerAgentTypeName) return {ok: true, value: undefined}
 
     const settings: VTSettings = await deps.loadAgentSettings()
@@ -150,15 +157,15 @@ async function resolveAgentSelection(
     return {ok: true, value: callerAgentTypeName ? findAgentLeaf(agents, callerAgentTypeName) : undefined}
 }
 
-function resolveSpawnDirectory(spawnDirectory: string | undefined, callerRecord: TerminalRecord): string | undefined {
-    return spawnDirectory ?? callerRecord.terminalData.initialSpawnDirectory
-}
-
 async function prepareSpawnRuntime(
     params: SpawnAgentParams,
     deps: SpawnAgentDeps,
-    callerRecord: TerminalRecord,
+    callerRecord: TerminalRecord | undefined,
 ): Promise<Result<SpawnRuntime>> {
+    if (!callerRecord && params.replaceSelf) {
+        return {ok: false, error: 'Cannot replace self from a scoped external caller'}
+    }
+
     const childDepthBudget: number | undefined = resolveChildDepthBudget(params.depthBudget, callerRecord)
     const budgetResult: BudgetResult = deps.consumeBudget(params.callerTerminalId)
     if (!budgetResult.allowed) return {ok: false, error: 'Global spawn budget exhausted'}
@@ -172,8 +179,9 @@ async function prepareSpawnRuntime(
         value: {
             callerTerminalId: params.callerTerminalId,
             callerRecord,
+            isExternalCaller: !callerRecord,
             resolvedAgentCommand: selection?.command,
-            resolvedSpawnDirectory: resolveSpawnDirectory(params.spawnDirectory, callerRecord),
+            resolvedSpawnDirectory: params.spawnDirectory ?? callerRecord?.terminalData.initialSpawnDirectory,
             // The leaf's env (e.g. { EFFORT }) plus the budget env. Budget vars are
             // spread last so user env can never clobber DEPTH_BUDGET / spawn budget.
             envOverrides: {...selection?.env, ...buildEnvOverrides(childDepthBudget, budgetResult.childBudget)},
@@ -205,10 +213,10 @@ function taskNodeIdFromDelta(taskNodeDelta: GraphDelta): NodeIdAndFilePath | und
 
 function buildCallerContextUpdateDelta(
     graph: Graph,
-    callerRecord: TerminalRecord,
+    callerRecord: TerminalRecord | undefined,
     taskNodeId: NodeIdAndFilePath,
 ): GraphDelta {
-    const callerContextNodeId: string | undefined = callerRecord.terminalData.attachedToContextNodeId
+    const callerContextNodeId: string | undefined = callerRecord?.terminalData.attachedToContextNodeId
     if (!callerContextNodeId) return []
 
     const callerContextNode: GraphNode | undefined = graph.nodes[callerContextNodeId]
@@ -247,7 +255,7 @@ function claimNodeDelta(targetNode: GraphNode): GraphDelta {
 
 function parentTerminalIdForSpawn(runtime: SpawnRuntime, replaceSelf: boolean | undefined): string | undefined {
     return replaceSelf
-        ? (runtime.callerRecord.terminalData.parentTerminalId ?? undefined)
+        ? (runtime.callerRecord?.terminalData.parentTerminalId ?? undefined)
         : runtime.callerTerminalId
 }
 
@@ -274,10 +282,16 @@ async function spawnTerminalForNode(
 }
 
 function rememberAndMonitorChild(terminalId: string, params: SpawnAgentParams, runtime: SpawnRuntime, deps: SpawnAgentDeps): void {
-    if (params.replaceSelf) return
+    if (params.replaceSelf || runtime.isExternalCaller) return
 
     deps.rememberChild(runtime.callerTerminalId, terminalId)
     deps.monitorChildren(runtime.callerTerminalId, [terminalId], 5000)
+}
+
+function spawnSuccessMessage(baseMessage: string, runtime: SpawnRuntime): string {
+    return runtime.isExternalCaller
+        ? `${baseMessage} No local completion monitor was started for external caller ${runtime.callerTerminalId}.`
+        : `${baseMessage} You will be notified when the agent completes.`
 }
 
 async function spawnAgentForTask(
@@ -286,7 +300,7 @@ async function spawnAgentForTask(
     deps: SpawnAgentDeps,
     runtime: SpawnRuntime,
     graphContext: GraphContext,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     if (!params.parentNodeId) return errorResponse('parentNodeId is required when task is provided')
 
     const resolvedParentId: NodeIdAndFilePath | undefined = resolveNodeId(graphContext.graph, params.parentNodeId)
@@ -323,7 +337,7 @@ async function spawnAgentForTask(
             depthBudget: runtime.childDepthBudget,
             message: params.replaceSelf
                 ? `Replaced self — successor agent running as "${terminalId}"`
-                : `Created task node and spawned agent for "${taskDescription}". You will be notified when the agent completes.`
+                : spawnSuccessMessage(`Created task node and spawned agent for "${taskDescription}".`, runtime)
         })
     } catch (error) {
         return errorResponse(errorMessage(error))
@@ -335,7 +349,7 @@ async function spawnAgentForExistingNode(
     deps: SpawnAgentDeps,
     runtime: SpawnRuntime,
     graphContext: GraphContext,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     if (!params.nodeId) return errorResponse('Either nodeId or task (with parentNodeId) must be provided')
 
     const resolvedNodeId: NodeIdAndFilePath | undefined = resolveNodeId(graphContext.graph, params.nodeId)
@@ -356,7 +370,7 @@ async function spawnAgentForExistingNode(
             depthBudget: runtime.childDepthBudget,
             message: params.replaceSelf
                 ? `Replaced self — successor agent running as "${terminalId}"`
-                : `Spawned agent for node ${resolvedNodeId}. You will be notified when the agent completes.`
+                : spawnSuccessMessage(`Spawned agent for node ${resolvedNodeId}.`, runtime)
         })
     } catch (error) {
         return errorResponse(errorMessage(error))
@@ -366,12 +380,18 @@ async function spawnAgentForExistingNode(
 export async function spawnAgentTool(
     params: SpawnAgentParams,
     deps: SpawnAgentDeps,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     const terminalRecords: TerminalRecord[] = deps.listTerminalRecords()
     const callerRecordResult: Result<TerminalRecord> = findCallerRecord(params.callerTerminalId, terminalRecords)
-    if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
+    if (!callerRecordResult.ok && !isScopedExternalCaller(params.callerTerminalId)) {
+        return errorResponse(callerRecordResult.error)
+    }
 
-    const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(params, deps, callerRecordResult.value)
+    const runtimeResult: Result<SpawnRuntime> = await prepareSpawnRuntime(
+        params,
+        deps,
+        callerRecordResult.ok ? callerRecordResult.value : undefined,
+    )
     if (!runtimeResult.ok) return errorResponse(runtimeResult.error)
 
     const writeFolderPathResult: Result<string> = await loadWriteFolderPath(deps)

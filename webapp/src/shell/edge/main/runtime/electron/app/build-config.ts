@@ -40,8 +40,6 @@ export type BuildConfig = {
   readonly backendDest: string;
   readonly shouldCopyTools: boolean;
 
-  // Per-project .voicetree/ hook source (copy-on-first-open).
-  readonly hookScriptsSource: string;   // scripts/ (on-new-node.cjs, prompts/)
   // Absolute path to the `@voicetree/cli` package root on disk. Spawn-time
   // PATH injection (resolveVtBinDir + prependVtBinToPath) reads `bin/vt`
   // from inside this directory. Null when this build cannot locate the CLI
@@ -125,8 +123,6 @@ function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
     backendDest: path.join(commonEnv.userDataPath, 'backend'),
     shouldCopyTools: !commonEnv.isTest,
 
-    // Per-project .voicetree/ hook source
-    hookScriptsSource: path.join(rootDir, 'scripts'),
     voicetreeCliPackageDir: path.join(rootDir, 'packages', 'systems', 'voicetree-cli'),
   };
 }
@@ -178,10 +174,6 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     ? null
     : path.join(rootDir, 'packages', 'systems', 'voicetree-cli');
 
-  const hookScriptsSource: string = commonEnv.isPackaged
-    ? path.join(process.resourcesPath, 'scripts')
-    : path.join(rootDir, 'scripts');
-
   return {
     // Python: Run compiled binary
     pythonCommand: serverBinaryPath,
@@ -198,8 +190,6 @@ function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
     backendDest: path.join(commonEnv.userDataPath, 'backend'),
     shouldCopyTools: !commonEnv.isTest,
 
-    // Per-project .voicetree/ hook source
-    hookScriptsSource,
     voicetreeCliPackageDir,
   };
 }

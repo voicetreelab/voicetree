@@ -114,7 +114,7 @@ export async function getWriteFolderPath(): Promise<O.Option<FilePath>> {
  */
 export async function setWriteFolderPath(
     projectPath: FilePath,
-    options: { createStarterIfEmpty?: boolean } = {},
+    options: { createStarterIfEmpty?: boolean; awaitProjectStateBroadcast?: boolean } = {},
 ): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
@@ -171,9 +171,18 @@ export async function setWriteFolderPath(
     // Note: Clearing the old write path is handled by the caller (ProjectPathSelector)
     // which calls removeReadPath() after setWriteFolderPath()
 
-    await traceGraphdSpan('daemon.set-write-folder-path.broadcast-project-state', async () => {
-        await broadcastProjectState();
-    });
+    const broadcast = async (): Promise<void> => {
+        await traceGraphdSpan('daemon.set-write-folder-path.broadcast-project-state', async () => {
+            await broadcastProjectState();
+        });
+    };
+    if (options.awaitProjectStateBroadcast === false) {
+        void broadcast().catch((error: unknown) => {
+            console.error('project state broadcast failed:', error);
+        });
+    } else {
+        await broadcast();
+    }
     return { success: true };
 }
 

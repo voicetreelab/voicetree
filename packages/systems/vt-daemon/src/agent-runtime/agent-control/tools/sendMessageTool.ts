@@ -1,5 +1,5 @@
 /**
- * MCP Tool: send_message
+ * RPC Tool: send_message
  * Sends a message directly to an agent terminal.
  *
  * Under tmux-only, every routable terminal (headless or interactive) receives
@@ -16,22 +16,27 @@ import {
     sendTerminalText,
     terminalExists,
     type TerminalRecord,
-} from './agentControlRuntime'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+} from '../agentControlRuntime'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {buildFromPrefixedMessage} from '@vt/vt-daemon-protocol'
 
-function buildErrorResponse(error: string): McpToolResponse {
+function buildErrorResponse(error: string): ToolResponse {
     return buildJsonResponse({
         success: false,
         error
     }, true)
 }
 
-function buildHeadlessInputError(terminalId: string): McpToolResponse {
+function buildHeadlessInputError(terminalId: string): ToolResponse {
     return buildErrorResponse(`Cannot send message to headless agent "${terminalId}". Headless agents have no terminal input. They receive work via their task node and produce output as graph nodes. Use get_unseen_nodes_nearby to read their output.`)
 }
 
-function queuePendingTerminalMessage(terminalId: string, callerTerminalId: string, message: string): McpToolResponse {
+function isScopedExternalCaller(callerTerminalId: string): boolean {
+    const slashIndex: number = callerTerminalId.indexOf('/')
+    return slashIndex > 0 && slashIndex < callerTerminalId.length - 1
+}
+
+function queuePendingTerminalMessage(terminalId: string, callerTerminalId: string, message: string): ToolResponse {
     enqueuePendingTerminalMessage(terminalId, buildFromPrefixedMessage(callerTerminalId, message))
     return buildJsonResponse({
         success: true,
@@ -41,7 +46,7 @@ function queuePendingTerminalMessage(terminalId: string, callerTerminalId: strin
     })
 }
 
-function handleMissingTerminal(terminalId: string, callerTerminalId: string, message: string): McpToolResponse {
+function handleMissingTerminal(terminalId: string, callerTerminalId: string, message: string): ToolResponse {
     const pending: { readonly isHeadless: boolean } | undefined = getPendingTerminalState(terminalId)
     if (!pending) {
         return buildErrorResponse(`Terminal not found: ${terminalId}`)
@@ -57,7 +62,7 @@ async function sendToTmuxTerminal(
     callerTerminalId: string,
     message: string,
     successMessage: string,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     try {
         const prefixedMessage: string = buildFromPrefixedMessage(callerTerminalId, message)
         const result: {success: boolean; error?: string} = await sendTerminalText(terminalId, prefixedMessage)
@@ -84,8 +89,8 @@ export async function sendMessageTool({
     terminalId,
     message,
     callerTerminalId
-}: SendMessageParams): Promise<McpToolResponse> {
-    if (!terminalExists(callerTerminalId)) {
+}: SendMessageParams): Promise<ToolResponse> {
+    if (!terminalExists(callerTerminalId) && !isScopedExternalCaller(callerTerminalId)) {
         return buildErrorResponse(`Unknown caller terminal: ${callerTerminalId}`)
     }
 

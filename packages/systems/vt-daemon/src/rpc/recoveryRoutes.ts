@@ -25,7 +25,7 @@ import type {
 import {publishTerminalRegistryEvent} from '../agent-runtime/terminals/terminal-registry/terminal-registry-publisher.ts'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 /**
  * The normal spawn path (launchTerminalSpawn) emits `terminal-ui-launch` after
@@ -56,7 +56,7 @@ const discoverRecoverableAgentSessionsRoute: RpcRoute = {
         // a positive finite number ⇒ override the horizon for this call.
         horizonMs: z.union([z.number(), z.null()]).optional(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: DiscoverRecoverableAgentSessions.Request = args as unknown as DiscoverRecoverableAgentSessions.Request
         const sessions = await discoverRecoverableAgentSessions(undefined, {horizonMs: req.horizonMs})
         const projected: DiscoverRecoverableAgentSessions.Response = sessions.map((s): WireRecoverableAgentSession => ({
@@ -85,7 +85,7 @@ const resumePersistedAgentSessionRoute: RpcRoute = {
     inputShape: {
         terminalId: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: ResumePersistedAgentSession.Request = args as unknown as ResumePersistedAgentSession.Request
         const result: ResumePersistedAgentSession.Response = await resumePersistedAgentSession(req.terminalId as TerminalId)
         const launch = uiLaunchEventForRecoveryResult(result)
@@ -99,7 +99,7 @@ const forkAgentSessionRoute: RpcRoute = {
     inputShape: {
         sourceTerminalId: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: ForkAgentSession.Request = args as unknown as ForkAgentSession.Request
         const result: ForkAgentSession.Response = await forkAgentSession(req.sourceTerminalId as TerminalId)
         const launch = uiLaunchEventForRecoveryResult(result)
@@ -113,7 +113,7 @@ const removePersistedAgentRecordRoute: RpcRoute = {
     inputShape: {
         terminalId: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: RemovePersistedAgentRecord.Request = args as unknown as RemovePersistedAgentRecord.Request
         const result: RemovePersistedAgentRecord.Response = await removePersistedAgentRecord(req.terminalId)
         return buildJsonResponse(result)

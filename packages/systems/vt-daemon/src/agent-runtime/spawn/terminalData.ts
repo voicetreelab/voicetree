@@ -2,7 +2,7 @@ import path from 'path'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getUniqueAgentName, pickAgentName} from '@vt/graph-model/settings'
+import {uniqueAgentName, pickAgentName} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
@@ -84,7 +84,7 @@ export async function prepareTerminalDataInMain(
     const agentName: string = precomputedAgentName ?? inheritTerminalId ?? (() => {
         const baseAgentName: string = pickAgentName(settings)
         const existingNames: Set<string> = getExistingAgentNames()
-        return getUniqueAgentName(baseAgentName, existingNames)
+        return uniqueAgentName(baseAgentName, existingNames)
     })()
 
     const watchStatus: {

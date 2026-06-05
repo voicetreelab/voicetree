@@ -71,7 +71,7 @@ async function launchPreparedTerminal(
         // Inherit replaces the row at the same terminalId. Fire `terminal-removed`
         // (via removeTerminalFromRegistry) so receivers drop the old floating
         // window before the `terminal-ui-launch` below creates the new one;
-        // re-pend the same id so MCP probes mid-spawn still resolve.
+        // re-pend the same id so RPC probes mid-spawn still resolve.
         removeTerminalFromRegistry(params.inheritTerminalId)
         recordTerminalPending(params.inheritTerminalId, !!params.headless)
     }

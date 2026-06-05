@@ -20,7 +20,7 @@ import {type TerminalId } from '@vt/vt-daemon/agent-runtime/terminals/terminal-r
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';
-import { getUniqueAgentName, pickAgentName } from '@vt/graph-model/settings';
+import { uniqueAgentName, pickAgentName } from '@vt/graph-model/settings';
 import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
 import {
     getRuntimeGraph,
@@ -46,10 +46,10 @@ export {buildHeadlessCommand, detectCliType} from './cli/headlessCli';
  * @param taskNodeId - The task node to anchor terminal to (and create context for)
  * @param agentCommand - The agent command to run
  * @param terminalCount - Current terminal count from UI TerminalStore
- * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for MCP spawns)
- * @param startUnpinned - If true, terminal starts unpinned (used for MCP spawns)
+ * @param skipFitAnimation - If true, skip navigating viewport to the terminal (used for RPC spawns)
+ * @param startUnpinned - If true, terminal starts unpinned (used for RPC spawns)
  * @param selectedNodeIds - If provided, creates context from these nodes instead of subgraph
- * @param parentTerminalId - Parent terminal ID for tree-style tabs (used for MCP spawn_agent)
+ * @param parentTerminalId - Parent terminal ID for tree-style tabs (used for RPC spawn_agent)
  */
 export async function spawnTerminalWithContextNode(
     taskNodeId: NodeIdAndFilePath,
@@ -103,7 +103,7 @@ export async function spawnTerminalWithContextNode(
     const agentName: string = inheritTerminalId ?? (() => {
         const baseAgentName: string = pickAgentName(settings);
         const existingNames: Set<string> = getExistingAgentNames();
-        return getUniqueAgentName(baseAgentName, existingNames);
+        return uniqueAgentName(baseAgentName, existingNames);
     })();
     const terminalId: TerminalId = agentName as TerminalId;
 
@@ -111,7 +111,7 @@ export async function spawnTerminalWithContextNode(
         ? terminalCount
         : getNextTerminalCountForNode(contextNodeId)
 
-    // Reserve the terminalId in the registry so MCP tools (send_message,
+    // Reserve the terminalId in the registry so RPC tools (send_message,
     // read_terminal_output, list_agents completion monitor) can do the right
     // thing while the rest of the spawn runs async.
     recordTerminalPending(terminalId, !!headless)

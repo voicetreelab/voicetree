@@ -1,5 +1,5 @@
 /**
- * Real-deps integration test for the create_graph MCP tool (validation +
+ * Real-deps integration test for the create_graph RPC tool (validation +
  * line-length blocking). Mirrors the moved creation tests in setup style:
  * real terminal-registry, real settings (per-test temp voicetree-home),
  * capturing GraphBridge. No vi.mock of @vt/agent-runtime.
@@ -9,7 +9,7 @@ import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 import {createGraphTool} from '@vt/vt-daemon/create-graph/createGraphTool.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {clearTerminalRecords} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {
     CALLER_TERMINAL_ID,
@@ -20,9 +20,9 @@ import {
     setupRealDeps,
     type BridgeState,
     type ErrorPayload,
-    type McpToolResponse,
+    type ToolResponse,
     type SuccessPayload,
-} from './__helpers__/addProgressNodeMcp.testHelpers'
+} from './__helpers__/addProgressNode.testHelpers'
 
 let voicetreeHome: string
 let state: BridgeState
@@ -36,12 +36,12 @@ afterEach(async () => {
     await cleanupVoicetreeHome(voicetreeHome)
 })
 
-describe('MCP create_graph tool — validation + line length', () => {
+describe('RPC create_graph tool — validation + line length', () => {
     describe('validation', () => {
         it('returns error when caller terminal ID is unknown', async () => {
             clearTerminalRecords() // erase the caller setupRealDeps recorded
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: 'unknown-terminal',
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
             }, bridge)
@@ -55,7 +55,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         it('returns error when no project is loaded', async () => {
             state.writeFolderPath = null
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
             }, bridge)
@@ -67,7 +67,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         })
 
         it('returns error when outputPath resolves outside loaded project paths', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 outputPath: '../outside',
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
@@ -88,7 +88,7 @@ describe('MCP create_graph tool — validation + line length', () => {
                 unresolvedLinksIndex: new Map(),
             }
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 parentNodeId: 'nonexistent-node.md',
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary'}],
@@ -101,7 +101,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         })
 
         it('returns error when nodes array is empty', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [],
             }, bridge)
@@ -113,7 +113,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         })
 
         it('returns error when nodes have duplicate filenames', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename: 'a', title: 'First', summary: 'Summary'},
@@ -128,7 +128,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         })
 
         it('returns error when cycle detected in parent references', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename: 'a', title: 'A', summary: 'S', content: '- parent [[b]]'},
@@ -143,7 +143,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         })
 
         it('returns error when codeDiffs provided without complexity', async () => {
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Test', summary: 'Summary', codeDiffs: ['- old\n+ new']}],
             }, bridge)
@@ -159,7 +159,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         it('blocks creation when a node exceeds configured line limit', async () => {
             const longContent: string = Array.from({length: 75}, (_, i) => `Line ${i + 1}`).join('\n')
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{filename: 'a', title: 'Long Node', summary: 'Summary.', content: longContent}],
             }, bridge)
@@ -174,7 +174,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         it('exempts codeDiffs from line count', async () => {
             const largeDiff: string = Array.from({length: 40}, (_, i) => `- old ${i}\n+ new ${i}`).join('\n')
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
                     filename: 'a',
@@ -192,7 +192,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         it('exempts diagram from line count', async () => {
             const largeDiagram: string = Array.from({length: 40}, (_, i) => `A${i} --> B${i}`).join('\n')
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [{
                     filename: 'a',
@@ -208,7 +208,7 @@ describe('MCP create_graph tool — validation + line length', () => {
         it('blocks all nodes if any single node is too long, and applies no deltas', async () => {
             const longContent: string = Array.from({length: 75}, (_, i) => `Line ${i + 1}`).join('\n')
 
-            const response: McpToolResponse = await createGraphTool({
+            const response: ToolResponse = await createGraphTool({
                 callerTerminalId: CALLER_TERMINAL_ID,
                 nodes: [
                     {filename: 'a', title: 'Short', summary: 'OK.'},
@@ -230,7 +230,7 @@ describe('MCP create_graph tool — validation + line length', () => {
 // child-count + graph-complexity gates (real create_graph RPC, override bypass)
 // ============================================================================
 
-describe('MCP create_graph tool — child-count gate', () => {
+describe('RPC create_graph tool — child-count gate', () => {
     // Raise the subgraph gate out of the way so only child_count_limit fires.
     const SETTINGS = {subgraphWarnThreshold: 49, subgraphErrorThreshold: 50}
 
@@ -241,7 +241,7 @@ describe('MCP create_graph tool — child-count gate', () => {
     it('blocks when a node would exceed 4 children', async () => {
         ({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
 
-        const response: McpToolResponse = await createGraphTool({
+        const response: ToolResponse = await createGraphTool({
             callerTerminalId: CALLER_TERMINAL_ID,
             parentNodeId: 'parent-task',
             nodes: nChildren(5),
@@ -258,7 +258,7 @@ describe('MCP create_graph tool — child-count gate', () => {
     it('allows the 5th child through with an override_with_rationale', async () => {
         ({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
 
-        const response: McpToolResponse = await createGraphTool({
+        const response: ToolResponse = await createGraphTool({
             callerTerminalId: CALLER_TERMINAL_ID,
             parentNodeId: 'parent-task',
             nodes: nChildren(5),
@@ -274,7 +274,7 @@ describe('MCP create_graph tool — child-count gate', () => {
     it('allows exactly 4 children without an override', async () => {
         ({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
 
-        const response: McpToolResponse = await createGraphTool({
+        const response: ToolResponse = await createGraphTool({
             callerTerminalId: CALLER_TERMINAL_ID,
             parentNodeId: 'parent-task',
             nodes: Array.from({length: 4}, (_, i) => ({filename: `child-${i}`, title: `Child ${i}`, summary: 'S'})),
@@ -286,13 +286,13 @@ describe('MCP create_graph tool — child-count gate', () => {
     })
 })
 
-describe('MCP create_graph tool — graph-complexity gate', () => {
+describe('RPC create_graph tool — graph-complexity gate', () => {
     it('blocks when the destination cluster crosses the block score, bypassable with rationale', async () => {
         // Low block score so any non-trivial structure trips the gate deterministically.
         const SETTINGS = {complexityWarnScore: 0.05, complexityBlockScore: 0.1}
         ;({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
 
-        const blocked: McpToolResponse = await createGraphTool({
+        const blocked: ToolResponse = await createGraphTool({
             callerTerminalId: CALLER_TERMINAL_ID,
             parentNodeId: 'parent-task',
             nodes: [{filename: 'n', title: 'N', summary: 'S'}],
@@ -302,7 +302,7 @@ describe('MCP create_graph tool — graph-complexity gate', () => {
         expect(blockedPayload.error).toContain('graph_complexity_limit')
 
         ;({voicetreeHome, state, bridge} = await setupRealDeps({settings: SETTINGS}))
-        const allowed: McpToolResponse = await createGraphTool({
+        const allowed: ToolResponse = await createGraphTool({
             callerTerminalId: CALLER_TERMINAL_ID,
             parentNodeId: 'parent-task',
             nodes: [{filename: 'n', title: 'N', summary: 'S'}],

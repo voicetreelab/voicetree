@@ -21,7 +21,7 @@ import {
     type WorktreeList,
 } from '@vt/vt-daemon-protocol'
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import type {RpcRoute} from '../RpcRoute.ts'
 import {
     listWorktrees,
@@ -48,7 +48,7 @@ export function buildWorktreeRoutes(deps: WorktreeRoutesDeps): readonly RpcRoute
     return [
         {
             name: M.list,
-            handler: async (): Promise<McpToolResponse> => {
+            handler: async (): Promise<ToolResponse> => {
                 const repoRoot: string = await getRepoRoot()
                 const result: WorktreeList.Response = await listWorktrees(repoRoot)
                 return buildJsonResponse(result)
@@ -57,7 +57,7 @@ export function buildWorktreeRoutes(deps: WorktreeRoutesDeps): readonly RpcRoute
         {
             name: M.create,
             inputShape: {worktreeName: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {worktreeName} = args as unknown as WorktreeCreate.Request
                 const repoRoot: string = await getRepoRoot()
                 const path: string = await createWorktreeWithHooks(repoRoot, worktreeName)
@@ -68,7 +68,7 @@ export function buildWorktreeRoutes(deps: WorktreeRoutesDeps): readonly RpcRoute
         {
             name: M.remove,
             inputShape: {worktreePath: z.string(), force: z.boolean().optional()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {worktreePath, force} = args as unknown as WorktreeRemove.Request
                 const repoRoot: string = await getRepoRoot()
                 const result: WorktreeRemove.Response = await removeWorktree(repoRoot, worktreePath, force ?? false)
@@ -78,7 +78,7 @@ export function buildWorktreeRoutes(deps: WorktreeRoutesDeps): readonly RpcRoute
         {
             name: M.generateName,
             inputShape: {nodeTitle: z.string()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {nodeTitle} = args as unknown as WorktreeGenerateName.Request
                 const response: WorktreeGenerateName.Response = {name: generateWorktreeName(nodeTitle)}
                 return buildJsonResponse(response)
@@ -87,7 +87,7 @@ export function buildWorktreeRoutes(deps: WorktreeRoutesDeps): readonly RpcRoute
         {
             name: M.removeCommand,
             inputShape: {worktreePath: z.string(), force: z.boolean().optional()},
-            handler: async (args): Promise<McpToolResponse> => {
+            handler: async (args): Promise<ToolResponse> => {
                 const {worktreePath, force} = args as unknown as WorktreeRemoveCommand.Request
                 const response: WorktreeRemoveCommand.Response = {
                     command: getRemoveWorktreeCommand(worktreePath, force ?? false),

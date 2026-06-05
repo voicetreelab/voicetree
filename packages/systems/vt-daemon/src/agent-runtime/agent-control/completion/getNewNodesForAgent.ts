@@ -1,6 +1,6 @@
 /**
  * Find nodes created by an agent via agent_name matching.
- * Returns nodeId and title pairs for MCP tool responses.
+ * Returns nodeId and title pairs for RPC tool responses.
  *
  * Uses getNodesByAgentName from @vt/graph-model/pure/graph for the core matching logic.
  * Filters by file birthtime >= spawnedAt to avoid name-collision with

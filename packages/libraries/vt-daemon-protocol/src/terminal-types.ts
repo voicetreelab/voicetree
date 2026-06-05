@@ -108,6 +108,19 @@ export type TerminalData = {
      * agent reports one via `create_graph`'s `statusPhrase`.
      */
     readonly statusPhrase: string;
+    /**
+     * The last status preset the agent *itself* declared this turn (via
+     * `create_graph`'s `agentStatus` or `vt agent status`), or `null` if it has
+     * not declared one. Distinct from `lifecycle`, which is lossy: an
+     * orchestrator with active children has its declared `done`/`awaiting_input`
+     * rendered as `idle`, so `lifecycle` alone cannot tell "idle because the
+     * agent reported done" from "idle because output merely stopped". The finish
+     * gate (`requireDeclaredStatus`) reads this to decide whether an idle agent
+     * has actually closed itself out. Reset to `null` when the terminal
+     * re-enters `active` (a new turn), so a prior turn's declaration cannot
+     * satisfy a later finish.
+     */
+    readonly lastReportedStatus: AgentStatus | null;
     readonly lastOutputTime: number;
     readonly activityCount: number;
 
