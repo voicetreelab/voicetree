@@ -5,6 +5,7 @@ import type {
     StructureManifest,
 } from '@vt/graph-tools/node-runtime'
 import type {OverridableRuleId} from '@vt/graph-validation'
+import type {AgentStatus} from '@vt/vt-daemon-protocol'
 
 export type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -115,6 +116,8 @@ export type ParsedLiveCreateArgs = {
     color?: string
     validateOnly: boolean
     overrides: readonly OverrideSpec[]
+    agentStatus?: AgentStatus
+    statusPhrase?: string
 }
 
 export type ParsedFilesystemModeArgs = {
@@ -125,6 +128,8 @@ export type ParsedFilesystemModeArgs = {
     manifest?: StructureManifest
     validateOnly: boolean
     overrides: readonly OverrideSpec[]
+    agentStatus?: AgentStatus
+    statusPhrase?: string
 }
 
 export type ParsedGraphCreateArgs = ParsedLiveCreateArgs | ParsedFilesystemModeArgs

@@ -141,9 +141,16 @@ export async function setupGatedProject(
 // (POST /rpc with `Authorization: Bearer <token>`), so a hand-rolled server
 // is a faithful black-box stand-in: any drift from the wire contract would
 // surface as a `callDaemon` test failure.
+export interface StubRpcRequest {
+    readonly method: string
+    readonly params: unknown
+}
+
 export interface StubDaemon {
     readonly projectPath: string
     readonly url: string
+    /** Every JSON-RPC request the stub received, in arrival order. */
+    readonly requests: readonly StubRpcRequest[]
     readonly stop: () => Promise<void>
 }
 
@@ -165,6 +172,7 @@ export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> 
     const token: string = generateAuthToken()
     await writeAuthTokenFile(projectPath, token)
 
+    const requests: StubRpcRequest[] = []
     const server: Server = createServer((req: IncomingMessage, res: ServerResponse): void => {
         void readBody(req).then((raw: string): void => {
             const auth: string | undefined = req.headers.authorization
@@ -176,10 +184,13 @@ export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> 
             let parsedId: number | string | null = null
             try {
                 const payload: unknown = JSON.parse(raw)
-                if (payload !== null && typeof payload === 'object' && 'id' in payload) {
-                    const candidate: unknown = (payload as {id?: unknown}).id
-                    if (typeof candidate === 'number' || typeof candidate === 'string') {
-                        parsedId = candidate
+                if (payload !== null && typeof payload === 'object') {
+                    const envelope = payload as {id?: unknown; method?: unknown; params?: unknown}
+                    if (typeof envelope.id === 'number' || typeof envelope.id === 'string') {
+                        parsedId = envelope.id
+                    }
+                    if (typeof envelope.method === 'string') {
+                        requests.push({method: envelope.method, params: envelope.params})
                     }
                 }
             } catch {
@@ -203,6 +214,7 @@ export async function startStubDaemon(toolResult: unknown): Promise<StubDaemon> 
     return {
         projectPath,
         url: `http://127.0.0.1:${port}`,
+        requests,
         stop: (): Promise<void> => new Promise<void>((resolveClose, rejectClose): void => {
             server.closeAllConnections?.()
             server.close((err: Error | undefined): void => (err ? rejectClose(err) : resolveClose()))

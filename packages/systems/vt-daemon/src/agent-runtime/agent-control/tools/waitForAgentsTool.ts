@@ -8,9 +8,9 @@ import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolRe
 import {
     isTerminalIdAlreadyMonitoredForCaller,
     startMonitor,
-} from './agent-completion-monitor'
+} from '../agent-completion-monitor'
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
-import {listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
+import {listTerminalRecords, type TerminalRecord} from '../agentControlRuntime'
 
 export interface WaitForAgentsParams {
     terminalIds: string[]

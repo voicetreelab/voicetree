@@ -12,9 +12,9 @@
 
 import type {Graph} from '@vt/graph-model/graph'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import {getAgentNodes} from './completion/agentNodeIndex.ts'
-import {getAgentStatus} from './completion/isAgentComplete.ts'
-import {getNewNodesForAgentIdentities} from './completion/getNewNodesForAgent.ts'
+import {getAgentNodes} from '../completion/agentNodeIndex.ts'
+import {getAgentStatus} from '../completion/isAgentComplete.ts'
+import {getNewNodesForAgentIdentities} from '../completion/getNewNodesForAgent.ts'
 import {getToolGraph} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {
@@ -25,7 +25,7 @@ import {
     type StopHookResult,
     type TerminalId,
     type TerminalRecord,
-} from './agentControlRuntime'
+} from '../agentControlRuntime'
 
 export interface CloseAgentParams {
     terminalId: string

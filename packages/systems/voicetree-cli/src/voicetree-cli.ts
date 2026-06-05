@@ -9,6 +9,7 @@ import {
     agentResume,
     agentSend,
     agentSpawn,
+    agentSetStatus,
     agentWait,
 } from './commands/runtime/agent.ts'
 import {runDebugCommand} from './commands/runtime/debug.ts'
@@ -60,6 +61,7 @@ Subcommands:
   list      List running agents
   wait      Start background monitoring for one or more agents
   close     Close an agent terminal
+  status    Declare your own lifecycle status (working/awaiting_input/done/failed)
   resume    Resume a closed/exited agent under its original terminalId
   fork      Fork a live or exited agent into a new branched terminal
   send      Send a message to an agent terminal
@@ -70,7 +72,7 @@ const GRAPH_HELP: string = `Usage: vt graph <subcommand> [args]
 Subcommands:
   live        Live graph operations (view, state dump, apply, CRUD, focus, ...)
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
-  create      Create progress nodes in the graph
+  create      Create progress nodes in the graph (agents must pass --status <working|awaiting_input|done|failed>)
   group       Group files into a new folder and update all references
   lint        Lint graph for complexity violations and warnings
   complexity  Score graph cognitive complexity (branching, treewidth, crossings, coupling, cycles)
@@ -136,6 +138,9 @@ async function dispatchAgentCommand(
             return
         case 'close':
             await agentClose(terminalId, args)
+            return
+        case 'status':
+            await agentSetStatus(terminalId, args)
             return
         case 'resume':
             await agentResume(terminalId, args)

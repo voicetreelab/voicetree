@@ -59,6 +59,11 @@ function statusPhraseOf(id: string): string | undefined {
     return rec?.terminalData.statusPhrase;
 }
 
+function lastReportedStatusOf(id: string): string | null | undefined {
+    const rec = getTerminalRecords().find(r => r.terminalId === id);
+    return rec?.terminalData.lastReportedStatus;
+}
+
 describe('terminal-registry lifecycle wiring', () => {
     beforeEach(() => clearTerminalRecords());
 
@@ -215,6 +220,44 @@ describe('terminal-registry lifecycle wiring', () => {
             markTerminalExited('child-1', 0, null);
             applyAgentStatus('parent-1', {preset: 'awaiting_input'});
             expect(lifecycleOf('parent-1')).toBe('awaiting_input');
+        });
+    });
+
+    // lastReportedStatus records what the agent *declared*, independent of the
+    // orchestrator downgrade that renders done/awaiting as idle. The finish gate
+    // (requireDeclaredStatus) reads it to tell "idle because reported done" from
+    // "idle because output merely stopped".
+    describe('applyAgentStatus — lastReportedStatus tracking', () => {
+        it('is null on a freshly spawned terminal', () => {
+            spawn('t1');
+            expect(lastReportedStatusOf('t1')).toBeNull();
+        });
+
+        it('records the declared preset on a leaf agent', () => {
+            spawn('t1');
+            applyAgentStatus('t1', {preset: 'working'});
+            expect(lastReportedStatusOf('t1')).toBe('working');
+            applyAgentStatus('t1', {preset: 'done'});
+            expect(lastReportedStatusOf('t1')).toBe('done');
+            expect(lifecycleOf('t1')).toBe('completed');
+        });
+
+        it('records "done" on an orchestrator even though lifecycle is downgraded to idle', () => {
+            spawn('parent-1');
+            spawn('child-1', 'parent-1');
+            applyAgentStatus('parent-1', {preset: 'done'});
+            // The whole point: lifecycle is lossy here, lastReportedStatus is not.
+            expect(lifecycleOf('parent-1')).toBe('idle');
+            expect(lastReportedStatusOf('parent-1')).toBe('done');
+        });
+
+        it('resets to null when the terminal re-enters active (new turn)', () => {
+            spawn('parent-1');
+            spawn('child-1', 'parent-1');
+            applyAgentStatus('parent-1', {preset: 'done'}); // idle, lastReportedStatus=done
+            updateTerminalIsDone('parent-1', false);        // output resumes → active
+            expect(lifecycleOf('parent-1')).toBe('active');
+            expect(lastReportedStatusOf('parent-1')).toBeNull();
         });
     });
 

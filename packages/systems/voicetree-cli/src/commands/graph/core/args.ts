@@ -1,4 +1,5 @@
 import type {StructureManifest} from '@vt/graph-tools/node-runtime'
+import {AGENT_STATUSES, MAX_STATUS_PHRASE_LENGTH, type AgentStatus} from '@vt/vt-daemon-protocol'
 import {error} from '../cliDeps'
 import {readGraphFileUtf8} from '../io/filesystem'
 import {parseOverrideSpec} from './overrideSpec'
@@ -145,6 +146,22 @@ function inferManifestFormat(source: string, filePath: string): StructureManifes
     return 'ascii'
 }
 
+function parseAgentStatus(value: string): AgentStatus {
+    if ((AGENT_STATUSES as readonly string[]).includes(value)) {
+        return value as AgentStatus
+    }
+
+    error(`--status must be one of ${AGENT_STATUSES.join(' | ')}, received "${value}"`)
+}
+
+function parseStatusPhrase(value: string): string {
+    if (value.length > MAX_STATUS_PHRASE_LENGTH) {
+        error(`--phrase must be ≤ ${MAX_STATUS_PHRASE_LENGTH} characters, received ${value.length}`)
+    }
+
+    return value
+}
+
 function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     let nodesFile: string | undefined
     const inlineNodeSpecs: string[] = []
@@ -154,6 +171,8 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
     let manifestPath: string | undefined
     let validateOnly: boolean = false
     const overrides: OverrideSpec[] = []
+    let agentStatus: AgentStatus | undefined
+    let statusPhrase: string | undefined
 
     for (let index: number = 0; index < args.length; index += 1) {
         const arg: string = args[index]
@@ -199,6 +218,18 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
             continue
         }
 
+        if (arg === '--status') {
+            agentStatus = parseAgentStatus(getRequiredValue(args, index + 1, '--status'))
+            index += 1
+            continue
+        }
+
+        if (arg === '--phrase') {
+            statusPhrase = parseStatusPhrase(getRequiredValue(args, index + 1, '--phrase'))
+            index += 1
+            continue
+        }
+
         if (arg.startsWith('--')) {
             error(`Unknown argument: ${arg}`)
         }
@@ -239,6 +270,8 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
             ...(parentValue ? {parentPath: parentValue} : {}),
             ...(color ? {color} : {}),
             ...(manifest ? {manifest} : {}),
+            ...(agentStatus !== undefined ? {agentStatus} : {}),
+            ...(statusPhrase !== undefined ? {statusPhrase} : {}),
         }
     }
 
@@ -250,6 +283,8 @@ function parseGraphCreateArgs(args: string[]): ParsedGraphCreateArgs {
         overrides,
         ...(parentValue ? {parentNodeId: parentValue} : {}),
         ...(color ? {color} : {}),
+        ...(agentStatus !== undefined ? {agentStatus} : {}),
+        ...(statusPhrase !== undefined ? {statusPhrase} : {}),
     }
 }
 

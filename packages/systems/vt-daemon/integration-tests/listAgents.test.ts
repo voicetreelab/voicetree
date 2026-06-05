@@ -30,7 +30,7 @@ import {
 import {createTerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
-import {listAgentsTool} from '@vt/vt-daemon/agent-runtime/agent-control/listAgentsTool.ts'
+import {listAgentsTool} from '@vt/vt-daemon/agent-runtime/agent-control/tools/listAgentsTool.ts'
 
 type ToolResponse = {
     content: Array<{type: 'text'; text: string}>

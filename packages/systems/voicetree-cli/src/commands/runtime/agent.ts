@@ -8,6 +8,7 @@ import {callDaemon, callDaemonForProject} from '../daemon-client'
 import {error, output} from '../output'
 import {formatForkResult, type ForkOutcome} from './agentForkFormat'
 import {formatResumeResult, type ResumeOutcome} from './agentResumeFormat'
+import {AGENT_STATUSES} from '@vt/vt-daemon-protocol'
 import {
     AGENT_CLOSE_SPEC,
     AGENT_FORK_SPEC,
@@ -16,6 +17,7 @@ import {
     AGENT_RESUME_SPEC,
     AGENT_SEND_SPEC,
     AGENT_SPAWN_SPEC,
+    AGENT_STATUS_SPEC,
     AGENT_WAIT_SPEC,
     booleanFlagNames,
     formatHelp,
@@ -434,6 +436,39 @@ export async function agentClose(
             terminalId: parsedArgs.positionals[0],
             ...(parsedArgs.values.has('--force')
                 ? {forceWithReason: requireNonEmptyValue(parsedArgs.values.get('--force'), '`--force` requires a reason')}
+                : {}),
+        })
+    )
+
+    output(payload, formatStandardResponse)
+}
+
+export async function agentSetStatus(
+    terminalId: string | undefined,
+    args: string[]
+): Promise<void> {
+    if (isHelpRequest(args)) {
+        printHelp(AGENT_STATUS_SPEC)
+        return
+    }
+
+    const callerTerminalId: string = requireTerminalId(terminalId)
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_STATUS_SPEC)
+
+    if (parsedArgs.positionals.length !== 1) {
+        error(`\`agent status\` requires exactly one preset: ${AGENT_STATUSES.join(' | ')}`)
+    }
+    const preset: string = parsedArgs.positionals[0]
+    if (!(AGENT_STATUSES as readonly string[]).includes(preset)) {
+        error(`Invalid status "${preset}". Must be one of: ${AGENT_STATUSES.join(' | ')}`)
+    }
+
+    const payload: JsonRecord = ensureSuccessfulPayload(
+        await callDaemon('apply_agent_status', {
+            callerTerminalId,
+            preset,
+            ...(parsedArgs.values.has('--phrase')
+                ? {statusPhrase: requireNonEmptyValue(parsedArgs.values.get('--phrase'), '`--phrase` requires a value')}
                 : {}),
         })
     )
