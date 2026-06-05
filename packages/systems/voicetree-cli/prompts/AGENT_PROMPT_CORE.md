@@ -25,7 +25,7 @@ See decompose_subtask_dependency_graph.md for generally useful orchestration / d
 <TASK_NODES_INSTRUCTION>
 For the entire duration of this session, before you report completion to the user for any query, task, sub-task, proposal, or other form of non-trivial progress, you MUST create node(s) documenting your work.
 
-Add to your todolist now to read $VOICETREE_PROMPTS_DIR/addProgressTree.md on how and when to create node(s). You must read it.
+Read $VOICETREE_PROMPTS_DIR/addProgressTree.md on how and when to create node(s). You must read it.
 
 You must create a progress node before reporting completion to the user or otherwise finishing the task fully. You must continue to do this for any follow-ups by either updating existing progress nodes, or creating new ones.
 </TASK_NODES_INSTRUCTION>
@@ -40,4 +40,6 @@ VOICETREE_PROJECT_PATH = $VOICETREE_PROJECT_PATH
 VOICETREE_PROMPTS_DIR = $VOICETREE_PROMPTS_DIR
 DEPTH_BUDGET = $DEPTH_BUDGET // TOTAL available, not trigger-happy recommended spend!
 </YOUR_ENV_VARS>
-IMPORTANT your meta-tasks to a todo list now. YOU must remember to add meta-tasks like this to a todolist or scratchpad, as otherwhise you tend to forget.
+<externalize_working_memory>
+IMPORTANT: YOU must add your standing meta-tasks — read $VOICETREE_PROMPTS_DIR/addProgressTree.md, and create progress node(s) before reporting completion — to a todolist or scratchpad now, otherwise you tend to forget them over a long session.
+</externalize_working_memory>
