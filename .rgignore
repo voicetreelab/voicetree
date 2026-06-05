@@ -1,1 +1,17 @@
 .worktrees/
+
+# Git submodules are foreign nested repos, not this repo's source. ripgrep
+# descends into each anyway: once it hits the submodule's own `.git`, it treats
+# that dir as a fresh repo root and stops honoring the parent's .gitignore rules
+# (notably the repo-wide `**/*.md` ignore). That leak makes folder-keyword
+# searches drown in another project's markdown/state. Listing the submodules
+# here closes it. Mirrors the "foreign trees" section of .ckignore.
+#
+# Measured impact (folder-keyword file counts, base @ dev-manu, before -> after):
+#   status     1673 -> 523   (-1150)
+#   terminal   1200 -> 587   ( -613)
+#   node       4922 -> 2283  (-2639)
+#   graph      2928 -> 1877  (-1051)
+# packages/ + webapp/ source hits are unchanged — only foreign-repo noise is removed.
+voicetree-evals/
+vt-website-quartz/

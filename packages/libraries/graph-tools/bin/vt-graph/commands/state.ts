@@ -1,4 +1,4 @@
-import {dumpState} from '../../../src/node'
+import {dumpState} from '../../../src/node-runtime'
 import {parseStateDumpArgs} from '../../cliArgs'
 import {fail} from '../shared'
 

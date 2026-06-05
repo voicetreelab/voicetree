@@ -5,7 +5,7 @@
  * Pure types live in createGraphTypes.ts; DAG validation (cycle detection and
  * topological sort over parent refs declared in each node's content body) in
  * createGraphTopology.ts; markdown body construction in
- * @vt/graph-tools/node's filesystemAuthoring. Parent edges are authored as
+ * @vt/graph-tools/node-runtime's filesystemAuthoring. Parent edges are authored as
  * `- parent [[name|edge-label]]` lines inside `content` (no separate
  * `parents:[]` field).
  */

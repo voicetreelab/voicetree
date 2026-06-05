@@ -19,7 +19,7 @@ import {
 } from '@codemirror/view';
 import { RangeSet, type Range, type Line, type EditorState, type SelectionRange, type Extension } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
-import { linkMatchScore, getPathComponents } from '@vt/graph-model/markdown';
+import { getMarkdownLinkTargetSegments, linkMatchScore } from '@vt/graph-model/markdown';
 
 // Regex to match wikilinks: [[nodeId]]
 const WIKILINK_REGEX: RegExp = /\[\[([^\]]+)\]\]/g;
@@ -56,7 +56,7 @@ function findNodeForWikilink(linkText: string): WikilinkNodeMatch | null {
     }
 
     // Use linkMatchScore for fuzzy suffix matching (same logic as edge resolution)
-    const linkComponents: readonly string[] = getPathComponents(linkText);
+    const linkComponents: readonly string[] = getMarkdownLinkTargetSegments(linkText);
     if (linkComponents.length === 0) return null;
 
     // Track best match using mutable state within forEach

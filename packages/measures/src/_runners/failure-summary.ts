@@ -53,3 +53,46 @@ export function errorSummaryForFailedOutcome(outcome: FailureSummaryInput & {rea
     }
     return undefined
 }
+
+type CheckFailure = {
+    readonly check: {readonly id: string; readonly category: string}
+    readonly outcome: FailureSummaryInput
+}
+
+// Terminal "failures:" section printed at the end of a capture-ci run.
+export function formatFailuresSection(failures: readonly CheckFailure[]): string {
+    if (failures.length === 0) return ''
+    const blocks = failures.map(({check, outcome}) => {
+        const body = formatFailureBody(outcome)
+        const bodyLine = body ? `${body}\n` : ''
+        return `  ✗ ${check.id}\n${bodyLine}      report: health-dashboard/reports/checks/${check.id}.json\n`
+    })
+    return `\n  failures:\n\n${blocks.join('\n')}`
+}
+
+// Markdown rendering appended to $GITHUB_STEP_SUMMARY when checks fail.
+export function formatGithubFailureSummary(failures: readonly CheckFailure[]): string {
+    if (failures.length === 0) return ''
+    const lines = [
+        '## CI Check Failures',
+        '',
+        `Failed checks: ${failures.length}`,
+        '',
+        ...failures.flatMap(({check, outcome}) => {
+            const body = formatFailureBody(outcome)
+                .split('\n')
+                .map(line => line.replace(/^      /, '  '))
+                .join('\n')
+            return [
+                `### ${check.id}`,
+                '',
+                `- Category: ${check.category}`,
+                `- Report: \`health-dashboard/reports/checks/${check.id}.json\``,
+                body ? '' : undefined,
+                body || undefined,
+                '',
+            ].filter(Boolean)
+        }),
+    ]
+    return `${lines.join('\n')}\n`
+}

@@ -1,5 +1,5 @@
 import type { NodeIdAndFilePath, GraphNode, Edge } from '..'
-import { getBaseName } from '../graph-operations/indexes/linkResolutionIndexes'
+import { getMarkdownLinkTargetBasename } from '../graph-operations/indexes/linkResolutionIndexes'
 import type { NodeByBaseNameIndex } from '../graph-operations/indexes/linkResolutionIndexes'
 
 /**
@@ -18,13 +18,13 @@ import type { NodeByBaseNameIndex } from '../graph-operations/indexes/linkResolu
  * - If link has no extension: match any extension (strip from both)
  *
  * @example
- * getPathComponents("ctx-nodes/VT/foo.md")  => ["ctx-nodes", "VT", "foo"]
- * getPathComponents("./foo.md")             => ["foo"]
- * getPathComponents("../bar/foo.md")        => ["bar", "foo"]
- * getPathComponents("foo")                  => ["foo"]
+ * getMarkdownLinkTargetSegments("ctx-nodes/VT/foo.md")  => ["ctx-nodes", "VT", "foo"]
+ * getMarkdownLinkTargetSegments("./foo.md")             => ["foo"]
+ * getMarkdownLinkTargetSegments("../bar/foo.md")        => ["bar", "foo"]
+ * getMarkdownLinkTargetSegments("foo")                  => ["foo"]
  */
-export function getPathComponents(path: string): readonly string[] {
-  const components: readonly string[] = path
+export function getMarkdownLinkTargetSegments(linkTarget: string): readonly string[] {
+  const components: readonly string[] = linkTarget
     .split(/[/\\]/)
     .filter(p => p !== '' && p !== '.' && p !== '..')
 
@@ -56,8 +56,8 @@ export function getPathComponents(path: string): readonly string[] {
  * linkMatchScore("foo", "a/b/foo.md")            // => 1 (no extension still matches)
  */
 export function linkMatchScore(linkText: string, nodeId: string): number {
-  const linkComponents: readonly string[] = getPathComponents(linkText)
-  const nodeComponents: readonly string[] = getPathComponents(nodeId)
+  const linkComponents: readonly string[] = getMarkdownLinkTargetSegments(linkText)
+  const nodeComponents: readonly string[] = getMarkdownLinkTargetSegments(nodeId)
 
   if (linkComponents.length === 0 || nodeComponents.length === 0) return 0
 
@@ -92,13 +92,13 @@ export function findBestMatchingNode(
   nodes: Record<NodeIdAndFilePath, GraphNode>,
   nodeByBaseName?: NodeByBaseNameIndex
 ): NodeIdAndFilePath | undefined {
-  const linkComponents: readonly string[] = getPathComponents(linkText)
+  const linkComponents: readonly string[] = getMarkdownLinkTargetSegments(linkText)
   if (linkComponents.length === 0) return undefined
 
   // Get candidate node IDs to check
   // With index: O(1) lookup of nodes with matching basename
   // Without index: O(N) check all nodes
-  const basename: string = getBaseName(linkText)
+  const basename: string = getMarkdownLinkTargetBasename(linkText)
   const candidateNodeIds: readonly string[] = nodeByBaseName
     ? (nodeByBaseName.get(basename) ?? [])
     : Object.keys(nodes)
@@ -128,7 +128,7 @@ export function findBestMatchingNode(
   if (result.nodeId === undefined) {
     return undefined
   }
-  const bestNodeComponents: readonly string[] = getPathComponents(result.nodeId)
+  const bestNodeComponents: readonly string[] = getMarkdownLinkTargetSegments(result.nodeId)
   const minRequiredScore: number = Math.min(linkComponents.length, bestNodeComponents.length)
   if (result.score < minRequiredScore) {
     // Fallback: stale absolute paths from moved mount points (AppImage, symlinks).

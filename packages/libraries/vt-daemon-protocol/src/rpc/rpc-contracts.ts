@@ -114,14 +114,14 @@ export interface RecoverableAgentSession {
 export type ResumePersistedResult =
     | {readonly kind: 'spawned'; readonly pid: number; readonly command: string; readonly terminalData: TerminalData}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'already-claimed' | 'no-resume-handle'}
-    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
+    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'; readonly reason?: string; readonly diagnosticSessionId?: string}
     | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
     | {readonly kind: 'spawn-failed'; readonly error: string}
 
 export type ForkAgentSessionResult =
     | {readonly kind: 'spawned'; readonly forkedTerminalId: TerminalId; readonly pid: number; readonly command: string; readonly terminalData: TerminalData}
     | {readonly kind: 'stale'; readonly reason: 'not-in-discovery' | 'no-resume-handle'}
-    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'}
+    | {readonly kind: 'no-native-session'; readonly cliType: 'claude' | 'codex'; readonly reason?: string; readonly diagnosticSessionId?: string}
     | {readonly kind: 'unsupported'; readonly reason: 'gemini-not-supported' | 'custom-cli-not-supported' | 'empty-session-id' | 'missing-initial-command' | 'no-cli-detected' | 'missing-project-root'}
     | {readonly kind: 'spawn-failed'; readonly error: string}
 

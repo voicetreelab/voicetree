@@ -11,7 +11,7 @@ import type {
 import * as O from 'fp-ts/lib/Option.js'
 import { filenameToNodeId } from '../markdown-parsing/filename-utils'
 import { addNodeToGraphWithEdgeHealingFromFSEvent } from '../graphDelta/addNodeToGraphWithEdgeHealingFromFSEvent'
-import { getBaseName } from '../graph-operations/indexes/linkResolutionIndexes'
+import { getMarkdownLinkTargetBasename } from '../graph-operations/indexes/linkResolutionIndexes'
 import { setOutgoingEdges } from '../graph-operations/transforms/graph-edge-operations'
 
 /**
@@ -80,7 +80,7 @@ function findSameBasenameMoveReplacement(
   deletedNode: GraphNode,
   currentGraph: Graph
 ): O.Option<NodeIdAndFilePath> {
-  const deletedBasename: string = getBaseName(deletedNodeId)
+  const deletedBasename: string = getMarkdownLinkTargetBasename(deletedNodeId)
   const candidateIds: readonly NodeIdAndFilePath[] = currentGraph.nodeByBaseName.get(deletedBasename) ?? []
   const matchingCandidates: readonly NodeIdAndFilePath[] = candidateIds.filter((candidateId) => {
     const candidate: GraphNode | undefined = currentGraph.nodes[candidateId]
