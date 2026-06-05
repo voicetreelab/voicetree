@@ -191,6 +191,7 @@ async function bindProject(input: OpenProjectWorkflowInput, targetProjectRoot: s
 
   const result = await setWriteFolderPath(targetWriteFolderPath, {
     createStarterIfEmpty: input.createStarterIfEmpty,
+    awaitProjectStateBroadcast: false,
   })
   if (!result.success) {
     throw new ProjectOpenFailedError(result.error ?? `Failed to open project ${targetProjectRoot}`)
