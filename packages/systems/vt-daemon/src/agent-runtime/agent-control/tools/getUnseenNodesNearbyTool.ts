@@ -9,7 +9,7 @@ import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolRe
 import * as O from 'fp-ts/lib/Option.js'
 import {getToolGraph, getToolUnseenNodesAroundContextNode} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
-import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
+import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from '../agentControlRuntime'
 
 type UnseenNode = Awaited<ReturnType<typeof getToolUnseenNodesAroundContextNode>>[number]
 

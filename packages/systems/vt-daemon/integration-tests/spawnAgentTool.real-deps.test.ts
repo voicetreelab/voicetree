@@ -40,7 +40,7 @@ vi.mock('../src/agent-runtime/agent-control/agentControlRuntime', async (importO
     }
 })
 
-import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/agent-runtime/agent-control/spawnAgentTool'
+import {makeSpawnAgentDeps, spawnAgentTool, type SpawnAgentDeps} from '../src/agent-runtime/agent-control/tools/spawnAgentTool'
 import type {GraphBridge} from '../src/config/toolBridges.ts'
 
 const TMP_ROOT: string = path.join(os.tmpdir(), `vt-rpc-real-deps-${process.pid}`)

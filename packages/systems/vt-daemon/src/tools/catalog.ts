@@ -26,13 +26,14 @@ import type {ZodTypeAny, ZodRawShape} from 'zod'
 import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {TOOL_SPECS, type ToolSpec, AGENT_STATUSES, MAX_STATUS_PHRASE_LENGTH} from '@vt/vt-daemon-protocol'
 import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
-import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/spawnAgentTool'
-import {listAgentsTool} from '../agent-runtime/agent-control/listAgentsTool'
-import {waitForAgentsTool} from '../agent-runtime/agent-control/waitForAgentsTool'
-import {getUnseenNodesNearbyTool} from '../agent-runtime/agent-control/getUnseenNodesNearbyTool'
-import {sendMessageTool} from '../agent-runtime/agent-control/sendMessageTool'
-import {closeAgentTool} from '../agent-runtime/agent-control/closeAgentTool'
-import {readTerminalOutputTool} from '../agent-runtime/agent-control/readTerminalOutputTool'
+import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/tools/spawnAgentTool'
+import {listAgentsTool} from '../agent-runtime/agent-control/tools/listAgentsTool'
+import {waitForAgentsTool} from '../agent-runtime/agent-control/tools/waitForAgentsTool'
+import {getUnseenNodesNearbyTool} from '../agent-runtime/agent-control/tools/getUnseenNodesNearbyTool'
+import {sendMessageTool} from '../agent-runtime/agent-control/tools/sendMessageTool'
+import {closeAgentTool} from '../agent-runtime/agent-control/tools/closeAgentTool'
+import {applyAgentStatusTool} from '../agent-runtime/agent-control/tools/applyAgentStatusTool'
+import {readTerminalOutputTool} from '../agent-runtime/agent-control/tools/readTerminalOutputTool'
 import {createGraphTool} from '../create-graph/createGraphTool'
 import {OVERRIDABLE_RULE_IDS} from '@vt/graph-validation'
 import {graphStructureTool} from './graph/graphStructureTool'
@@ -145,6 +146,14 @@ type InputShapeBuilder = (spec: ToolSpec) => ZodRawShape
 // Bespoke builders for tools whose input nests objects/arrays — these cannot
 // be expressed as a flat type-code map in FLAT_INPUTS.
 const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
+    apply_agent_status: (spec) => {
+        const d: (rpcPath: string) => string = specDescribe(spec)
+        return {
+            callerTerminalId: z.string().describe(d('callerTerminalId')),
+            preset: z.enum(AGENT_STATUSES).describe(d('preset')),
+            statusPhrase: z.string().max(MAX_STATUS_PHRASE_LENGTH).optional().describe(d('statusPhrase')),
+        }
+    },
     create_graph: (spec) => {
         const d: (rpcPath: string) => string = specDescribe(spec)
         return {
@@ -210,6 +219,7 @@ const HANDLERS: Readonly<Record<string, BridgedCatalogHandler>> = {
     wait_for_agents: adaptWithGraph(waitForAgentsTool),
     get_unseen_nodes_nearby: adaptWithGraph(getUnseenNodesNearbyTool),
     close_agent: adaptWithGraph(closeAgentTool),
+    apply_agent_status: adapt(applyAgentStatusTool),
     send_message: adapt(sendMessageTool),
     read_terminal_output: adapt(readTerminalOutputTool),
     create_graph: adaptWithGraph(createGraphTool),

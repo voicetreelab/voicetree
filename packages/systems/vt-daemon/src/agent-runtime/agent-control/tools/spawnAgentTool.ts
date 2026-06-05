@@ -10,7 +10,7 @@ import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import {startMonitor} from './agent-completion-monitor.ts'
+import {startMonitor} from '../agent-completion-monitor.ts'
 import {applyToolGraphDelta, getToolGraph, getToolWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {
@@ -19,7 +19,7 @@ import {
     rememberChildTerminal,
     spawnContextTerminal,
     type TerminalRecord,
-} from './agentControlRuntime'
+} from '../agentControlRuntime'
 
 export interface SpawnAgentParams {
     nodeId?: string

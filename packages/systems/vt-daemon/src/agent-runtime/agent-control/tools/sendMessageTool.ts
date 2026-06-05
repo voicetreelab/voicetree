@@ -16,7 +16,7 @@ import {
     sendTerminalText,
     terminalExists,
     type TerminalRecord,
-} from './agentControlRuntime'
+} from '../agentControlRuntime'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {buildFromPrefixedMessage} from '@vt/vt-daemon-protocol'
 

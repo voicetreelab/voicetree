@@ -280,6 +280,35 @@ export const CLOSE_AGENT_SPEC: ToolSpec = {
     ],
 }
 
+export const APPLY_AGENT_STATUS_SPEC: ToolSpec = {
+    rpcName: 'apply_agent_status',
+    cliVerb: 'vt agent status',
+    tier: 'reference',
+    summary: 'Declare your own lifecycle status (working/awaiting_input/done/failed) without creating a node.',
+    description: [
+        'Set your own terminal\'s lifecycle status — the standalone path for declaring status when you do NOT want to create a progress node. (When you create a node, pass `agentStatus` on `vt graph create` instead; both drive the same sidebar lifecycle icon.)',
+        '',
+        'Acts on YOUR terminal (the caller); you cannot set another agent\'s status. The preset maps to your sidebar icon: `working` → active (amber spinner) · `awaiting_input` → blocked-on-user (blue) · `done` → completed (green ✓) · `failed` → errored (red ×). An orchestrator with active children has `awaiting_input`/`done` shown as idle (it is waiting on its children, not the user).',
+        '',
+        'Use `done` to close yourself out when finished — otherwise, when you stop emitting output, you will be nudged to declare a terminal status (the finish gate).',
+    ].join('\n'),
+    inputs: [
+        CALLER_TERMINAL_INPUT,
+        {
+            rpcName: 'preset',
+            cliBulletLabel: '<working|awaiting_input|done|failed>',
+            annotation: 'positional, RPC: preset',
+            description: 'The status preset to declare. One of: working, awaiting_input, done, failed.',
+        },
+        {
+            rpcName: 'statusPhrase',
+            cliBulletLabel: '--phrase VALUE',
+            annotation: 'RPC: statusPhrase',
+            description: 'Optional short free-text status (≤ 80 chars) shown next to your model name in the terminal tree, e.g. "running the e2e suite".',
+        },
+    ],
+}
+
 const SEND_MESSAGE_WRAPPER_EXAMPLE: string = buildFromPrefixedMessage(
     '<your-terminal-id>',
     '<your-message>',
@@ -554,6 +583,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
     GET_UNSEEN_NODES_NEARBY_SPEC,
     // Reference — agent control
     CLOSE_AGENT_SPEC,
+    APPLY_AGENT_STATUS_SPEC,
     SEND_MESSAGE_SPEC,
     READ_TERMINAL_OUTPUT_SPEC,
     // Reference — graph
