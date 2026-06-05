@@ -72,7 +72,7 @@ const GRAPH_HELP: string = `Usage: vt graph <subcommand> [args]
 Subcommands:
   live        Live graph operations (view, state dump, apply, CRUD, focus, ...)
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
-  create      Create progress nodes in the graph
+  create      Create progress nodes in the graph (agents must pass --status <working|awaiting_input|done|failed>)
   group       Group files into a new folder and update all references
   lint        Lint graph for complexity violations and warnings
   complexity  Score graph cognitive complexity (branching, treewidth, crossings, coupling, cycles)
