@@ -131,7 +131,7 @@ describe('terminal-output-buffer', () => {
         // from a Claude Code session — mix of CSI color codes, OSC shell integration,
         // 256-color sequences, bold, and reset sequences
         const REALISTIC_CHUNK: string =
-            '\x1B[48;5;234m\x1B[38;5;250m Now let me update the MCP server registration \x1B[0m\n' +
+            '\x1B[48;5;234m\x1B[38;5;250m Now let me update the RPC server registration \x1B[0m\n' +
             '\x1B[38;5;2m+\x1B[0m     nChars: z.number().optional().describe(\'Number of characters\')\n' +
             '\x1B[48;5;234m\x1B[38;5;250m 10 export interface ReadTerminal\x1B[0m\n' +
             '\x1B[38;5;2m+\x1B[0m    const output: string\x1B[38;5;240m | undefined\x1B[0m = getOutput(terminalId, nChars)\n' +
@@ -148,7 +148,7 @@ describe('terminal-output-buffer', () => {
             '   Duration  734ms (transform 44ms, setup 132ms, collect 16ms, tests 5ms, environment 437ms, prepare 38ms)\n'
 
         const EXPECTED_CLEAN: string =
-            ' Now let me update the MCP server registration \n' +
+            ' Now let me update the RPC server registration \n' +
             '+     nChars: z.number().optional().describe(\'Number of characters\')\n' +
             ' 10 export interface ReadTerminal\n' +
             '+    const output: string | undefined = getOutput(terminalId, nChars)\n' +

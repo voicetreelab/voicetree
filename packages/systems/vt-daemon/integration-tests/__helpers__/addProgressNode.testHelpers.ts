@@ -1,5 +1,5 @@
 /**
- * Real-deps fixtures for the create_graph MCP tool integration tests.
+ * Real-deps fixtures for the create_graph RPC tool integration tests.
  *
  * Replaces the prior vi.mock-based helpers (webapp colocated) with a
  * GraphBridge that drives an in-memory graph + a capturing applyGraphDelta
@@ -23,14 +23,14 @@ import {
     type TerminalId,
 } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {clearTerminalRecords, recordTerminalSpawn} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 
-export type McpToolResponse = {
+export type ToolResponse = {
     content: Array<{type: 'text'; text: string}>
     isError?: boolean
 }
 
-export function parsePayload(response: McpToolResponse): unknown {
+export function parsePayload(response: ToolResponse): unknown {
     return JSON.parse(response.content[0].text)
 }
 
@@ -160,7 +160,7 @@ export function recordCaller(options?: {
 }
 
 export async function makeTempVoicetreeHome(): Promise<string> {
-    const dir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-mcp-create-graph-'))
+    const dir: string = await fs.mkdtemp(path.join(os.tmpdir(), 'vtd-rpc-create-graph-'))
     return dir
 }
 

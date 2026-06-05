@@ -1,5 +1,5 @@
 /**
- * MCP Tool: close_agent
+ * RPC Tool: close_agent
  * Closes an agent terminal — same path as clicking the red traffic light button.
  *
  * Self-close (agent closing itself): no checks, always allowed.
@@ -11,12 +11,12 @@
  */
 
 import type {Graph} from '@vt/graph-model/graph'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {getAgentNodes} from './completion/agentNodeIndex.ts'
 import {getAgentStatus} from './completion/isAgentComplete.ts'
 import {getNewNodesForAgentIdentities} from './completion/getNewNodesForAgent.ts'
-import {getMcpGraph} from '@vt/vt-daemon/config/graphBridge.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {getToolGraph} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {
     closeHeadlessTerminal,
     findTerminalRecord,
@@ -122,7 +122,7 @@ async function readCloseAgentState(
     bridge: GraphBridge,
 ): Promise<CloseAgentState> {
     if (callerTerminalId === terminalId) {
-        const graph: Graph = await getMcpGraph(bridge)
+        const graph: Graph = await getToolGraph(bridge)
         const records: readonly TerminalRecord[] = listTerminalRecords()
         const targetRecord: TerminalRecord | undefined = findTerminalRecord(terminalId, records)
         return {
@@ -143,7 +143,7 @@ async function readCloseAgentState(
     return {
         kind: 'cross-close',
         targetRecord,
-        progressNodes: progressNodesForAgent(await getMcpGraph(bridge), targetRecord),
+        progressNodes: progressNodesForAgent(await getToolGraph(bridge), targetRecord),
     }
 }
 
@@ -172,7 +172,7 @@ function decideCloseAction(state: CloseAgentState, {terminalId, forceWithReason}
     return closeEffectFor(terminalId, state.targetRecord, progressNodes)
 }
 
-function buildRejectResponse(action: Extract<CloseAction, {kind: 'reject-not-found' | 'reject-running-no-force' | 'reject-no-progress-nodes'}>): McpToolResponse {
+function buildRejectResponse(action: Extract<CloseAction, {kind: 'reject-not-found' | 'reject-running-no-force' | 'reject-no-progress-nodes'}>): ToolResponse {
     switch (action.kind) {
         case 'reject-not-found':
             return buildJsonResponse({
@@ -192,7 +192,7 @@ function buildRejectResponse(action: Extract<CloseAction, {kind: 'reject-not-fou
     }
 }
 
-function buildInteractiveCloseResponse(terminalId: string): McpToolResponse {
+function buildInteractiveCloseResponse(terminalId: string): ToolResponse {
     return buildJsonResponse({
         success: true,
         terminalId,
@@ -200,7 +200,7 @@ function buildInteractiveCloseResponse(terminalId: string): McpToolResponse {
     })
 }
 
-async function closeHeadlessOrFallback(terminalId: string): Promise<McpToolResponse> {
+async function closeHeadlessOrFallback(terminalId: string): Promise<ToolResponse> {
     // Post-BF-376: every tmux-backed terminal (interactive or headless) is
     // closed through `closeHeadlessAgent` — the function name is historical;
     // it kills the tmux session and removes the registry row regardless of
@@ -222,7 +222,7 @@ async function closeHeadlessOrFallback(terminalId: string): Promise<McpToolRespo
     return buildInteractiveCloseResponse(terminalId)
 }
 
-async function performCloseEffect(action: CloseEffectAction): Promise<McpToolResponse> {
+async function performCloseEffect(action: CloseEffectAction): Promise<ToolResponse> {
     switch (action.kind) {
         case 'close-interactive':
             // Interactive tmux-backed terminals share the same teardown path
@@ -241,7 +241,7 @@ async function performCloseEffect(action: CloseEffectAction): Promise<McpToolRes
     }
 }
 
-async function performCloseAction(action: CloseAction): Promise<McpToolResponse> {
+async function performCloseAction(action: CloseAction): Promise<ToolResponse> {
     switch (action.kind) {
         case 'audit-self-close': {
             const hookResult: StopHookResult = await runTerminalStopHooks(
@@ -268,7 +268,7 @@ async function performCloseAction(action: CloseAction): Promise<McpToolResponse>
     }
 }
 
-export async function closeAgentTool(params: CloseAgentParams, bridge: GraphBridge): Promise<McpToolResponse> {
+export async function closeAgentTool(params: CloseAgentParams, bridge: GraphBridge): Promise<ToolResponse> {
     const state: CloseAgentState = await readCloseAgentState(params, bridge)
     return performCloseAction(decideCloseAction(state, params))
 }

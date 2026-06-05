@@ -33,7 +33,7 @@ import {
     collectLiveGateVerdicts,
     type GatedInput,
 } from './gateVerdicts'
-import {emitBatchReport, emitMcpFailureAndExit} from './batchEmit'
+import {emitBatchReport, emitToolFailureAndExit} from './batchEmit'
 import {
     filesystemViolationsToPlanErrors,
     findNodeMustHaveEdgeViolations,
@@ -66,7 +66,7 @@ async function runLiveDaemon(
         const response: unknown = await callDaemon('create_graph', payload)
         const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
         if (!result.success) {
-            emitMcpFailureAndExit(result.error)
+            emitToolFailureAndExit(result.error)
         }
 
         const merged: readonly NodeVerdict[] = mergeAuthoredResultsIntoVerdicts(

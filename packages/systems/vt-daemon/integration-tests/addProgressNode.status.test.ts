@@ -12,7 +12,7 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 
 import {createGraphTool} from '@vt/vt-daemon/create-graph/createGraphTool.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {getTerminalRecords} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {MAX_STATUS_PHRASE_LENGTH, type AgentStatus, type TerminalLifecycle} from '@vt/vt-daemon-protocol'
 import {
@@ -21,9 +21,9 @@ import {
     parsePayload,
     setupRealDeps,
     type BridgeState,
-    type McpToolResponse,
+    type ToolResponse,
     type SuccessPayload,
-} from './__helpers__/addProgressNodeMcp.testHelpers'
+} from './__helpers__/addProgressNode.testHelpers'
 
 let voicetreeHome: string
 let state: BridgeState
@@ -42,7 +42,7 @@ function caller() {
 }
 
 async function createWithStatus(over: {agentStatus?: AgentStatus; statusPhrase?: string}): Promise<SuccessPayload> {
-    const response: McpToolResponse = await createGraphTool({
+    const response: ToolResponse = await createGraphTool({
         callerTerminalId: CALLER_TERMINAL_ID,
         nodes: [{filename: 'progress', title: 'Progress', summary: 'Did some work.'}],
         ...over,

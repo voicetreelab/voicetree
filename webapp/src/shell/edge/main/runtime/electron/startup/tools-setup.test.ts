@@ -11,15 +11,9 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-// tools-setup imports build-config (which imports electron) and @vt/vt-daemon's
-// ensureHomePrompts. Stub electron's app and the build config so getBuildConfig()
-// returns hook sources under a temp dir with no dependence on cwd/packaging.
+// tools-setup reads app.getVersion() for the .version stamp. Stub electron so
+// the test has no dependence on a real Electron runtime.
 vi.mock('electron', () => ({ app: { getVersion: () => '0.0.0-test', isPackaged: false } }));
-
-const stub = vi.hoisted(() => ({ hookScriptsSource: '' as string }));
-vi.mock('@/shell/edge/main/runtime/electron/app/build-config', () => ({
-  getBuildConfig: () => ({ hookScriptsSource: stub.hookScriptsSource }),
-}));
 
 import { ensureProjectDotVoicetree } from '@/shell/edge/main/runtime/electron/startup/tools-setup';
 
@@ -30,9 +24,6 @@ beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-tools-setup-'));
   projectRoot = path.join(root, 'project');
   await fs.mkdir(projectRoot, { recursive: true });
-  // An (empty) hook source dir is enough — copySpecificFiles skips missing files.
-  stub.hookScriptsSource = path.join(root, 'scripts');
-  await fs.mkdir(stub.hookScriptsSource, { recursive: true });
 });
 
 afterEach(async () => {

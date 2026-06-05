@@ -2,8 +2,8 @@
  * Pure-function integration test for `isAgentComplete` cycle detection and
  * progress-node gate. The function is exported from "@vt/vt-daemon";
  * tests inject deterministic deps so this needs neither a vt-daemon nor a
- * live registry. Moved out of webapp's MCP integration folder because it
- * doesn't actually exercise the MCP server — it's a leaf test of an
+ * live registry. Moved out of webapp's RPC integration folder because it
+ * doesn't actually exercise the RPC server — it's a leaf test of an
  * agent-runtime function that webapp Main only imports for types.
  */
 

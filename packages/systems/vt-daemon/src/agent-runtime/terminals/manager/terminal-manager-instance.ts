@@ -1,7 +1,7 @@
 /**
  * Singleton terminal manager instance.
  *
- * Allows terminal manager to be accessed from both main.ts and MCP server
+ * Allows terminal manager to be accessed from both main.ts and RPC server
  * without circular dependencies.
  */
 

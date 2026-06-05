@@ -1,8 +1,8 @@
 // Pure builder that adapts a `GraphDbClient` (vt-graphd RPC client) into the
-// `GraphBridge` shape consumed by the in-process MCP tool surface
-// (`getMcpGraph`, `getMcpProjectPaths`, `getMcpWriteFolderPath`,
-// `getMcpProjectRoot`, `getMcpUnseenNodesAroundContextNode`,
-// `applyMcpGraphDelta`). Lives here rather than inside `bin/vtd.ts` so the
+// `GraphBridge` shape consumed by the in-process RPC tool surface
+// (`getToolGraph`, `getToolProjectPaths`, `getToolWriteFolderPath`,
+// `getToolProjectRoot`, `getToolUnseenNodesAroundContextNode`,
+// `applyToolGraphDelta`). Lives here rather than inside `bin/vtd.ts` so the
 // daemon entrypoint stays a thin composition of pure helpers and so the same
 // wire-up can be tested independently of binary launch.
 //
@@ -17,7 +17,7 @@
 
 import type {GraphDbClient} from '@vt/graph-db-client'
 import {rehydrateSerializedGraph, type Graph} from '@vt/graph-model/graph'
-import type {GraphBridge} from './mcpBridges.ts'
+import type {GraphBridge} from './toolBridges.ts'
 
 export function buildGdbGraphBridge(client: GraphDbClient, projectRoot: string): GraphBridge {
     return {

@@ -420,7 +420,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // observability capability owned by a leaf package. Should not grow.
     'webapp -> perf-analysis': 1,
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
-    // cleanups above (drop in-process configureMcpServer +
+    // cleanups above (drop the in-process tool-server configuration +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix
     // peekCurrentProject -> getActiveProject in getMetricsViaVtd) webapp has
     // ZERO value imports from `@vt/vt-daemon`. The remaining type-only

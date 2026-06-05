@@ -12,11 +12,11 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const getTerminalRecordsRoute: RpcRoute = {
     name: 'getTerminalRecords',
-    handler: async (): Promise<McpToolResponse> => {
+    handler: async (): Promise<ToolResponse> => {
         const result: GetTerminalRecords.Response = agentRuntime.getTerminalRecords()
         return buildJsonResponse(result)
     },
@@ -27,7 +27,7 @@ const getUnseenNodesForTerminalRoute: RpcRoute = {
     inputShape: {
         terminalId: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: GetUnseenNodesForTerminal.Request = args as unknown as GetUnseenNodesForTerminal.Request
         // The local helper returns the legacy UnseenNode shape; the wire
         // contract narrows to {nodeId,title,contentPreview}. Project before
@@ -44,7 +44,7 @@ const getUnseenNodesForTerminalRoute: RpcRoute = {
 
 const getExistingAgentNamesRoute: RpcRoute = {
     name: 'getExistingAgentNames',
-    handler: async (): Promise<McpToolResponse> => {
+    handler: async (): Promise<ToolResponse> => {
         // Agent-runtime returns a Set<string>; wire shape is readonly string[].
         const result: ReadonlySet<string> | readonly string[] = agentRuntime.getExistingAgentNames()
         const wire: GetExistingAgentNames.Response = Array.isArray(result) ? result : Array.from(result)

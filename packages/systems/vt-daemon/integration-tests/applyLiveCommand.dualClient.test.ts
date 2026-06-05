@@ -34,7 +34,7 @@ import {buildDefaultToolCatalog} from '../src/transport/toolCatalog.ts'
 import {setCurrentProject} from '../src/state/currentProject.ts'
 import {startHttpDaemonServer, type HttpDaemonServerHandle} from '../src/transport/httpServer.ts'
 import {__resetSessionStateForTests} from '../src/state/sessionStateStore.ts'
-import {buildDisabledMcpBridges} from './__helpers__/disabledMcpBridges.ts'
+import {buildDisabledToolBridges} from './__helpers__/disabledToolBridges.ts'
 
 interface FullStack {
     readonly project: string
@@ -72,7 +72,7 @@ async function startFullStack(): Promise<FullStack> {
     await writeAuthTokenFile(project, token)
 
     const rpc: HttpDaemonServerHandle = await startHttpDaemonServer({
-        catalog: buildDefaultToolCatalog(buildDisabledMcpBridges()),
+        catalog: buildDefaultToolCatalog(buildDisabledToolBridges()),
         hookHandler: (): unknown => ({ok: true}),
         token,
         bindHost: '127.0.0.1',

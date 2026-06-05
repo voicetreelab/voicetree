@@ -6,27 +6,27 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import type {UnseenNode} from '@vt/graph-db-protocol'
-import type {GraphBridge} from './mcpBridges.ts'
+import type {GraphBridge} from './toolBridges.ts'
 
 export type {UnseenNode}
 
-export async function getMcpGraph(bridge: GraphBridge): Promise<Graph> {
+export async function getToolGraph(bridge: GraphBridge): Promise<Graph> {
     return await bridge.getGraph()
 }
 
-export async function getMcpWriteFolderPath(bridge: GraphBridge): Promise<O.Option<string>> {
+export async function getToolWriteFolderPath(bridge: GraphBridge): Promise<O.Option<string>> {
     return O.fromNullable(await bridge.getWriteFolderPath())
 }
 
-export async function getMcpProjectPaths(bridge: GraphBridge): Promise<readonly string[]> {
+export async function getToolProjectPaths(bridge: GraphBridge): Promise<readonly string[]> {
     return await bridge.getProjectPaths()
 }
 
-export async function getMcpProjectRoot(bridge: GraphBridge): Promise<string | null> {
+export async function getToolProjectRoot(bridge: GraphBridge): Promise<string | null> {
     return bridge.getProjectRoot ? await bridge.getProjectRoot() : null
 }
 
-export async function getMcpUnseenNodesAroundContextNode(
+export async function getToolUnseenNodesAroundContextNode(
     bridge: GraphBridge,
     contextNodeId: NodeIdAndFilePath,
     searchFromNode?: NodeIdAndFilePath,
@@ -39,7 +39,7 @@ export async function getMcpUnseenNodesAroundContextNode(
     return await bridge.getUnseenNodesAroundContextNode(contextNodeId, searchFromNode)
 }
 
-export async function applyMcpGraphDelta(
+export async function applyToolGraphDelta(
     bridge: GraphBridge,
     delta: GraphDelta,
     recordForUndo: boolean = true,

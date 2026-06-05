@@ -1,5 +1,5 @@
 /**
- * MCP Tool: list_agents
+ * RPC Tool: list_agents
  * Lists running agent terminals with their status and newly created nodes,
  * plus available agent types from settings for discovery.
  */
@@ -8,12 +8,12 @@ import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {getAgentNodes} from './completion/agentNodeIndex.ts'
 import {getNewNodesForAgentIdentities} from './completion/getNewNodesForAgent.ts'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph} from '@vt/vt-daemon/config/graphBridge.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {getToolGraph} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {listPendingTerminalStates, listTerminalRecords, type PendingTerminalRecord, type TerminalRecord} from './agentControlRuntime'
 
 function terminalRecordStatus(record: TerminalRecord): 'running' | 'idle' | 'exited' {
@@ -38,8 +38,8 @@ function containedNodesForTerminalContext(
     })
 }
 
-export async function listAgentsTool(bridge: GraphBridge): Promise<McpToolResponse> {
-    const graph: Graph = await getMcpGraph(bridge)
+export async function listAgentsTool(bridge: GraphBridge): Promise<ToolResponse> {
+    const graph: Graph = await getToolGraph(bridge)
     const agents: Array<{
         terminalId: string
         title: string

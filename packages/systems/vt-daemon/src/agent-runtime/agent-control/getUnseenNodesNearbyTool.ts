@@ -1,17 +1,17 @@
 /**
- * MCP Tool: get_unseen_nodes_nearby
+ * RPC Tool: get_unseen_nodes_nearby
  * Gets nodes near your context that were created after your context was generated.
  */
 
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import * as O from 'fp-ts/lib/Option.js'
-import {getMcpGraph, getMcpUnseenNodesAroundContextNode} from '@vt/vt-daemon/config/graphBridge.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {getToolGraph, getToolUnseenNodesAroundContextNode} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {findTerminalRecord, listTerminalRecords, type TerminalRecord} from './agentControlRuntime'
 
-type UnseenNode = Awaited<ReturnType<typeof getMcpUnseenNodesAroundContextNode>>[number]
+type UnseenNode = Awaited<ReturnType<typeof getToolUnseenNodesAroundContextNode>>[number]
 
 export interface GetUnseenNodesNearbyParams {
     callerTerminalId: string
@@ -24,7 +24,7 @@ export async function getUnseenNodesNearbyTool(
         search_from_node
     }: GetUnseenNodesNearbyParams,
     bridge: GraphBridge,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     // 1. Find the caller's terminal record
     const terminalRecords: TerminalRecord[] = listTerminalRecords()
     const callerRecord: TerminalRecord | undefined = findTerminalRecord(callerTerminalId, terminalRecords)
@@ -40,9 +40,9 @@ export async function getUnseenNodesNearbyTool(
     const contextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
 
     // 3. Get unseen nodes (with optional search_from_node override)
-    const graph: Graph = await getMcpGraph(bridge)
+    const graph: Graph = await getToolGraph(bridge)
     try {
-        const unseenNodes: readonly UnseenNode[] = await getMcpUnseenNodesAroundContextNode(
+        const unseenNodes: readonly UnseenNode[] = await getToolUnseenNodesAroundContextNode(
             bridge,
             contextNodeId,
             search_from_node as NodeIdAndFilePath | undefined

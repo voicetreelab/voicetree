@@ -1,5 +1,5 @@
 /**
- * MCP Tool: spawn_agent
+ * RPC Tool: spawn_agent
  * Spawns an agent in the Voicetree graph.
  */
 
@@ -9,10 +9,10 @@ import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {createTaskNode} from '@vt/graph-model/graph'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {startMonitor} from './agent-completion-monitor.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import {applyToolGraphDelta, getToolGraph, getToolWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {
     consumeSpawnBudget,
     listTerminalRecords,
@@ -51,9 +51,9 @@ export function makeSpawnAgentDeps(bridge: GraphBridge): SpawnAgentDeps {
         listTerminalRecords,
         consumeBudget: consumeSpawnBudget,
         loadAgentSettings: () => loadSettings(),
-        loadWriteFolderPath: () => getMcpWriteFolderPath(bridge),
-        loadGraph: () => getMcpGraph(bridge),
-        applyDelta: (delta, recordForUndo) => applyMcpGraphDelta(bridge, delta, recordForUndo),
+        loadWriteFolderPath: () => getToolWriteFolderPath(bridge),
+        loadGraph: () => getToolGraph(bridge),
+        applyDelta: (delta, recordForUndo) => applyToolGraphDelta(bridge, delta, recordForUndo),
         spawnTerminal: spawnContextTerminal,
         rememberChild: rememberChildTerminal,
         monitorChildren: (callerTerminalId, terminalIds, pollIntervalMs) =>
@@ -87,7 +87,7 @@ type SpawnedTerminal = {
     readonly contextNodeId: string
 }
 
-function errorResponse(error: string): McpToolResponse {
+function errorResponse(error: string): ToolResponse {
     return buildJsonResponse({success: false, error}, true)
 }
 
@@ -296,7 +296,7 @@ async function spawnAgentForTask(
     deps: SpawnAgentDeps,
     runtime: SpawnRuntime,
     graphContext: GraphContext,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     if (!params.parentNodeId) return errorResponse('parentNodeId is required when task is provided')
 
     const resolvedParentId: NodeIdAndFilePath | undefined = resolveNodeId(graphContext.graph, params.parentNodeId)
@@ -345,7 +345,7 @@ async function spawnAgentForExistingNode(
     deps: SpawnAgentDeps,
     runtime: SpawnRuntime,
     graphContext: GraphContext,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     if (!params.nodeId) return errorResponse('Either nodeId or task (with parentNodeId) must be provided')
 
     const resolvedNodeId: NodeIdAndFilePath | undefined = resolveNodeId(graphContext.graph, params.nodeId)
@@ -376,7 +376,7 @@ async function spawnAgentForExistingNode(
 export async function spawnAgentTool(
     params: SpawnAgentParams,
     deps: SpawnAgentDeps,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     const terminalRecords: TerminalRecord[] = deps.listTerminalRecords()
     const callerRecordResult: Result<TerminalRecord> = findCallerRecord(params.callerTerminalId, terminalRecords)
     if (!callerRecordResult.ok && !isScopedExternalCaller(params.callerTerminalId)) {

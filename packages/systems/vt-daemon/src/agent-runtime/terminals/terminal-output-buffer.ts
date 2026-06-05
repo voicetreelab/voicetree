@@ -1,7 +1,7 @@
 /**
  * Character-based ring buffer for terminal output capture.
  *
- * Stores last N characters per terminal for MCP read_terminal_output tool.
+ * Stores last N characters per terminal for RPC read_terminal_output tool.
  * Decoupled from TerminalManager for easy removal if feature proves not useful.
  */
 

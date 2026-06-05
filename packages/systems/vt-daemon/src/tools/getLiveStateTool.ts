@@ -13,13 +13,13 @@ import { serializeState } from '../state/serializeState'
 import { getCurrentProject } from '../state/currentProject'
 
 import { buildJsonResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type { McpToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type { ToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export async function getLiveState(): Promise<SerializedState> {
     return serializeState(await getCurrentSessionState(getCurrentProject()))
 }
 
-export async function getLiveStateTool(): Promise<McpToolResponse> {
+export async function getLiveStateTool(): Promise<ToolResponse> {
     try {
         const state: SerializedState = await getLiveState()
         return buildJsonResponse(state)

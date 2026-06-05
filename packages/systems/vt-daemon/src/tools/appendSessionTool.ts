@@ -10,7 +10,7 @@ import {appendTokenMetrics, type TokenMetrics} from '../observability/agentMetri
 import {getCurrentProject} from '../state/currentProject.ts'
 
 import {buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface AppendSessionParams {
     readonly sessionId: string
@@ -18,7 +18,7 @@ export interface AppendSessionParams {
     readonly costUsd: number
 }
 
-export async function appendSessionTool(params: AppendSessionParams): Promise<McpToolResponse> {
+export async function appendSessionTool(params: AppendSessionParams): Promise<ToolResponse> {
     try {
         await appendTokenMetrics(
             getCurrentProject(),

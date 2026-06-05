@@ -1,7 +1,7 @@
 // Wire contract for the 19 BF-376 outbound RPC routes. Each route is a thin
 // adapter from `@vt/vt-daemon-protocol`'s typed Request/Response shapes onto
 // the matching `agentRuntime.*` function. Catalog drift checks
-// (`catalogManualDrift.test.ts`) operate on `TOOL_CATALOG` — the MCP-tool
+// (`catalogManualDrift.test.ts`) operate on `TOOL_CATALOG` — the RPC-tool
 // surface — and intentionally do NOT iterate `RPC_ROUTES`, which carries
 // internal wire contracts that aren't user-facing CLI verbs.
 //
@@ -12,9 +12,9 @@
 
 import type {ZodRawShape} from 'zod'
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
-export type RpcHandler = (args: Record<string, unknown>) => Promise<McpToolResponse> | McpToolResponse
+export type RpcHandler = (args: Record<string, unknown>) => Promise<ToolResponse> | ToolResponse
 
 export interface RpcRoute {
     readonly name: string
@@ -42,7 +42,7 @@ export interface RpcRoute {
 export function voidRoute<Req>(
     fn: (req: Req) => Promise<void> | void,
 ): RpcHandler {
-    return async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    return async (args: Record<string, unknown>): Promise<ToolResponse> => {
         await fn(args as unknown as Req)
         return buildJsonResponse(null)
     }

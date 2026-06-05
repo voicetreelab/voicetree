@@ -7,7 +7,6 @@
 // Spec sources:
 //   - ctx-nodes/.../step9-design-override-ws-subprotocol-auth.md (Gus override)
 //   - ctx-nodes/.../step9e-surprise-auth-wire.md (Iris's 5-point handoff contract)
-//   - docs/step9-design.md §4.3 (out of date; 9g formally amends)
 
 import http, {type IncomingMessage} from 'node:http'
 import {randomBytes} from 'node:crypto'

@@ -1,5 +1,5 @@
 /**
- * Real-deps integration test for the list_agents MCP tool.
+ * Real-deps integration test for the list_agents RPC tool.
  *
  * Drives the daemon-side `listAgentsTool` against the real agent-runtime
  * terminal-registry. The webapp-side relocated version mocked
@@ -29,15 +29,15 @@ import {
 } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry'
 import {createTerminalData} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import type {TerminalData, TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
-import type {GraphBridge} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {listAgentsTool} from '@vt/vt-daemon/agent-runtime/agent-control/listAgentsTool.ts'
 
-type McpToolResponse = {
+type ToolResponse = {
     content: Array<{type: 'text'; text: string}>
     isError?: boolean
 }
 
-function parsePayload(response: McpToolResponse): unknown {
+function parsePayload(response: ToolResponse): unknown {
     return JSON.parse(response.content[0].text)
 }
 
@@ -91,7 +91,7 @@ afterEach(async () => {
     await fs.rm(voicetreeHome, {recursive: true, force: true})
 })
 
-describe('MCP list_agents tool', () => {
+describe('RPC list_agents tool', () => {
     it('lists all agents with status and new nodes (matching by agent_name)', async () => {
         const terminalDataA: TerminalData = createTerminalData({
             terminalId: 'agent-a-terminal-0' as TerminalId,
@@ -133,7 +133,7 @@ describe('MCP list_agents tool', () => {
             unresolvedLinksIndex: new Map(),
         }
 
-        const response: McpToolResponse = await listAgentsTool(bridge)
+        const response: ToolResponse = await listAgentsTool(bridge)
         const payload: {
             agents: Array<{
                 terminalId: string
@@ -159,7 +159,7 @@ describe('MCP list_agents tool', () => {
     })
 
     it('returns an empty list when no agents exist', async () => {
-        const response: McpToolResponse = await listAgentsTool(bridge)
+        const response: ToolResponse = await listAgentsTool(bridge)
         const payload: {agents: unknown[]} = parsePayload(response) as {agents: unknown[]}
         expect(payload.agents).toEqual([])
     })
@@ -167,7 +167,7 @@ describe('MCP list_agents tool', () => {
     it('includes pending headless terminals as running agents', async () => {
         recordTerminalPending('pending-headless-1', true)
 
-        const response: McpToolResponse = await listAgentsTool(bridge)
+        const response: ToolResponse = await listAgentsTool(bridge)
         const payload: {agents: Array<{terminalId: string; status: string; isHeadless: boolean}>} =
             parsePayload(response) as {agents: Array<{terminalId: string; status: string; isHeadless: boolean}>}
 
@@ -195,7 +195,7 @@ describe('MCP list_agents tool', () => {
         recordTerminalSpawn('idle-agent-terminal-0', terminalData)
         updateTerminalIsDone('idle-agent-terminal-0', true)
 
-        const response: McpToolResponse = await listAgentsTool(bridge)
+        const response: ToolResponse = await listAgentsTool(bridge)
         const payload: {agents: Array<{status: string}>} = parsePayload(response) as {agents: Array<{status: string}>}
 
         expect(payload.agents).toHaveLength(1)

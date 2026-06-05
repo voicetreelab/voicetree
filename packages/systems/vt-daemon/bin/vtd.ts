@@ -29,7 +29,7 @@
 //   'preserve'}) → ownerHandle.release. Critically, we do NOT stop
 //   vt-graphd: it is a shared cross-process daemon (BF-346 invariant).
 //
-// Headless contract (decided in Phase E; see docs/headless-migration.md):
+// Headless contract (decided in Phase E):
 //   - READ path:  CLI agents call any read tool over the HTTP wire. These
 //                 do not require a terminal record on the daemon side.
 //   - WRITE path: CLI agents write new nodes by raw filesystem Write into
@@ -58,7 +58,7 @@ import {
     startHttpDaemonServer,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
-import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {ToolBridges} from '@vt/vt-daemon/config/toolBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {createGatewayLiveUpdates} from '@vt/vt-daemon/transport/gatewayLiveUpdates.ts'
@@ -235,15 +235,15 @@ async function main(): Promise<void> {
         die(`failed to ensure vt-graphd sibling: ${(err as Error).message}`)
     }
 
-    // Step 2.5: construct the MCP tool bridges to the sibling vt-graphd over
+    // Step 2.5: construct the RPC tool bridges to the sibling vt-graphd over
     // RPC. Every graph-touching tool in the catalog (`spawn_agent`,
     // `list_agents`, `get_unseen_nodes_nearby`, `create_graph`, live state)
     // resolves through these bridges. They are passed explicitly into
     // `buildDefaultToolCatalog` below — no module-level cell — so the wiring
     // contract is enforced by the type system. The BF-376 regression
     // (missing wire-up) is now a compile-time error rather than a runtime
-    // "MCP graph bridge not configured" throw.
-    const mcpBridges: McpToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.project)}
+    // "graph bridge not configured" throw.
+    const toolBridges: ToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.project)}
 
     // Step 3: bind in-process state to this project, then tmux preflight.
     // setCurrentProject is the single source-of-truth for daemon-internal
@@ -314,7 +314,7 @@ async function main(): Promise<void> {
 
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges, [...graphGatewayRoutes, ...worktreeRoutes]),
+            catalog: buildDefaultToolCatalog(toolBridges, [...graphGatewayRoutes, ...worktreeRoutes]),
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override
@@ -372,7 +372,7 @@ async function main(): Promise<void> {
     //
     // The agent-runtime graph bridge is wired here too: `spawnTerminalWithContextNode`
     // and friends read graph state through the agent-runtime module-level cell, which
-    // is a SEPARATE slot from `mcpBridges.graph` despite the contracts overlapping.
+    // is a SEPARATE slot from `toolBridges.graph` despite the contracts overlapping.
     // Both must be wired or the spawn pipeline throws "graph bridge not configured"
     // on the first Run-Agent click.
     configureAgentRuntimeForVtd(

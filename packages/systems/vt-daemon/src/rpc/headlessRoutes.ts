@@ -10,14 +10,14 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const closeHeadlessAgentRoute: RpcRoute = {
     name: 'closeHeadlessAgent',
     inputShape: {
         terminalId: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: CloseHeadlessAgent.Request = args as unknown as CloseHeadlessAgent.Request
         const result: CloseHeadlessAgent.Response = await closeHeadlessAgent(req.terminalId as TerminalId)
         return buildJsonResponse(result)
@@ -29,7 +29,7 @@ const getHeadlessAgentOutputRoute: RpcRoute = {
     inputShape: {
         terminalId: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: GetHeadlessAgentOutput.Request = args as unknown as GetHeadlessAgentOutput.Request
         const result: GetHeadlessAgentOutput.Response = getHeadlessAgentOutput(req.terminalId)
         return buildJsonResponse(result)
