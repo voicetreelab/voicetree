@@ -22,8 +22,9 @@ export const AGENT_NAMES: readonly string[] = [
 ] as const;
 
 // Round-robin agent name selection. The counter rotates over whichever pool is
-// passed (neutral AGENT_NAMES or the Silicon Valley roster); `getUniqueAgentName`
-// resolves any collision once a pool wraps.
+// passed (neutral AGENT_NAMES or the Silicon Valley roster); the base name it
+// yields is only the human-friendly half of an id — `getUniqueAgentName` adds the
+// hash that actually makes the id unique.
 // eslint-disable-next-line functional/prefer-readonly-type -- intentionally mutable counter
 const agentNameState: { index: number } = { index: -1 };
 
@@ -33,14 +34,52 @@ export function getNextAgentName(names: readonly string[] = AGENT_NAMES): string
 }
 
 /**
- * Get a unique agent name by appending _1 recursively until no collision.
- * Example: Sam → Sam_1 → Sam_1_1 → Sam_1_1_1
+ * Agent ids are `<BaseName><AGENT_ID_SEPARATOR><hash>` — a friendly round-robin
+ * base name plus a short random alphanumeric hash. The hash is what makes an id
+ * unique. Base names come from a tiny pool, drawn round-robin and freed when an
+ * agent exits, so without the hash a base name reused later would collide with a
+ * past agent that the graph still references by id. Three chars over a 36-symbol
+ * alphabet give 46,656 ids per base name; `getUniqueAgentName` still checks the
+ * candidate against live ids and regenerates on the rare clash, so collisions
+ * among concurrent agents are impossible and temporal ones astronomically
+ * unlikely. The hash is stripped for display — see `agentBaseName`.
  */
-export function getUniqueAgentName(baseName: string, existingNames: ReadonlySet<string>): string {
-    if (!existingNames.has(baseName)) {
-        return baseName;
-    }
-    return getUniqueAgentName(`${baseName}_1`, existingNames);
+export const AGENT_ID_SEPARATOR = '-';
+export const AGENT_ID_HASH_LENGTH = 3;
+export const AGENT_ID_HASH_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+/** Compose an agent id from its base name and uniqueness hash. */
+export function formatAgentId(baseName: string, hash: string): string {
+    return `${baseName}${AGENT_ID_SEPARATOR}${hash}`;
+}
+
+const AGENT_ID_HASH_SUFFIX_RE: RegExp =
+    new RegExp(`${AGENT_ID_SEPARATOR}[a-z0-9]{${AGENT_ID_HASH_LENGTH}}$`);
+
+/**
+ * Recover the human-friendly base name from an agent id by stripping the
+ * uniqueness hash: `Ayu-k3f` → `Ayu`. Base names never contain the separator, so
+ * the suffix is unambiguous; an id with no hash suffix is returned unchanged.
+ */
+export function agentBaseName(agentId: string): string {
+    return agentId.replace(AGENT_ID_HASH_SUFFIX_RE, '');
+}
+
+/**
+ * Build a unique agent id by appending a hash to the base name,
+ * regenerating on the rare chance the candidate collides with a live id.
+ * `generateHash` is injectable so callers and tests can supply any source.
+ * For production use with a random source, use `uniqueAgentName` from `../../settings`.
+ */
+export function getUniqueAgentName(
+    baseName: string,
+    existingNames: ReadonlySet<string>,
+    generateHash: () => string,
+): string {
+    const candidate: string = formatAgentId(baseName, generateHash());
+    return existingNames.has(candidate)
+        ? getUniqueAgentName(baseName, existingNames, generateHash)
+        : candidate;
 }
 
 export type EnvVarValue = string | readonly string[];

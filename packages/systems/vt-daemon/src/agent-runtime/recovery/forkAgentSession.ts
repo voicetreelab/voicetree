@@ -6,7 +6,7 @@ import {
 import {buildResumeCommand, type ResumeMode} from '@vt/vt-daemon/agent-runtime/spawn/cli/resumeCli.ts'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
-import {getUniqueAgentName} from '@vt/graph-model/settings'
+import {agentBaseName, uniqueAgentName} from '@vt/graph-model/settings'
 import {
     defaultResolveNativeSession,
     type NativeSessionMissReason,
@@ -135,7 +135,9 @@ export function defaultForkAgentDeps(
         discover: () => discoverRecoverableAgentSessions(discoveryDeps),
         resolveNativeSession: defaultResolveNativeSession,
         allocateForkAgentName: (sourceAgentName: string): string => {
-            return getUniqueAgentName(sourceAgentName, getExistingAgentNames())
+            // Fork keeps the source's friendly base name but earns its own hash,
+            // so the forked id is distinct from the session it resumes.
+            return uniqueAgentName(agentBaseName(sourceAgentName), getExistingAgentNames())
         },
         spawn: (terminalId, terminalData, command, cwd, env) =>
             spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env),
