@@ -5,6 +5,8 @@ Uses ChromaDB with Google Gemini embeddings for efficient vector search.
 
 import logging
 import os
+import shutil
+from pathlib import Path
 from typing import Any
 from typing import Optional
 from typing import Union
@@ -23,6 +25,43 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def open_persistent_client_or_rebuild(persist_directory: str, settings: Settings) -> chromadb.ClientAPI:
+    """
+    Open a persistent ChromaDB client, rebuilding the store if it cannot be opened.
+
+    The persisted store is a *derived cache*: every embedding is regenerated from the
+    markdown nodes (the source of truth) via MarkdownTree.sync_all_embeddings. A store
+    written by a newer ChromaDB cannot be read by an older one — ChromaDB's Rust
+    migration check raises a pyo3 PanicException, which subclasses BaseException and so
+    slips past `except Exception` and would otherwise crash the whole backend (this is
+    exactly how a forward-versioned store silently bricks the speech-to-text server:
+    /load-directory 500s, the directory never loads, every /send-text is dropped).
+
+    Because the store holds only derived data, discarding and rebuilding it is always
+    safe: the sole cost is recomputing embeddings. So we wipe an unreadable store and
+    recreate it rather than letting the process die. A second failure is a real problem
+    and is allowed to propagate.
+    """
+    try:
+        return chromadb.PersistentClient(path=persist_directory, settings=settings)
+    except (KeyboardInterrupt, SystemExit, GeneratorExit):
+        raise
+    except BaseException as open_error:  # noqa: BLE001 — pyo3 PanicException is a BaseException
+        logger.warning(
+            "ChromaDB store at %s is unreadable (%r); discarding and rebuilding it from "
+            "markdown — embeddings will be regenerated.",
+            persist_directory, open_error,
+        )
+        # ChromaDB caches the System (keyed by persist_directory) BEFORE calling
+        # start(), so the panic above left a half-initialised system cached. Reusing it
+        # would fail differently on retry — evict that one entry before rebuilding.
+        from chromadb.api.shared_system_client import SharedSystemClient
+        SharedSystemClient._identifier_to_system.pop(persist_directory, None)
+        shutil.rmtree(persist_directory, ignore_errors=True)
+        Path(persist_directory).mkdir(parents=True, exist_ok=True)
+        return chromadb.PersistentClient(path=persist_directory, settings=settings)
 
 
 class ChromaDBVectorStore:
@@ -90,14 +129,16 @@ class ChromaDBVectorStore:
             self.persist_directory = persist_directory
 
             # Ensure the persist directory exists
-            from pathlib import Path
             persist_path = Path(persist_directory)
             persist_path.mkdir(parents=True, exist_ok=True)
 
-            # Initialize ChromaDB client with persistence
-            self.client = chromadb.PersistentClient(
-                path=persist_directory,
-                settings=Settings(
+            # Initialize ChromaDB client with persistence. A store written by a newer
+            # ChromaDB panics when opened here; open_persistent_client_or_rebuild
+            # discards such an unreadable (derived) store and rebuilds it instead of
+            # letting the panic crash the backend.
+            self.client = open_persistent_client_or_rebuild(
+                persist_directory,
+                Settings(
                     anonymized_telemetry=False,
                     allow_reset=True,
                     is_persistent=True
