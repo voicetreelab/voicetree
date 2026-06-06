@@ -32,6 +32,7 @@ export {
     appendPersonaToAgentPrompt,
 } from './pure/agents/siliconValleyRoster'
 export { expandEnvVarsInValues, resolveEnvVars, resolveEnvVarsWithSelection } from './pure/settings/resolve-environment-variable'
+export { isReservedAgentPromptEnvKey } from './pure/settings/promptEnvKeys'
 export {
     agentPromptVariableForPlatform,
     createDefaultSettings,

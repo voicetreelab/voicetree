@@ -150,9 +150,10 @@ observabilityMetrics.init('vt-electron-main', {
 tracing.bridgeOwnerDiagnostics(subscribeOwnerDiagnostics, 'vt-electron-daemon');
 
 // Start the perf probe at the tier the launcher selected (ensure-perf-stack sets
-// VOICETREE_PERF_TIER=lite for interactive runs; storm runs set deep; PERF_STACK=0
-// leaves it unset → no-op). Lite emits wall/CPU profiles + runtime metrics — the
-// metrics are what populate the VT Runs dashboard. Electron keeps the event loop
+// VOICETREE_PERF_TIER=lite for interactive runs when PERF_STACK=1; storm runs set
+// deep; the default off-state leaves it unset → no-op). Lite emits wall/CPU
+// profiles + runtime metrics — the metrics are what populate the VT Runs
+// dashboard. Electron keeps the event loop
 // alive so the probe's beforeExit self-stop never fires; we stop it explicitly on
 // will-quit so Pyroscope flushes and the durable log closes.
 let stopPerfProbe: (() => Promise<void>) | undefined;

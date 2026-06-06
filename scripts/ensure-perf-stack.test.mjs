@@ -54,11 +54,15 @@ function fakePerfStack({
 
 const silent = () => {}
 
+// The opt-in switch: the preflight only does work when PERF_STACK=1. Every
+// enabled-path test threads this in; absence of it is the default no-op.
+const ON = { PERF_STACK: '1' }
+
 test('cold start: installs binaries then brings the stack up', async () => {
   const stack = fakePerfStack({ present: [], running: false })
 
   const result = await ensurePerfStack({
-    env: {},
+    env: { ...ON },
     run: stack.run,
     installIsComplete: stack.installIsComplete,
     log: silent,
@@ -83,7 +87,7 @@ test('partial install converges: missing binaries trigger a reinstall, then up',
   const stack = fakePerfStack({ present: ['grafana'], running: false })
 
   const result = await ensurePerfStack({
-    env: {},
+    env: { ...ON },
     run: stack.run,
     installIsComplete: stack.installIsComplete,
     log: silent,
@@ -99,7 +103,7 @@ test('an enabled preflight selects the always-on lite perf tier', async () => {
   const stack = fakePerfStack({ present: ALL, running: true })
 
   const result = await ensurePerfStack({
-    env: {},
+    env: { ...ON },
     run: stack.run,
     installIsComplete: stack.installIsComplete,
     log: silent,
@@ -114,7 +118,7 @@ test('an incomplete install emits the one-time progress line', async () => {
   const lines = []
 
   await ensurePerfStack({
-    env: {},
+    env: { ...ON },
     run: stack.run,
     installIsComplete: stack.installIsComplete,
     log: (message) => lines.push(message),
@@ -130,7 +134,7 @@ test('warm stack: complete install → no reinstall, just an idempotent up', asy
   const lines = []
 
   const result = await ensurePerfStack({
-    env: {},
+    env: { ...ON },
     run: stack.run,
     installIsComplete: stack.installIsComplete,
     log: (message) => lines.push(message),
@@ -149,7 +153,7 @@ test('up failure surfaces a clear error and does not silently succeed', async ()
 
   await assert.rejects(
     ensurePerfStack({
-      env: {},
+      env: { ...ON },
       run: stack.run,
       installIsComplete: stack.installIsComplete,
       log: silent,
@@ -164,7 +168,7 @@ test('install failure aborts before attempting up', async () => {
 
   await assert.rejects(
     ensurePerfStack({
-      env: {},
+      env: { ...ON },
       run: stack.run,
       installIsComplete: stack.installIsComplete,
       log: silent,
@@ -174,35 +178,41 @@ test('install failure aborts before attempting up', async () => {
   assert.equal(stack.world.running, false, 'up was never attempted')
 })
 
-test('PERF_STACK=0 is a complete no-op: no install, no up, exporter left detached', async () => {
-  const stack = fakePerfStack({ present: [], running: false })
-  let installs = 0
-  let ups = 0
-  const countingRun = (action) => {
-    if (action === 'install') installs += 1
-    if (action === 'up') ups += 1
-    return stack.run(action)
-  }
+// The default is OFF: without PERF_STACK=1 the preflight must touch nothing.
+// Each falsy form (absent / empty / `0` / `false`) is a complete no-op.
+for (const env of [{}, { PERF_STACK: '' }, { PERF_STACK: '0' }, { PERF_STACK: 'false' }]) {
+  const label = 'PERF_STACK' in env ? JSON.stringify(env.PERF_STACK) : 'unset'
+  test(`perf stack off (${label}) is a complete no-op: no install, no up, exporter detached`, async () => {
+    const stack = fakePerfStack({ present: [], running: false })
+    let installs = 0
+    let ups = 0
+    const countingRun = (action) => {
+      if (action === 'install') installs += 1
+      if (action === 'up') ups += 1
+      return stack.run(action)
+    }
 
-  const result = await ensurePerfStack({
-    env: { PERF_STACK: '0' },
-    run: countingRun,
-    installIsComplete: stack.installIsComplete,
-    log: silent,
+    const result = await ensurePerfStack({
+      env,
+      run: countingRun,
+      installIsComplete: stack.installIsComplete,
+      log: silent,
+    })
+
+    assert.deepEqual(result, { enabled: false })
+    assert.equal(installs, 0, 'no install subprocess ran')
+    assert.equal(ups, 0, 'no up subprocess ran')
+    assert.equal(stack.world.present.size, 0)
+    assert.equal(stack.world.running, false)
   })
-
-  assert.deepEqual(result, { enabled: false })
-  assert.equal(installs, 0, 'no install subprocess ran')
-  assert.equal(ups, 0, 'no up subprocess ran')
-  assert.equal(stack.world.present.size, 0)
-  assert.equal(stack.world.running, false)
-})
+}
 
 test('honors a caller-provided endpoint and run instance id from env', async () => {
   const stack = fakePerfStack({ present: ALL, running: true })
 
   const result = await ensurePerfStack({
     env: {
+      ...ON,
       VOICETREE_OTLP_ENDPOINT: 'http://localhost:9999',
       VOICETREE_RUN_INSTANCE_ID: 'preset-run',
     },

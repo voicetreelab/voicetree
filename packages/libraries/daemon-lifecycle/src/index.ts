@@ -86,7 +86,7 @@ export type { CooldownBreadcrumb } from './cooldownBreadcrumb.ts'
 export {
   readCommandFingerprintMatch,
   readProcessLiveness,
-} from './processLiveness.ts'
+} from './lifecycle/processLiveness.ts'
 export { probeOwnerHealth } from './healthIdentityProbe.ts'
 export type { ProbeHealthOptions } from './healthIdentityProbe.ts'
 
@@ -101,26 +101,41 @@ export type {
 } from './spawnDaemon.ts'
 
 // Parent-pid watchdogs (two distinct primitives, both useful).
-export { startParentPidWatchdog } from './parentPidWatchdog.ts'
+export { startParentPidWatchdog } from './lifecycle/parentPidWatchdog.ts'
 export type {
   ParentPidWatchdogHandle,
   ParentPidWatchdogOptions,
   ParentPidWatchdogScheduler,
   ParentPidWatchdogTimer,
-} from './parentPidWatchdog.ts'
-export { startParentWatch } from './parentReparentWatch.ts'
+} from './lifecycle/parentPidWatchdog.ts'
+export { startParentWatch } from './lifecycle/parentReparentWatch.ts'
 export type {
   ParentWatchDeps,
   ParentWatchHandle,
   ParentWatchOptions,
-} from './parentReparentWatch.ts'
+} from './lifecycle/parentReparentWatch.ts'
 
 // Poll-timing primitives.
 export { boundedDelay, nextBackoff, sleep } from './pollTimings.ts'
 
+// Escalating termination (SIGTERM → SIGKILL) for stale-owner reclamation.
+export { terminateProcess } from './lifecycle/terminateProcess.ts'
+export type {
+  TerminateOutcome,
+  TerminateProcessOptions,
+} from './lifecycle/terminateProcess.ts'
+
+// Bounded, non-blocking graceful shutdown for daemon mains.
+export { runGracefulShutdown } from './lifecycle/gracefulShutdown.ts'
+export type {
+  GracefulShutdownOptions,
+  ShutdownStep,
+} from './lifecycle/gracefulShutdown.ts'
+
 // Error shapes.
 export {
   DaemonLaunchTimeout,
+  OwnerReclaimFailedError,
   OwnerSpawnCooldownError,
   OwnerWaitTimeoutError,
   UnsafeOwnerError,
