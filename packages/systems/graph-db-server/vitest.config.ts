@@ -22,5 +22,10 @@ export default defineConfig({
       }],
     ],
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+    pool: 'forks',
+    poolOptions: {
+      forks: { maxForks: 4 },
+    },
+    testTimeout: 30_000,
   },
 })
