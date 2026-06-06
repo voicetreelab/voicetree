@@ -227,7 +227,7 @@ describe('graph move commands', () => {
         expect(readFileSync(path.join(tempDir, 'archive', 'target.md'), 'utf8')).toBe('# Target\n')
     })
 
-    it('relinks a gardened vault to project-relative links and is idempotent', async () => {
+    it('relinks a gardened project to project-relative links and is idempotent', async () => {
         const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-graph-relink-'))
         tempDirs.push(tempDir)
 

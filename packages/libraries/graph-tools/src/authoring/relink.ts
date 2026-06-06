@@ -1,7 +1,6 @@
 import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {basename, dirname, isAbsolute, join, relative, resolve} from 'node:path'
 import {homedir} from 'node:os'
-import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {canonicalLinkText} from './linkForm'
 import {error, output} from './output'
 import type {PathMapping, ReferenceUpdateSummary} from './move'
@@ -84,6 +83,54 @@ function normalizeLinkTarget(rawTarget: string): string {
     return rawTarget.split('|')[0]?.trim() ?? ''
 }
 
+function linkTargetSegments(linkTarget: string): readonly string[] {
+    const components = linkTarget
+        .split(/[/\\]/)
+        .filter(component => component !== '' && component !== '.' && component !== '..')
+    if (components.length === 0) return []
+
+    const lastIndex = components.length - 1
+    return [
+        ...components.slice(0, lastIndex),
+        components[lastIndex]!.replace(/\.md$/i, ''),
+    ]
+}
+
+function linkMatchScore(linkText: string, nodeId: string): number {
+    const linkComponents = linkTargetSegments(linkText)
+    const nodeComponents = linkTargetSegments(nodeId)
+    const minLength = Math.min(linkComponents.length, nodeComponents.length)
+    let score = 0
+    for (let index = 0; index < minLength; index += 1) {
+        const linkComponent = linkComponents[linkComponents.length - 1 - index]?.toLowerCase()
+        const nodeComponent = nodeComponents[nodeComponents.length - 1 - index]?.toLowerCase()
+        if (linkComponent !== nodeComponent) break
+        score += 1
+    }
+    return score
+}
+
+function findBestMatchingDiskPath(linkText: string, index: RelinkDiskIndex): string | undefined {
+    const components = linkTargetSegments(linkText)
+    if (components.length === 0) return undefined
+
+    const basenameKey = components[components.length - 1]!
+    const candidates = index.nodeByBaseName.get(basenameKey) ?? []
+    const best = candidates.reduce<{nodeId: string | undefined; score: number}>(
+        (currentBest, nodeId) => {
+            const score = linkMatchScore(linkText, nodeId)
+            const isBetter = score > currentBest.score
+                || (score === currentBest.score && score > 0 && currentBest.nodeId !== undefined && nodeId.length < currentBest.nodeId.length)
+            return isBetter ? {nodeId, score} : currentBest
+        },
+        {nodeId: undefined, score: 0},
+    )
+    if (!best.nodeId) return undefined
+
+    const bestComponents = linkTargetSegments(best.nodeId)
+    return best.score >= Math.min(components.length, bestComponents.length) ? best.nodeId : undefined
+}
+
 function projectRelativeCandidate(rawTarget: string, projectRoot: string, index: RelinkDiskIndex): string | undefined {
     if (rawTarget.startsWith('/') || !rawTarget.includes('/')) return undefined
     const candidate = join(projectRoot, rawTarget.endsWith('.md') ? rawTarget : `${rawTarget}.md`)
@@ -103,7 +150,7 @@ function resolveTargetPath(rawTarget: string, projectRoot: string, index: Relink
     if (!target) return undefined
     return absoluteCandidate(target, index)
         ?? projectRelativeCandidate(target, projectRoot, index)
-        ?? findBestMatchingNode(target, index.nodes as any, index.nodeByBaseName as any)
+        ?? findBestMatchingDiskPath(target, index)
 }
 
 export function relinkContent(

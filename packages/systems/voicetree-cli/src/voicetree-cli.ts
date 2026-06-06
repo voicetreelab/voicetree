@@ -226,7 +226,7 @@ async function dispatchGraphCommand(
             return
         }
         case 'relink': {
-            const {graphRelink} = await import('./commands/graph-node/relink.ts')
+            const {graphRelink} = await import('@vt/graph-tools/node-runtime')
             await graphRelink(terminalId, args)
             return
         }
@@ -241,7 +241,7 @@ async function dispatchGraphCommand(
             return
         }
         case 'garden': {
-            const {graphGarden} = await import('./commands/graph-node/garden.ts')
+            const {graphGarden} = await import('@vt/graph-tools/node-runtime')
             await graphGarden(terminalId, args)
             return
         }
