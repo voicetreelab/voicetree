@@ -18,6 +18,7 @@ import * as O from "fp-ts/lib/Option.js";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node";
 import {reconcileTerminalAnchorEdges} from "@/shell/edge/UI-edge/floating-windows/anchoring/reconcile-terminal-anchors";
 import {getCurrentIndex} from "@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync";
+import {resolveVisibleAnchorNodeId} from "@/shell/edge/UI-edge/floating-windows/anchoring/resolve-visible-anchor-node-id";
 
 function isValidCSSColor(color: string): boolean {
     if (!color) return false;
@@ -171,17 +172,18 @@ function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string
 function repairTerminalAnchorsForNode(cy: Core, nodeId: string): void {
     for (const terminal of getTerminals().values()) {
         if (!terminal.ui || !O.isSome(terminal.anchoredToNodeId)) continue
-        if (terminal.anchoredToNodeId.value !== nodeId) continue
+        const visibleAnchorNodeId: string = resolveVisibleAnchorNodeId(cy, terminal.anchoredToNodeId.value)
+        if (visibleAnchorNodeId !== nodeId) continue
 
         const shadowNodeId: string = getShadowNodeId(getTerminalId(terminal))
-        const edgeId: string = `edge-${nodeId}-${shadowNodeId}`
+        const edgeId: string = `edge-${visibleAnchorNodeId}-${shadowNodeId}`
         const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId)
         const hasAnchorEdge: boolean = cy.getElementById(edgeId).length > 0
         if (shadowNode.length > 0 && hasAnchorEdge) continue
 
         if (shadowNode.length > 0) shadowNode.remove()
         anchorToNode(cy, terminal as TerminalData, getCurrentIndex(cy))
-        cy.getElementById(nodeId).data('hasRunningTerminal', true)
+        cy.getElementById(visibleAnchorNodeId).data('hasRunningTerminal', true)
     }
 }
 

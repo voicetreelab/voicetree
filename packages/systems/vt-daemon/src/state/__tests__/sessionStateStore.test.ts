@@ -17,7 +17,8 @@ import {saveProjectConfigForDirectory} from '@vt/app-config/project-config'
 import {setGraph} from '@vt/graph-db-server/state/graph-store'
 import {clearWatchFolderState} from '@vt/graph-db-server/state/watch-folder-store'
 import {startDaemon, type DaemonHandle} from '@vt/graph-db-server/server'
-import type {Command, State} from '@vt/graph-state'
+import {project as projectSessionGraph, type Command, type State} from '@vt/graph-state'
+import type {ProjectedGraph} from '@vt/graph-state/contract'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
 
 import {
@@ -31,6 +32,8 @@ interface Harness {
     readonly voicetreeHomePath: string
     readonly root: string
     readonly fixtureNodeId: NodeIdAndFilePath
+    readonly taskFolderId: string
+    readonly taskFolderNoteId: NodeIdAndFilePath
     readonly handle: DaemonHandle
 }
 
@@ -48,6 +51,10 @@ async function startHarness(): Promise<Harness> {
 
     const fixturePath: string = join(project, FIXTURE_BASENAME)
     await writeFile(fixturePath, '# fixture\n', 'utf-8')
+    const taskFolderPath: string = join(project, 'task_folder')
+    await mkdir(taskFolderPath, {recursive: true})
+    const taskFolderNotePath: string = join(taskFolderPath, 'task_folder.md')
+    await writeFile(taskFolderNotePath, '# task folder\n', 'utf-8')
     await saveProjectConfigForDirectory(project, {writeFolderPath: '.'})
 
     const handle: DaemonHandle = await startDaemon({
@@ -61,6 +68,8 @@ async function startHarness(): Promise<Harness> {
         voicetreeHomePath,
         root,
         fixtureNodeId: fixturePath as NodeIdAndFilePath,
+        taskFolderId: `${taskFolderPath}/`,
+        taskFolderNoteId: taskFolderNotePath as NodeIdAndFilePath,
         handle,
     }
 }
@@ -80,17 +89,21 @@ async function stopHarness(h: Harness): Promise<void> {
 // wait, the first `getCurrentSessionState` race-condition-loads an empty
 // graph from vt-graphd, masking what the store actually mirrors at steady
 // state.
-async function waitForFixtureIndexed(h: Harness): Promise<void> {
+async function waitForNodeIndexed(h: Harness, nodeId: NodeIdAndFilePath): Promise<void> {
     const deadline: number = Date.now() + 5000
     while (Date.now() < deadline) {
         __resetSessionStateForTests(h.project)
         const state: State = await getCurrentSessionState(h.project)
-        if (Object.prototype.hasOwnProperty.call(state.graph.nodes, h.fixtureNodeId)) {
+        if (Object.prototype.hasOwnProperty.call(state.graph.nodes, nodeId)) {
             return
         }
         await new Promise<void>((r) => setTimeout(r, 50))
     }
-    throw new Error(`fixture node ${h.fixtureNodeId} not indexed by vt-graphd within 5s`)
+    throw new Error(`node ${nodeId} not indexed by vt-graphd within 5s`)
+}
+
+async function waitForFixtureIndexed(h: Harness): Promise<void> {
+    await waitForNodeIndexed(h, h.fixtureNodeId)
 }
 
 describe('sessionStateStore', (): void => {
@@ -116,6 +129,17 @@ describe('sessionStateStore', (): void => {
         expect([...state.roots.loaded]).toEqual([h.project])
         expect(state.layout.positions.size).toBe(0)
         expect(state.selection.size).toBe(0)
+    })
+
+    it('bootstraps a graph-derived folder tree for folder task notes', async (): Promise<void> => {
+        await waitForNodeIndexed(h, h.taskFolderNoteId)
+
+        const state: State = await getCurrentSessionState(h.project)
+        const projected: ProjectedGraph = projectSessionGraph(state)
+
+        expect(state.roots.folderTree.length).toBeGreaterThan(0)
+        expect(projected.nodes.some((node) => node.id === h.taskFolderId && node.kind === 'folder')).toBe(true)
+        expect(projected.nodes.some((node) => node.id === h.taskFolderNoteId)).toBe(false)
     })
 
     it('bumps revision monotonically across two Move commands and surfaces the position in layout', async (): Promise<void> => {
