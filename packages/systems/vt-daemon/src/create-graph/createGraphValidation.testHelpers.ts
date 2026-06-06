@@ -60,6 +60,7 @@ export function buildCtx(
         subgraphWarnThreshold: overrides.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphWarnThreshold,
         subgraphErrorThreshold: overrides.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphErrorThreshold,
         maxChildrenPerNode: overrides.maxChildrenPerNode ?? DEFAULT_SUBGRAPH_LIMITS.maxChildrenPerNode,
+        maxFolderChildren: overrides.maxFolderChildren ?? DEFAULT_SUBGRAPH_LIMITS.maxFolderChildren,
         complexityWarnScore: overrides.complexityWarnScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityWarnScore,
         complexityBlockScore: overrides.complexityBlockScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityBlockScore,
         destinationFolderPath: overrides.destinationFolderPath ?? '',

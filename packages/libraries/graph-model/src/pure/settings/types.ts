@@ -146,6 +146,17 @@ export const DEFAULT_SUBGRAPH_ERROR_THRESHOLD: number = 6;
 export const DEFAULT_MAX_CHILDREN_PER_NODE: number = 4;
 
 /**
+ * Default per-folder direct-member cap for the create_graph `folder_child_count_limit`
+ * gate. A DIFFERENT axis from `maxChildrenPerNode` (which caps a single parent's
+ * incoming edges): this counts the direct filesystem members of the destination
+ * folder (excluding its identity note and context nodes). Once a folder holds more
+ * than this many nodes it is hard to navigate, so create_graph blocks (overridable)
+ * and offers a gardening split. Slightly higher than the subgraph error threshold
+ * because flat membership tolerates more than a connected component.
+ */
+export const DEFAULT_MAX_FOLDER_CHILDREN: number = 7;
+
+/**
  * Default thresholds for the create_graph `graph_complexity_limit` gate, applied
  * to the L∞ complexity score (see graphComplexity.ts) of the destination-folder
  * component after the batch lands. `warn` surfaces a non-blocking nudge; `block`
@@ -166,6 +177,7 @@ export const DEFAULT_SUBGRAPH_LIMITS = {
     subgraphWarnThreshold: DEFAULT_SUBGRAPH_WARN_THRESHOLD,
     subgraphErrorThreshold: DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
     maxChildrenPerNode: DEFAULT_MAX_CHILDREN_PER_NODE,
+    maxFolderChildren: DEFAULT_MAX_FOLDER_CHILDREN,
     complexityWarnScore: DEFAULT_COMPLEXITY_WARN_SCORE,
     complexityBlockScore: DEFAULT_COMPLEXITY_BLOCK_SCORE,
 } as const;
@@ -228,6 +240,14 @@ export interface VTSettings {
      * (default: 4).
      */
     readonly maxChildrenPerNode?: number;
+    /**
+     * Max direct members a single folder may hold before create_graph blocks
+     * (overridable with a rationale). A DIFFERENT axis from `maxChildrenPerNode`:
+     * this counts filesystem members of the destination folder (excluding its
+     * identity note and context nodes), not a single parent's incoming edges
+     * (default: 7).
+     */
+    readonly maxFolderChildren?: number;
     /**
      * Graph-complexity warn score: when the destination-folder component's L∞
      * complexity score reaches this, create_graph returns a non-blocking warning
