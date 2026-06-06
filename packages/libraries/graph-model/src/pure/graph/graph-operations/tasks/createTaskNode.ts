@@ -1,5 +1,5 @@
 import type { Graph, GraphDelta, GraphNode, NodeIdAndFilePath } from '../..'
-import { ensureUniqueNodeId, nodeBasename, parseMarkdownToGraphNode, stableIdSuffix } from '../graphOperationPrimitives'
+import { nodeBasename, parseMarkdownToGraphNode, stableIdSuffix } from '../graphOperationPrimitives'
 import { findMostConnectedNode } from '../indexes/findMostConnectedNode'
 import * as O from 'fp-ts/lib/Option.js'
 
@@ -11,14 +11,33 @@ export interface TaskNodeCreationParams {
   readonly initialStatus?: string
 }
 
-function createTaskNodeCandidateId(
+/**
+ * A task node is created as a FOLDER identity note (`<dir>/task_<suffix>/task_<suffix>.md`)
+ * rather than a flat file, so that the moment an agent is spawned on it the node IS a
+ * folder — the agent's progress nodes then nest INSIDE the task folder (via create_graph
+ * task-folder routing) instead of cluttering the parent graph. Live-gardening prevention,
+ * resolving progress-node co-location by construction.
+ *
+ * Uniqueness is enforced on the FOLDER name (not the note basename) to preserve the
+ * `<folder>/<folder>.md` identity-note invariant on the rare suffix collision (same task
+ * spawned twice into the same folder).
+ */
+function createTaskFolderNoteId(
   writeFolderPath: string,
   taskDescription: string,
-  selectedNodeIds: readonly NodeIdAndFilePath[]
+  selectedNodeIds: readonly NodeIdAndFilePath[],
+  existingIds: ReadonlySet<string>
 ): NodeIdAndFilePath {
   const separator: string = writeFolderPath.endsWith('/') ? '' : '/'
   const suffix: string = stableIdSuffix([writeFolderPath, taskDescription, ...selectedNodeIds])
-  return `${writeFolderPath}${separator}task_${suffix}.md`
+  const noteId = (folderName: string): NodeIdAndFilePath =>
+    `${writeFolderPath}${separator}${folderName}/${folderName}.md`
+
+  const base: string = `task_${suffix}`
+  if (!existingIds.has(noteId(base))) return noteId(base)
+  let n: number = 2
+  while (existingIds.has(noteId(`${base}_${n}`))) n++
+  return noteId(`${base}_${n}`)
 }
 
 /**
@@ -32,8 +51,7 @@ export function createTaskNode(params: TaskNodeCreationParams): GraphDelta {
   const { taskDescription, selectedNodeIds, graph, writeFolderPath, initialStatus } = params
 
   const existingIds: ReadonlySet<string> = new Set(Object.keys(graph.nodes))
-  const candidateId: NodeIdAndFilePath = createTaskNodeCandidateId(writeFolderPath, taskDescription, selectedNodeIds)
-  const nodeId: NodeIdAndFilePath = ensureUniqueNodeId(candidateId, existingIds)
+  const nodeId: NodeIdAndFilePath = createTaskFolderNoteId(writeFolderPath, taskDescription, selectedNodeIds, existingIds)
 
   const mostConnectedNodeId: NodeIdAndFilePath = findMostConnectedNode(selectedNodeIds, graph)
   // Use basename-form wikilinks, matching human-authored convention.
