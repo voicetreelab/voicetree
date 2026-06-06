@@ -17,12 +17,20 @@ All services bind to `127.0.0.1`. Backend storage lives under
 `-- --persist` is passed. Plain run artifacts under `~/.voicetree/perf/<uuid>/`
 are never touched by lifecycle commands.
 
-## Auto-attach on `npm run electron(:prod)`
+## Opt-in on `npm run electron(:prod)` — `PERF_STACK=1`
 
-Running the app locally attaches the stack automatically — no manual
-`perf:install` / `perf:up` first. The webapp `electron` and `electron:prod`
-scripts wrap their launch in `scripts/ensure-perf-stack.mjs`, an idempotent
-preflight that:
+The perf stack is **off by default**: a normal `npm run electron` runs
+NDJSON-only with no resident collector services and no first-run install. Set
+`PERF_STACK=1` to attach it — no manual `perf:install` / `perf:up` first:
+
+```sh
+PERF_STACK=1 npm run electron
+```
+
+(or put `PERF_STACK=1` in your `.env` to make it your standing default.)
+
+The webapp `electron` and `electron:prod` scripts wrap their launch in
+`scripts/ensure-perf-stack.mjs`, an idempotent preflight that, when enabled:
 
 1. installs the native binaries on first run (one-time download into `bin/`),
 2. brings the stack up if it isn't already (a warm stack is a fast no-op), and
@@ -33,17 +41,10 @@ Both `vt-electron-main` and the `vt-graphd` daemon it spawns then export OTLP to
 the collector; the launch prints `Grafana: http://localhost:2999` so the
 dashboards are one click away.
 
-### Opt-out — `PERF_STACK=0`
-
-```sh
-PERF_STACK=0 npm run electron
-```
-
-Skips the preflight entirely: no install, no `up`, and `VOICETREE_OTLP_ENDPOINT`
+Without `PERF_STACK=1` (or with any falsy value — absent, `0`, `false`) the
+preflight is a complete no-op: no install, no `up`, and `VOICETREE_OTLP_ENDPOINT`
 is left unset so the OTLP exporter never attaches. Only the always-on NDJSON
-exporter under `~/.voicetree/traces/` runs — i.e. exactly the pre-auto-attach
-behavior. Use this when you don't want the six resident perf-stack services on
-your machine for a given launch.
+exporter under `~/.voicetree/traces/` runs.
 
 ## Trace to profile correlation
 
