@@ -1,23 +1,34 @@
 import {execFileSync, type ExecFileSyncOptionsWithStringEncoding} from 'node:child_process'
 
-// Git exports GIT_DIR (and sometimes GIT_WORK_TREE) into the environment of any
-// hook it runs (pre-commit, pre-push, …). When GIT_DIR is set WITHOUT
-// GIT_WORK_TREE, working-tree commands such as `git ls-files` abort with
-//   fatal: this operation must be run in a work tree
-// because the inherited GIT_DIR overrides the cwd-based repository discovery
-// those commands rely on. Server-side CI is unaffected (no hook wrapper exports
-// GIT_DIR there), so the breakage only bites git operations invoked from a local
-// hook — e.g. the architecture-drift / source-of-truth health checks during a
-// local push, which silently report as failures.
+// Git exports its location-pointing variables (GIT_DIR, GIT_WORK_TREE, and —
+// inside a linked worktree — GIT_COMMON_DIR, plus GIT_INDEX_FILE / GIT_PREFIX)
+// into the environment of any hook it runs (pre-commit, pre-push, …). When any
+// of these is inherited, working-tree commands run against the HOOK's repo
+// rather than the cwd we point them at:
+//   - `git ls-files` aborts with "fatal: this operation must be run in a work tree"
+//   - `git init` in a sandbox writes refs to the leaked GIT_COMMON_DIR and dies
+//     with "<sandbox>/.git/refs/heads: No such file or directory"
+// Server-side CI is unaffected (no hook wrapper exports these there), so the
+// breakage only bites git operations invoked from a local hook — e.g. the
+// architecture-drift / source-of-truth health checks during a local push.
 //
-// Stripping both overrides restores cwd-based resolution, which is exactly what
-// every measure git call already wants: they each pass an explicit `cwd` and
-// never depend on an ambient GIT_DIR.
+// Stripping every location override restores cwd-based resolution, which is
+// exactly what every measure git call already wants: they each pass an explicit
+// `cwd` and never depend on an ambient GIT_DIR.
+const GIT_LOCATION_OVERRIDE_VARS = new Set([
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_COMMON_DIR',
+    'GIT_INDEX_FILE',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+    'GIT_NAMESPACE',
+    'GIT_PREFIX',
+])
+
 function envWithoutGitLocationOverrides(): NodeJS.ProcessEnv {
     return Object.fromEntries(
-        Object.entries(process.env).filter(
-            ([key]) => key !== 'GIT_DIR' && key !== 'GIT_WORK_TREE',
-        ),
+        Object.entries(process.env).filter(([key]) => !GIT_LOCATION_OVERRIDE_VARS.has(key)),
     )
 }
 
