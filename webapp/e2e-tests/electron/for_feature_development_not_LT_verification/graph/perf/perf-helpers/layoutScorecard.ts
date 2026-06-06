@@ -13,19 +13,46 @@ export type GraphGeometry = {
   readonly edges: readonly LayoutEdge[];
 };
 
+// A single renderer-CPU hotspot (self-time) from the layout-window .cpuprofile —
+// the actionable "where is this engine spending time" signal.
+export type LayoutHotspot = {
+  readonly name: string;
+  readonly selfPercent: number;
+  readonly source: string;
+  readonly isAppCode: boolean;
+};
+
 // Performance is reported SEPARATELY from the composite quality score (so speed
 // vs quality can be traded off later), per the layout-quality openspec.
+//
+// Derived from a CDP trace + renderer CPU profile captured strictly around the
+// layout window ("Tidy layout" click → positions quiesced), reusing the same
+// machinery as the 500-node CDP perf suite (cdpTrace + Profiler domain). This
+// is renderer-process truth — Blink layout/paint/GC, GPU compositor frames, and
+// per-function self-time — not the coarse rAF sampling it replaces.
 export type LayoutPerformance = {
-  // Engine compute span: first `layoutstart` → last `layoutstop` (perf.now()).
-  // Null when no layout events were observed for this engine.
-  readonly layoutWallClockMs: number | null;
   // Wall-clock from triggering "Tidy layout" until positions quiesced
   // (waitForLayoutStable returns) — includes any post-layout finisher settling.
   readonly timeToStableMs: number;
-  // Frames longer than the jank threshold during the layout window.
-  readonly longFrameCount: number;
-  readonly avgFps: number;
-  readonly sampledFrameCount: number;
+  // CDP-trace span covering the layout window (max−min event ts).
+  readonly traceDurationMs: number;
+  // Renderer time breakdown over the layout window (from the CDP trace).
+  readonly jsExecutionMs: number;
+  readonly blinkLayoutMs: number;
+  readonly paintMs: number;
+  readonly gcMs: number;
+  readonly longestTaskMs: number;
+  // GPU / compositor over the layout window.
+  readonly frameCount: number;
+  readonly estimatedFps: number;
+  readonly rasterTotalMs: number;
+  readonly compositorDrawCount: number;
+  readonly longestCompositorFrameMs: number;
+  // Top renderer-CPU self-time hotspots (from the .cpuprofile) — where to optimise.
+  readonly topHotspots: readonly LayoutHotspot[];
+  // Saved artifact paths (chrome://tracing / DevTools / speedscope).
+  readonly tracePath: string;
+  readonly rendererProfilePath: string;
 };
 
 export type EngineScorecard = {
@@ -41,21 +68,3 @@ export type EngineScorecard = {
   readonly screenshotPath: string;
   readonly capturedAtIso: string;
 };
-
-// A frame longer than this during the layout window counts as jank.
-export const LONG_FRAME_MS = 50;
-
-export function framesToJank(frameTimestamps: readonly number[]): {
-  longFrameCount: number; avgFps: number; sampledFrameCount: number;
-} {
-  if (frameTimestamps.length < 2) {
-    return { longFrameCount: 0, avgFps: 0, sampledFrameCount: frameTimestamps.length };
-  }
-  let longFrameCount = 0;
-  for (let i = 1; i < frameTimestamps.length; i += 1) {
-    if (frameTimestamps[i] - frameTimestamps[i - 1] > LONG_FRAME_MS) longFrameCount += 1;
-  }
-  const spanMs = frameTimestamps[frameTimestamps.length - 1] - frameTimestamps[0];
-  const avgFps = spanMs > 0 ? ((frameTimestamps.length - 1) * 1000) / spanMs : 0;
-  return { longFrameCount, avgFps, sampledFrameCount: frameTimestamps.length };
-}

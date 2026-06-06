@@ -29,6 +29,22 @@ export function bandScore(v: number, lo: number, hi: number): number {
   return 1;
 }
 
+// Gini coefficient of a list of non-negative values: 0 = perfectly even, → 1 as
+// all mass concentrates in one entry. Used to grade how evenly nodes spread
+// across the layout's bounding box (voids and clumps both raise it). Standard
+// sorted-rank formula, O(n log n).
+export function giniCoefficient(values: readonly number[]): number {
+  const n = values.length;
+  if (n === 0) return 0;
+  let total = 0;
+  for (const v of values) total += v;
+  if (!(total > 0)) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  let cumulative = 0;
+  for (let i = 0; i < n; i += 1) cumulative += (i + 1) * sorted[i];
+  return clamp01((2 * cumulative) / (n * total) - (n + 1) / n);
+}
+
 export function nodeBox(node: LayoutNode): LayoutBox {
   const hw = node.width / 2;
   const hh = node.height / 2;

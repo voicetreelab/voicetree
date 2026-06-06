@@ -20,7 +20,7 @@ function expectedComposite(pillars: Pillars, weights: PillarWeights): number {
     [pillars.edgeCrossing, weights.edgeCrossing],
     [pillars.titleLegibility, weights.titleLegibility],
     [pillars.edgeLength, weights.edgeLength],
-    [pillars.whitespace, weights.whitespace],
+    [pillars.spatialDistribution, weights.spatialDistribution],
     [pillars.componentSeparation, weights.componentSeparation],
     [pillars.bboxArea, weights.bboxArea],
   ];
@@ -74,7 +74,8 @@ describe('pillar 2 — edge crossing', () => {
     const r = scoreLayout(nodes, edges);
     expect(r.rawMetrics.edgeCrossingCount).toBe(1);
     expect(r.rawMetrics.edgeCrossingRate).toBeCloseTo(0.5, 6); // 1 / 2 edges
-    expect(r.pillars.edgeCrossing).toBeCloseTo(1 / 1.5, 6);
+    // Steepened penalty: score = 1 / (1 + k·rate), k=4, rate=0.5 → 1/3.
+    expect(r.pillars.edgeCrossing).toBeCloseTo(1 / 3, 6);
   });
 
   it('does not count edges that merely share a node', () => {
@@ -129,6 +130,36 @@ describe('pillar 4 — edge-length goldilocks', () => {
   it('is null when there are no edges', () => {
     const r = scoreLayout([sq('a', 0, 0), sq('b', 120, 0)], []);
     expect(r.pillars.edgeLength).toBeNull();
+  });
+});
+
+describe('pillar 5 — spatial distribution (whitespace evenness)', () => {
+  it('scores an even spread strictly above a clumped layout with large voids', () => {
+    // Even: 16 nodes on a 4x4 grid, one per cell → Gini 0 → perfect.
+    const even: LayoutNode[] = [];
+    for (let row = 0; row < 4; row += 1) {
+      for (let col = 0; col < 4; col += 1) even.push(sq(`e${row}${col}`, col * 200, row * 200));
+    }
+    const evenScore = scoreLayout(even, []).pillars.spatialDistribution;
+
+    // Clumped: 15 nodes piled in one corner + 1 far away → most cells empty,
+    // one cell holds nearly all the mass → high Gini → low score.
+    const clumped: LayoutNode[] = [];
+    for (let i = 0; i < 15; i += 1) clumped.push(sq(`c${i}`, (i % 4) * 45, Math.floor(i / 4) * 45));
+    clumped.push(sq('far', 2000, 2000));
+    const clumpedScore = scoreLayout(clumped, []).pillars.spatialDistribution;
+
+    expect(evenScore).toBeGreaterThan(0.9);
+    expect(clumpedScore).toBeLessThan(0.4);
+    expect(evenScore).toBeGreaterThan(clumpedScore);
+  });
+
+  it('reports the Gini coefficient and grid dimensions in rawMetrics', () => {
+    const r = scoreLayout([sq('a', 0, 0), sq('b', 300, 0), sq('c', 0, 300), sq('d', 300, 300)], []);
+    expect(r.rawMetrics.distributionGiniCoefficient).toBeGreaterThanOrEqual(0);
+    expect(r.rawMetrics.distributionGiniCoefficient).toBeLessThanOrEqual(1);
+    expect(r.rawMetrics.distributionGridCols).toBeGreaterThanOrEqual(1);
+    expect(r.rawMetrics.distributionGridRows).toBeGreaterThanOrEqual(1);
   });
 });
 

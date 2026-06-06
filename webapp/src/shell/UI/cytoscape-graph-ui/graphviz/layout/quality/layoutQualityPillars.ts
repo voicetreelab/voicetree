@@ -14,6 +14,7 @@ import {
   boxOverlapArea,
   clamp01,
   effRadius,
+  giniCoefficient,
   segmentCrossesBox,
   segmentsCross,
 } from './layoutQualityGeometry';
@@ -52,9 +53,11 @@ export function nodeOverlapPillar(boxes: readonly LayoutBox[]): {
 
 // ── Pillar 2: edge–edge crossing ────────────────────────────────────────────
 
-export function edgeCrossingPillar(segs: readonly EdgeSeg[], edgeCount: number): {
-  score: number; crossings: number; rate: number;
-} {
+export function edgeCrossingPillar(
+  segs: readonly EdgeSeg[],
+  edgeCount: number,
+  config: LayoutScoringConfig,
+): { score: number; crossings: number; rate: number } {
   let crossings = 0;
   for (let i = 0; i < segs.length; i += 1) {
     for (let j = i + 1; j < segs.length; j += 1) {
@@ -66,7 +69,10 @@ export function edgeCrossingPillar(segs: readonly EdgeSeg[], edgeCount: number):
     }
   }
   const rate = crossings / Math.max(edgeCount, 1);
-  return { score: 1 / (1 + rate), crossings, rate };
+  // Steep penalty: with k≈4 a clean layout (rate ~0.02) scores ~0.92, while a
+  // crossing-heavy one (rate ~0.2) drops to ~0.55. The previous 1/(1+rate)
+  // barely moved (0.83 at rate 0.2), letting crossing-heavy layouts pass.
+  return { score: 1 / (1 + config.edgeCrossingPenaltyK * rate), crossings, rate };
 }
 
 // ── Pillar 3: title/label legibility (hard constraint) ──────────────────────
@@ -131,13 +137,23 @@ export function edgeLengthPillar(
   return { score: sumScore / count, meanLength: sumLength / count };
 }
 
-// ── Pillar 5: whitespace goldilocks (also yields the graph bbox) ─────────────
+// ── Pillar 5: spatial distribution / whitespace evenness (yields graph bbox) ──
+//
+// Grades how EVENLY nodes fill the bounding box. A global density-in-band check
+// (the old pillar) saturated at 1.0 for every layout — it could not tell a tidy
+// even spread from one with a dominating hub fan and a large empty band. Instead
+// we grid the bbox into ~square cells, count node centers per cell, and take the
+// Gini coefficient of those counts: 0 = perfectly even (score 1), high = mass
+// clumped into a few cells with large voids elsewhere (low score).
 
-export function whitespacePillar(
+export function spatialDistributionPillar(
   boxes: readonly LayoutBox[],
   segs: readonly EdgeSeg[],
   config: LayoutScoringConfig,
-): { score: number; inkArea: number; density: number; bbox: LayoutBox; bboxArea: number } {
+): {
+  score: number; inkArea: number; density: number; bbox: LayoutBox; bboxArea: number;
+  gini: number; gridCols: number; gridRows: number;
+} {
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
   let nodeArea = 0;
   for (const b of boxes) {
@@ -153,8 +169,39 @@ export function whitespacePillar(
   }
   const inkArea = nodeArea + edgeInk;
   const density = area > 0 ? inkArea / area : 0;
-  const [lo, hi] = config.whitespaceDensityBand;
-  return { score: area > 0 ? bandScore(density, lo, hi) : 1, inkArea, density, bbox, bboxArea: area };
+
+  const distribution = distributionScore(boxes, bbox, config);
+  return { ...distribution, inkArea, density, bbox, bboxArea: area };
+}
+
+// Grid the bbox into ~square cells (target count ≈ nodeCount / nodesPerCell,
+// clamped), tally node centers per cell, and score by 1 − Gini(cell counts).
+function distributionScore(
+  boxes: readonly LayoutBox[],
+  bbox: LayoutBox,
+  config: LayoutScoringConfig,
+): { score: number; gini: number; gridCols: number; gridRows: number } {
+  const n = boxes.length;
+  const w = bbox.x2 - bbox.x1;
+  const h = bbox.y2 - bbox.y1;
+  if (n < 2 || !(w > 0) || !(h > 0)) return { score: 1, gini: 0, gridCols: 1, gridRows: 1 };
+
+  const [minCells, maxCells] = config.distributionCellRange;
+  const targetCells = Math.min(maxCells, Math.max(minCells, Math.round(n / config.distributionNodesPerCell)));
+  const cellSize = Math.sqrt((w * h) / targetCells);
+  const cols = Math.max(1, Math.round(w / cellSize));
+  const rows = Math.max(1, Math.round(h / cellSize));
+
+  const counts = new Array<number>(cols * rows).fill(0);
+  for (const b of boxes) {
+    const cx = (b.x1 + b.x2) / 2;
+    const cy = (b.y1 + b.y2) / 2;
+    const ci = Math.min(cols - 1, Math.max(0, Math.floor(((cx - bbox.x1) / w) * cols)));
+    const ri = Math.min(rows - 1, Math.max(0, Math.floor(((cy - bbox.y1) / h) * rows)));
+    counts[ri * cols + ci] += 1;
+  }
+  const gini = giniCoefficient(counts);
+  return { score: clamp01(1 - gini), gini, gridCols: cols, gridRows: rows };
 }
 
 // ── Pillar 6: component separation goldilocks ───────────────────────────────

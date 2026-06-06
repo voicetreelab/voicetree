@@ -9,14 +9,18 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { killOrphanVtGraphdDaemons } from '@vt/graph-db-client';
 
+import type { CDPSession } from '@playwright/test';
+
 import { scoreLayout } from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/quality/layoutQualityScore';
 import { waitForLayoutStable } from './perf-helpers/layoutHelpers';
 import {
-  framesToJank,
   type EngineScorecard,
   type GraphGeometry,
+  type LayoutHotspot,
   type LayoutPerformance,
 } from './perf-helpers/layoutScorecard';
+import { startCDPTrace, stopCDPTraceAndSave, analyzeTrace, CDP_PAN_ZOOM_CATEGORIES } from './perf-helpers/cdpTrace';
+import { analyzeMainProcessProfile } from './perf-helpers/mainProcessProfile';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout-quality scorecard harness — the experiment driver.
@@ -73,18 +77,8 @@ function customLayoutConfig(): Record<string, unknown> {
 
 const MIN_EXPECTED_NODES = 100;
 
-type LayoutProbe = {
-  frameTs: number[];
-  layoutFirstStart: number | null;
-  layoutLastStop: number | null;
-  sampling: boolean;
-  onStart: () => void;
-  onStop: () => void;
-};
-
 type ScorecardWindow = Window & {
   readonly cytoscapeInstance?: CytoscapeCore;
-  __layoutProbe?: LayoutProbe;
   readonly electronAPI?: {
     readonly main?: {
       readonly startFileWatching?: (directoryPath?: string) => Promise<{ readonly success: boolean; readonly error?: string }>;
@@ -282,38 +276,65 @@ async function applyLayoutConfig(appWindow: Page, engine: string, extraConfig: R
   }, { nextEngine: engine, extra: extraConfig });
 }
 
-async function installPerfProbe(appWindow: Page): Promise<void> {
-  await appWindow.evaluate(() => {
-    const w = window as unknown as ScorecardWindow;
-    const cy = w.cytoscapeInstance;
-    if (!cy) throw new Error('cytoscapeInstance is unavailable');
-    const probe: LayoutProbe = {
-      frameTs: [], layoutFirstStart: null, layoutLastStop: null, sampling: true,
-      onStart: () => { if (probe.layoutFirstStart === null) probe.layoutFirstStart = performance.now(); },
-      onStop: () => { probe.layoutLastStop = performance.now(); },
-    };
-    const tick = (t: number): void => { probe.frameTs.push(t); if (probe.sampling) requestAnimationFrame(tick); };
-    requestAnimationFrame(tick);
-    cy.on('layoutstart', probe.onStart);
-    cy.on('layoutstop', probe.onStop);
-    w.__layoutProbe = probe;
-  });
-}
+// Captures renderer-process performance over the layout window by reusing the
+// 500-node CDP suite's machinery: a CDP trace (Blink layout/paint/GC + GPU
+// compositor frames) and a renderer CPU profile (per-function self-time). The
+// caller's `triggerAndSettle` clicks "Tidy layout" and waits for the positions
+// to quiesce, returning the wall-clock to stable; everything inside that window
+// is what we attribute to the engine.
+async function captureLayoutPerformance(
+  cdp: CDPSession,
+  outDir: string,
+  label: string,
+  triggerAndSettle: () => Promise<number>,
+): Promise<LayoutPerformance> {
+  await cdp.send('Profiler.enable');
+  await cdp.send('Profiler.setSamplingInterval', { interval: 100 });
+  await cdp.send('Profiler.start');
+  await startCDPTrace(cdp, CDP_PAN_ZOOM_CATEGORIES);
 
-async function readPerfProbe(appWindow: Page, timeToStableMs: number): Promise<LayoutPerformance> {
-  const raw = await appWindow.evaluate(() => {
-    const w = window as unknown as ScorecardWindow;
-    const probe = w.__layoutProbe;
-    const cy = w.cytoscapeInstance;
-    if (!probe || !cy) return { frameTs: [] as number[], layoutWallClockMs: null as number | null };
-    probe.sampling = false;
-    cy.off('layoutstart', probe.onStart);
-    cy.off('layoutstop', probe.onStop);
-    const wall = (probe.layoutFirstStart !== null && probe.layoutLastStop !== null && probe.layoutLastStop >= probe.layoutFirstStart)
-      ? probe.layoutLastStop - probe.layoutFirstStart : null;
-    return { frameTs: probe.frameTs, layoutWallClockMs: wall };
-  });
-  return { layoutWallClockMs: raw.layoutWallClockMs, timeToStableMs, ...framesToJank(raw.frameTs) };
+  const timeToStableMs = await triggerAndSettle();
+
+  const tracePath = path.join(outDir, `trace-${label}.json`);
+  const trace = await stopCDPTraceAndSave(cdp, outDir, `trace-${label}.json`);
+  const phase = analyzeTrace(trace, label);
+
+  const profileResult = await cdp.send('Profiler.stop') as { profile?: unknown };
+  const rendererProfilePath = path.join(outDir, `renderer-${label}.cpuprofile`);
+  let topHotspots: LayoutHotspot[] = [];
+  if (profileResult.profile) {
+    const profileJson = JSON.stringify(profileResult.profile);
+    await fs.writeFile(rendererProfilePath, profileJson, 'utf8');
+    const metrics = analyzeMainProcessProfile(profileJson);
+    topHotspots = metrics.topFunctions.slice(0, 15).map((fn): LayoutHotspot => {
+      const isAppCode = Boolean(fn.url) && !fn.url.includes('node_modules') && !fn.url.startsWith('node:');
+      const shortUrl = fn.url.includes('/') ? fn.url.split('/').slice(-3).join('/') : fn.url;
+      return {
+        name: fn.name || '(anonymous)',
+        selfPercent: Number(fn.selfPercent.toFixed(2)),
+        source: shortUrl ? `${shortUrl}:${fn.line}` : '(native)',
+        isAppCode,
+      };
+    });
+  }
+
+  return {
+    timeToStableMs,
+    traceDurationMs: phase.totalDurationMs,
+    jsExecutionMs: phase.jsExecutionMs,
+    blinkLayoutMs: phase.layoutMs,
+    paintMs: phase.paintMs,
+    gcMs: phase.gcMs,
+    longestTaskMs: phase.longestTaskMs,
+    frameCount: phase.gpu.frameCount,
+    estimatedFps: phase.gpu.estimatedFps,
+    rasterTotalMs: phase.gpu.rasterTotalMs,
+    compositorDrawCount: phase.gpu.compositorFrameCount,
+    longestCompositorFrameMs: phase.gpu.longestCompositorFrameMs,
+    topHotspots,
+    tracePath,
+    rendererProfilePath,
+  };
 }
 
 // Reads label-INCLUSIVE node bboxes (the footprint the scorer grades), the
@@ -358,20 +379,26 @@ test.describe('layout-quality scorecard', () => {
     await waitForLoadedGraph(appWindow, markdownFileCount);
     await waitForLayoutStable(appWindow, 180000);
 
+    const cdp = await appWindow.context().newCDPSession(appWindow);
+
     const extraConfig = customLayoutConfig();
     for (const engine of selectedEngines()) {
       const appliedConfig = await applyLayoutConfig(appWindow, engine, extraConfig);
-      await installPerfProbe(appWindow);
+      const label = process.env.SCORECARD_LABEL?.trim() || engine;
 
-      const startedAt = Date.now();
-      await appWindow.getByRole('button', { name: 'Tidy layout' }).click();
-      await waitForLayoutStable(appWindow, 180000);
-      const performance: LayoutPerformance = await readPerfProbe(appWindow, Date.now() - startedAt);
+      const performance: LayoutPerformance = await captureLayoutPerformance(cdp, OUT_DIR, label, async () => {
+        const startedAt = Date.now();
+        await appWindow.getByRole('button', { name: 'Tidy layout' }).click();
+        await waitForLayoutStable(appWindow, 180000);
+        return Date.now() - startedAt;
+      });
 
       const geometry = await extractGeometry(appWindow);
       const quality = scoreLayout(geometry.nodes, geometry.edges);
 
-      const label = process.env.SCORECARD_LABEL?.trim() || engine;
+      // Persist the RAW geometry so the rubric can be re-tuned and re-scored
+      // offline by the pure scoreLayout — no Electron re-run needed.
+      await fs.writeFile(path.join(OUT_DIR, `geometry-${label}.json`), JSON.stringify(geometry), 'utf8');
       const screenshotPath = path.join(OUT_DIR, `scorecard-${label}.png`);
       await fitAndScreenshot(appWindow, screenshotPath);
 
@@ -384,15 +411,18 @@ test.describe('layout-quality scorecard', () => {
         quality,
         performance,
         screenshotPath,
-        capturedAtIso: new Date(startedAt).toISOString(),
+        capturedAtIso: new Date().toISOString(),
       };
       await fs.writeFile(path.join(OUT_DIR, `scorecard-${label}.json`), JSON.stringify(scorecard, null, 2), 'utf8');
 
       console.log(`[scorecard] ${engine}: composite=${quality.composite.toFixed(4)} ` +
         `nodes=${scorecard.nodeCount} edges=${scorecard.edgeCount} ` +
-        `timeToStable=${performance.timeToStableMs}ms wallClock=${performance.layoutWallClockMs ?? 'n/a'} ` +
-        `longFrames=${performance.longFrameCount} avgFps=${performance.avgFps.toFixed(1)}`);
+        `timeToStable=${performance.timeToStableMs}ms jsExec=${performance.jsExecutionMs.toFixed(0)}ms ` +
+        `blinkLayout=${performance.blinkLayoutMs.toFixed(0)}ms fps=${performance.estimatedFps.toFixed(1)} ` +
+        `longestTask=${performance.longestTaskMs.toFixed(0)}ms`);
       console.log(`[scorecard] ${engine} pillars: ${JSON.stringify(quality.pillars)}`);
+      console.log(`[scorecard] ${engine} top hotspots: ` +
+        performance.topHotspots.slice(0, 5).map((h) => `${h.name} ${h.selfPercent}%`).join(', '));
 
       expect(geometry.nodes.length, `vault must load > ${MIN_EXPECTED_NODES} nodes`).toBeGreaterThan(MIN_EXPECTED_NODES);
       expect(quality.composite).toBeGreaterThanOrEqual(0);

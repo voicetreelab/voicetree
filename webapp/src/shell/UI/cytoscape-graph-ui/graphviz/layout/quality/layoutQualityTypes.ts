@@ -39,7 +39,7 @@ export type PillarWeights = {
   readonly edgeCrossing: number;
   readonly titleLegibility: number;
   readonly edgeLength: number;
-  readonly whitespace: number;
+  readonly spatialDistribution: number;
   readonly componentSeparation: number;
   readonly bboxArea: number;
 };
@@ -51,8 +51,12 @@ export type LayoutScoringConfig = {
   // effective-radius, ADDED to the sum of endpoint effective-radii.
   readonly edgeGapMinFactor: number;
   readonly edgeGapMaxFactor: number;
-  // Whitespace density goldilocks band: ink area / graph bbox area.
-  readonly whitespaceDensityBand: readonly [number, number];
+  // Edge-crossing penalty steepness: score = 1 / (1 + k · crossingRate).
+  readonly edgeCrossingPenaltyK: number;
+  // Spatial-distribution grid: target node count per cell, and the [min,max]
+  // clamp on the total cell count the bbox is divided into.
+  readonly distributionNodesPerCell: number;
+  readonly distributionCellRange: readonly [number, number];
   // Component-separation band, as multiples of the median node extent.
   readonly componentGapBandFactors: readonly [number, number];
   // Ideal packing fraction (sum node area / graph bbox area) for compactness.
@@ -67,7 +71,7 @@ export type Pillars = {
   readonly edgeCrossing: number;
   readonly titleLegibility: number | null;
   readonly edgeLength: number | null;
-  readonly whitespace: number;
+  readonly spatialDistribution: number;
   readonly componentSeparation: number | null;
   readonly bboxArea: number;
 };
@@ -88,6 +92,9 @@ export type RawMetrics = {
   readonly graphBboxHeight: number;
   readonly graphBboxArea: number;
   readonly density: number;
+  readonly distributionGiniCoefficient: number;
+  readonly distributionGridCols: number;
+  readonly distributionGridRows: number;
   readonly componentCount: number;
   readonly componentPairCount: number;
   readonly meanComponentGap: number;
@@ -102,25 +109,30 @@ export type LayoutQualityScore = {
   readonly rawMetrics: RawMetrics;
 };
 
-// Overlap/legibility constraints (nodeOverlap+edgeCrossing+titleLegibility=0.60)
-// are weighted heavily as near-hard constraints; the goldilocks/aesthetic
-// pillars (edgeLength+whitespace+componentSeparation+bboxArea=0.40) shape the
-// rest. Justified in the openspec design.md.
+// Readability constraints (nodeOverlap+edgeCrossing+titleLegibility = 0.58) are
+// weighted heavily as near-hard constraints; the aesthetic/spatial pillars
+// (edgeLength+spatialDistribution+componentSeparation+bboxArea = 0.42) shape the
+// rest. edgeCrossing (0.10→0.15) and spatialDistribution (0.10→0.12) carry more
+// weight than the original rubric because they are the strongest visual quality
+// signals — and the old whitespace pillar was saturated at 1.0, contributing
+// nothing. Justified in the openspec design.md.
 export const DEFAULT_WEIGHTS: PillarWeights = {
-  nodeOverlap: 0.30,
-  edgeCrossing: 0.10,
-  titleLegibility: 0.20,
-  edgeLength: 0.15,
-  whitespace: 0.10,
+  nodeOverlap: 0.25,
+  edgeCrossing: 0.15,
+  titleLegibility: 0.18,
+  edgeLength: 0.12,
+  spatialDistribution: 0.12,
   componentSeparation: 0.05,
-  bboxArea: 0.10,
+  bboxArea: 0.13,
 };
 
 export const DEFAULT_CONFIG: LayoutScoringConfig = {
   edgeWidthPx: 2,
   edgeGapMinFactor: 0.5,
   edgeGapMaxFactor: 4,
-  whitespaceDensityBand: [0.08, 0.30],
+  edgeCrossingPenaltyK: 4,
+  distributionNodesPerCell: 4,
+  distributionCellRange: [16, 256],
   componentGapBandFactors: [1, 5],
   bboxTargetPacking: 0.20,
   weights: DEFAULT_WEIGHTS,

@@ -31,8 +31,8 @@ import {
   edgeLengthPillar,
   edgeSegments,
   nodeOverlapPillar,
+  spatialDistributionPillar,
   titleLegibilityPillar,
-  whitespacePillar,
 } from './layoutQualityPillars';
 
 export type {
@@ -62,7 +62,7 @@ function compositeOf(pillars: Pillars, weights: PillarWeights): number {
     [pillars.edgeCrossing, weights.edgeCrossing],
     [pillars.titleLegibility, weights.titleLegibility],
     [pillars.edgeLength, weights.edgeLength],
-    [pillars.whitespace, weights.whitespace],
+    [pillars.spatialDistribution, weights.spatialDistribution],
     [pillars.componentSeparation, weights.componentSeparation],
     [pillars.bboxArea, weights.bboxArea],
   ];
@@ -107,19 +107,19 @@ export function scoreLayout(
   const medianExtent = medianOf(nodes.map((n) => (n.width + n.height) / 2));
 
   const overlap = nodeOverlapPillar(boxes);
-  const crossing = edgeCrossingPillar(segs, edges.length);
+  const crossing = edgeCrossingPillar(segs, edges.length, cfg);
   const title = titleLegibilityPillar(nodes, boxes, segs);
   const length = edgeLengthPillar(edges, byId, cfg);
-  const whitespace = whitespacePillar(boxes, segs, cfg);
+  const distribution = spatialDistributionPillar(boxes, segs, cfg);
   const separation = componentSeparationPillar(componentsOf(nodes, edges), boxById, medianExtent, cfg);
-  const bbox = bboxAreaPillar(overlap.totalNodeArea, whitespace.bboxArea, cfg);
+  const bbox = bboxAreaPillar(overlap.totalNodeArea, distribution.bboxArea, cfg);
 
   const pillars: Pillars = {
     nodeOverlap: overlap.score,
     edgeCrossing: crossing.score,
     titleLegibility: title.score,
     edgeLength: length.score,
-    whitespace: whitespace.score,
+    spatialDistribution: distribution.score,
     componentSeparation: separation.score,
     bboxArea: bbox.score,
   };
@@ -135,11 +135,14 @@ export function scoreLayout(
     titleCount: title.titleCount,
     occludedTitleCount: title.occluded,
     meanEdgeLength: length.meanLength,
-    inkArea: whitespace.inkArea,
-    graphBboxWidth: Math.max(0, whitespace.bbox.x2 - whitespace.bbox.x1),
-    graphBboxHeight: Math.max(0, whitespace.bbox.y2 - whitespace.bbox.y1),
-    graphBboxArea: whitespace.bboxArea,
-    density: whitespace.density,
+    inkArea: distribution.inkArea,
+    graphBboxWidth: Math.max(0, distribution.bbox.x2 - distribution.bbox.x1),
+    graphBboxHeight: Math.max(0, distribution.bbox.y2 - distribution.bbox.y1),
+    graphBboxArea: distribution.bboxArea,
+    density: distribution.density,
+    distributionGiniCoefficient: distribution.gini,
+    distributionGridCols: distribution.gridCols,
+    distributionGridRows: distribution.gridRows,
     componentCount: separation.componentCount,
     componentPairCount: separation.pairCount,
     meanComponentGap: separation.meanGap,
