@@ -258,6 +258,44 @@ describe('tmux attach relay', () => {
         }
     }, TEST_TIMEOUT_MS)
 
+    it('marks terminal input started for renderer input frames only', async () => {
+        const sessionName: string = makeSessionName('input-started')
+        const marks: Array<{readonly terminalId: string; readonly inputText: string}> = []
+        sessions.push(sessionName)
+        await createSession(sessionName, sessionCommand())
+        await waitForTmuxOutput(sessionName, 'BF312_READY')
+
+        relay?.close()
+        relay = mountForTest(server!, {
+            markInputStarted: (terminalId: string, inputText: string): void => {
+                marks.push({terminalId, inputText})
+            },
+        })
+
+        await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve))
+        const port: number = (server!.address() as AddressInfo).port
+        const {ws, output} = await connect(
+            `ws://127.0.0.1:${port}/terminals/${encodeURIComponent(sessionName)}/attach?cols=120&rows=40`
+        )
+
+        try {
+            await waitForOutput(output, 'BF312_READY')
+            expect(marks).toEqual([])
+
+            ws.send(JSON.stringify({type: 'input', payload: 'BF312_INPUT_STARTED\r'}))
+            await waitForOutput(output, 'ECHO:BF312_INPUT_STARTED')
+
+            // The relay accumulates keystrokes and emits the completed line on
+            // Enter, so the mark carries the submitted text without the CR.
+            expect(marks).toEqual([{
+                terminalId: sessionName,
+                inputText: 'BF312_INPUT_STARTED',
+            }])
+        } finally {
+            ws.close()
+        }
+    }, TEST_TIMEOUT_MS)
+
     it('scroll RPC drives tmux copy-mode without enabling mouse mode', async () => {
         const sessionName: string = makeSessionName('scroll')
         sessions.push(sessionName)

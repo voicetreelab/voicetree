@@ -64,10 +64,14 @@ function sourceBinPath(): string | undefined {
 
 function defaultSiblingDaemonPath(): string | undefined {
   try {
-    return resolve(dirname(fileURLToPath(import.meta.url)), 'vt-graphd.mjs')
+    return toNodeReadableAsarPath(resolve(dirname(fileURLToPath(import.meta.url)), 'vt-graphd.mjs'))
   } catch {
     return undefined
   }
+}
+
+function toNodeReadableAsarPath(path: string): string {
+  return path.replace('/app.asar/', '/app.asar.unpacked/')
 }
 
 const runtimeValidationCache = new Map<string, RuntimeValidation>()

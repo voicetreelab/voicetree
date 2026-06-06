@@ -25,8 +25,10 @@ import {
     type Delta,
     type State,
 } from '@vt/graph-state'
+import { projectGraphDerivedFolderTree } from '@vt/graph-state/projectGraphDerivedFolderTree'
 import {
     rehydrateSerializedGraph,
+    type FolderTreeNode,
     type Graph,
     type Position,
 } from '@vt/graph-model'
@@ -84,11 +86,18 @@ function buildInitialState(graph: Graph, projectState: ProjectState): State {
     const loaded: ReadonlySet<string> = projectState.writeFolderPath
         ? new Set([projectState.writeFolderPath])
         : new Set()
+    const folderTree: FolderTreeNode | null = projectGraphDerivedFolderTree({
+        graph,
+        projectRoot: projectState.projectRoot || null,
+        readPaths: projectState.readPaths,
+        projectPaths: [projectState.writeFolderPath, ...projectState.readPaths].filter((path) => path.length > 0),
+        writeFolderPath: projectState.writeFolderPath || null,
+    })
     return {
         graph,
         roots: {
             loaded,
-            folderTree: [],
+            folderTree: folderTree ? [folderTree] : [],
         },
         collapseSet: new Set(),
         selection: new Set(),
@@ -170,4 +179,3 @@ export async function persistPositionsToGraphd(
     const client: GraphDbClient = await getOrCreateClient(project)
     await client.writeNodeLayout(positions)
 }
-

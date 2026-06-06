@@ -1,6 +1,16 @@
 import {classifyExit} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import {recordTierEvent} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import type {TerminalLifecycle, TerminalKillReason} from '@vt/vt-daemon/agent-runtime/lifecycle'
+import {deriveTerminalInputStarted} from '../core/handleTerminalInputStarted.ts'
+// Re-exported as part of the terminal-registry input surface: the tmux relay
+// accumulates raw keystrokes with these before handing a completed line to
+// `markTerminalInputStarted`, so it depends on this surface rather than reaching
+// into the core handler module directly.
+export {
+    advanceTerminalInputLine,
+    EMPTY_TERMINAL_INPUT_LINE_BUFFER,
+    type TerminalInputLineBuffer,
+} from '../core/handleTerminalInputStarted.ts'
 import {updateTerminalIsDoneWorkflow} from '../workflows/terminalIsDone.ts'
 import {
     hasActiveChildren,
@@ -43,6 +53,28 @@ export function updateTerminalIsDone(
     runtime?: TerminalRegistryRuntime,
 ): void {
     updateTerminalIsDoneWorkflow(terminalId, isDone, runtime)
+}
+
+export function markTerminalInputStarted(
+    terminalId: string,
+    inputText: string,
+    nowMs: number = Date.now(),
+): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) return
+
+    const result = deriveTerminalInputStarted(record, inputText, nowMs)
+    if (!result.changed) return
+
+    terminalRecords.set(terminalId, result.record)
+    notifyRegistrySubscribers()
+    for (const patch of result.patches) {
+        publishTerminalRegistryEvent({
+            type: 'terminal-record-changed',
+            terminalId: terminalId as TerminalId,
+            patch,
+        })
+    }
 }
 
 export function markTerminalExited(
@@ -162,7 +194,7 @@ export function applyAgentStatus(terminalId: string, update: AgentStatusUpdate):
         terminalData: {
             ...record.terminalData,
             ...(lifecycleChanged ? {lifecycle: nextLifecycle} : {}),
-            ...(phraseChanged ? {statusPhrase: nextPhrase} : {}),
+            ...(phraseChanged ? {statusPhrase: nextPhrase, statusPhraseUpdatedAt: Date.now()} : {}),
             ...(reportedStatusChanged ? {lastReportedStatus: nextReportedStatus} : {}),
         },
     })

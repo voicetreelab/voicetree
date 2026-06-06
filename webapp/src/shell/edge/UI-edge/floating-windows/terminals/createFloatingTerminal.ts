@@ -12,6 +12,7 @@ import * as O from "fp-ts/lib/Option.js";
 import type { TerminalData } from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import { closeTerminal } from "@/shell/edge/UI-edge/floating-windows/terminals/closeTerminal";
 import { createInjectBar, registerInjectBar, type InjectBarHandle } from "@/shell/UI/floating-windows/terminals/InjectBar";
+import { resolveVisibleAnchorNodeId } from "@/shell/edge/UI-edge/floating-windows/anchoring/resolve-visible-anchor-node-id";
 
 // Typed interface for the main-process IPC method used by onInject callback.
 // Same pattern as InjectBarMainIPC in InjectBar.ts — cast through this to avoid
@@ -33,8 +34,9 @@ async function waitForNode(
     const maxAttempts: number = Math.ceil(timeoutMs / pollIntervalMs);
 
     for (let attempt: number = 0; attempt < maxAttempts; attempt++) {
+        const visibleNodeId: string = resolveVisibleAnchorNodeId(cy, nodeId);
         // [L2-seam-residual] cy-only: shadow-node anchoring must wait for the projected node to exist in Cytoscape.
-        const node: CollectionReturnValue = cy.getElementById(nodeId);
+        const node: CollectionReturnValue = cy.getElementById(visibleNodeId);
         if (node.length > 0) {
             if (attempt > 0) {
                 //console.log(`[waitForNode] Node ${nodeId} appeared after ${attempt * pollIntervalMs}ms`);
@@ -50,7 +52,8 @@ async function waitForNode(
 
 function markParentNodeHasRunningTerminal(cy: Core, parentNodeId: string): void {
     // [L2-seam-residual] cy-only: the running-terminal marker lives on the projected Cytoscape node.
-    const parentNode: CollectionReturnValue = cy.getElementById(parentNodeId);
+    const visibleParentNodeId: string = resolveVisibleAnchorNodeId(cy, parentNodeId);
+    const parentNode: CollectionReturnValue = cy.getElementById(visibleParentNodeId);
     if (parentNode.length > 0) {
         parentNode.data('hasRunningTerminal', true);
     }
@@ -67,7 +70,8 @@ function registerDeferredAnchor(cy: Core, terminalWithUI: TerminalData): void {
 
     const parentNodeId: string = terminalWithUI.anchoredToNodeId.value;
     const handleAddedNode = (event: EventObject): void => {
-        if (event.target.id() !== parentNodeId) return;
+        const visibleParentNodeId: string = resolveVisibleAnchorNodeId(cy, parentNodeId);
+        if (event.target.id() !== visibleParentNodeId) return;
         cy.off('add', 'node', handleAddedNode);
         anchorTerminalToNode(cy, terminalWithUI);
     };

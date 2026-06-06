@@ -1,5 +1,5 @@
 import type { VTSettings, HotkeySettings, AgentConfig, HookSettings, EnvVarValue } from './types';
-import { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_COMPLEXITY_WARN_SCORE, DEFAULT_COMPLEXITY_BLOCK_SCORE } from './types';
+import { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_FOLDER_CHILDREN, DEFAULT_COMPLEXITY_WARN_SCORE, DEFAULT_COMPLEXITY_BLOCK_SCORE } from './types';
 
 // ============================================================================
 // Types
@@ -187,6 +187,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     subgraphWarnThreshold:  { default: DEFAULT_SUBGRAPH_WARN_THRESHOLD,  section: 'general', label: 'Subgraph Warn Threshold',  number: { min: 2, max: 20, step: 1 } },
     subgraphErrorThreshold: { default: DEFAULT_SUBGRAPH_ERROR_THRESHOLD, section: 'general', label: 'Subgraph Block Threshold', number: { min: 3, max: 30, step: 1 } },
     maxChildrenPerNode:     { default: DEFAULT_MAX_CHILDREN_PER_NODE,     section: 'general', label: 'Max Children Per Node',    number: { min: 2, max: 20, step: 1 } },
+    maxFolderChildren:      { default: DEFAULT_MAX_FOLDER_CHILDREN,       section: 'general', label: 'Max Folder Children',      number: { min: 2, max: 30, step: 1 } },
     complexityWarnScore:    { default: DEFAULT_COMPLEXITY_WARN_SCORE,     section: 'general', label: 'Graph Complexity Warn Score',  number: { min: 0.3, max: 2, step: 0.1 } },
     complexityBlockScore:   { default: DEFAULT_COMPLEXITY_BLOCK_SCORE,    section: 'general', label: 'Graph Complexity Block Score', number: { min: 0.5, max: 3, step: 0.1 } },
 

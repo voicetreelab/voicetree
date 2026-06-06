@@ -213,7 +213,7 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
                         {'\u270E'}
                     </span>
                 )}
-                {graphFolderId && (
+                {node.loadState === 'loaded' && graphFolderId && (
                     <span
                         className={`folder-tree-graph-collapse-icon ${isGraphCollapsed ? 'collapsed' : 'expanded'}`}
                         onClick={handleGraphCollapseClick}

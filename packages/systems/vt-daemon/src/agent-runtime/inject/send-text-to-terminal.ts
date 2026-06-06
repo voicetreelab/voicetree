@@ -38,6 +38,7 @@
 
 import {sendKeysLiteral} from '@vt/vt-daemon/agent-runtime/terminals/tmux/tmux-session-manager.ts'
 import type {TerminalOperationResult} from '@vt/vt-daemon/agent-runtime/terminals/manager/terminal-manager.ts'
+import {markTerminalInputStarted} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/lifecycle.ts'
 
 const CHAR_DELAY_MS: number = 200
 const ESC_DELAY_MS: number = 100
@@ -47,6 +48,7 @@ const BATCH_CHAR_LIMIT: number = 150
 const BATCH_DELAY_MS: number = 40
 
 export type SendTextToTerminalDeps = {
+    readonly markInputStarted?: (terminalId: string, inputText: string) => void
     readonly writeLiteral: (terminalId: string, bytes: string) => Promise<void>
     readonly sleep: (delayMs: number) => Promise<void>
 }
@@ -68,6 +70,7 @@ const sleepWithTimer = (delayMs: number): Promise<void> =>
     new Promise(resolve => setTimeout(resolve, delayMs))
 
 const defaultSendTextToTerminalDeps: SendTextToTerminalDeps = {
+    markInputStarted: markTerminalInputStarted,
     writeLiteral: sendKeysLiteral,
     sleep: sleepWithTimer,
 }
@@ -126,6 +129,7 @@ async function sendTextToTerminalNow(
     deps: SendTextToTerminalDeps = defaultSendTextToTerminalDeps,
 ): Promise<TerminalOperationResult> {
     try {
+        deps.markInputStarted?.(terminalId, text)
         const write = (bytes: string): Promise<void> => deps.writeLiteral(terminalId, bytes)
 
         // Universal preamble — vi-mode and emacs-mode safe.

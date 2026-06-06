@@ -142,4 +142,16 @@ describe('FolderTreeNode — graph collapse dot click', () => {
         expect(dot).not.toBeNull()
         expect(dot!.classList.contains('expanded')).toBe(true)
     })
+
+    // A not-loaded (unloaded/'hidden') folder has no graph presence, so it has no
+    // collapse/expand state to show. Rendering the binary dot for it would default
+    // to the "expanded" class (absent from collapsedGraphFolderIds) while the
+    // folder is nowhere in the graph — the "expanded yet invisible" contradiction.
+    it('should NOT render the blue dot for a not-loaded folder (no graph presence to collapse)', () => {
+        const notLoaded: FolderTreeNodeType = makeFolderNode({ loadState: 'not-loaded' })
+        const { container } = renderNode({ node: notLoaded })
+
+        const dot: Element | null = container.querySelector('.folder-tree-graph-collapse-icon')
+        expect(dot).toBeNull()
+    })
 })

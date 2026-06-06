@@ -28,10 +28,20 @@ const PERF_BIN_DIR = join(REPO_ROOT, 'infra/perf-stack/bin')
 const INSTALL_SCRIPT = join(REPO_ROOT, 'infra/perf-stack/scripts/install-binaries.mjs')
 const LIFECYCLE_SCRIPT = join(REPO_ROOT, 'infra/perf-stack/scripts/lifecycle.mjs')
 
-// Opt-out lever: PERF_STACK=0 makes the preflight a complete no-op so the
-// launched process runs exactly as it does today (NDJSON-only, no collector).
-// Default-on is what makes "just run the app" work; this is the escape hatch.
-export const PERF_STACK_DISABLED = '0'
+// Opt-in lever: the perf stack is OFF by default, so "just run the app" stays
+// NDJSON-only with no resident collector services and no first-run install.
+// Set PERF_STACK=1 (inline on the launch, or in your .env) to make the
+// preflight install the binaries, bring the stack up, and attach the OTLP
+// exporter. Anything else (absent, empty, `0`, `false`) is a complete no-op.
+export const PERF_STACK_ENABLED = '1'
+
+/**
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {boolean} true only when PERF_STACK is explicitly switched on
+ */
+export function perfStackEnabled(env) {
+  return env.PERF_STACK === PERF_STACK_ENABLED
+}
 
 // Interactive launches get the always-on-safe `lite` perf tier (wall sampling +
 // runtime metrics + log — see perf-probe.mjs). `deep` (heap snapshots) stays
@@ -62,7 +72,7 @@ export async function ensurePerfStack({
   log = (message) => process.stderr.write(`${message}\n`),
   newRunId = randomUUID,
 }) {
-  if (env.PERF_STACK === PERF_STACK_DISABLED) {
+  if (!perfStackEnabled(env)) {
     return { enabled: false }
   }
 
@@ -172,12 +182,12 @@ async function main(argv = process.argv.slice(2), baseEnv = process.env) {
       `Grafana: ${GRAFANA_BASE_URL}\nPerf run: ${result.instanceId}\nOTLP: ${result.endpoint}\nPerf tier: ${result.tier}\n`,
     )
   } else {
-    // Opt-out: guarantee the exporter AND the probe stay detached even if the
-    // endpoint/tier were already present in the inherited env — PERF_STACK=0
-    // means no collector and no profiling.
+    // Default (opt-out): guarantee the exporter AND the probe stay detached
+    // even if the endpoint/tier were already present in the inherited env —
+    // without PERF_STACK=1 there is no collector and no profiling.
     delete launchEnv.VOICETREE_OTLP_ENDPOINT
     delete launchEnv.VOICETREE_PERF_TIER
-    process.stdout.write('Perf stack disabled (PERF_STACK=0); OTLP export + profiling off, NDJSON unaffected\n')
+    process.stdout.write('Perf stack off (set PERF_STACK=1 to enable); OTLP export + profiling off, NDJSON unaffected\n')
   }
 
   const { code, signal } = await launch(command, commandArgs, launchEnv)

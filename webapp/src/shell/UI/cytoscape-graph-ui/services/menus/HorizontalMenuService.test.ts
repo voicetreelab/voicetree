@@ -182,6 +182,37 @@ describe('HorizontalMenuService', () => {
                 'current "$AGENT_PROMPT"',
             );
         });
+
+        it('renders a nested agent tree as a cascade and spawns the leaf with composed command + env', async () => {
+            const tree = [
+                { name: 'Codex', command: 'codex -c "effort=$EFFORT"', children: [
+                    { name: 'Remote', command: 'CODEX_REASONING_EFFORT=$EFFORT remote.sh', children: [
+                        { name: 'XHigh', env: { EFFORT: 'xhigh' } },
+                    ]},
+                ]},
+            ];
+            (window as unknown as { hostAPI: unknown }).hostAPI = {
+                main: { loadSettings: vi.fn(async () => ({ agents: tree })) },
+            };
+            const input: NodeMenuItemsInput = { nodeId: 'test-node.md', cy, agents: tree, isContextNode: false };
+
+            const more = getNodeMenuItems(input).find(i => i.label === 'More');
+            const codex = more?.subMenu?.find(i => i.label === 'Codex');
+            const remote = (await codex?.getSubMenuItems?.())?.find(i => i.label === 'Remote');
+            const xhigh = (await remote?.getSubMenuItems?.())?.find(i => i.label === 'XHigh');
+
+            expect(xhigh).not.toBeUndefined();
+            await xhigh!.action();
+
+            // Remote overrides the base command; XHigh contributes EFFORT via envOverrides (5th arg).
+            expect(spawnTerminalWithNewContextNode).toHaveBeenCalledWith(
+                'test-node.md',
+                cy,
+                'CODEX_REASONING_EFFORT=$EFFORT remote.sh',
+                undefined,
+                { EFFORT: 'xhigh' },
+            );
+        });
     });
 
     describe('createHorizontalMenuElement', () => {

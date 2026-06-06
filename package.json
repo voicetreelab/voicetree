@@ -33,6 +33,8 @@
     "test:e2e:tier1:local": "pnpm --filter voicetree-webapp run test:e2e:tier1",
     "test:e2e:tier2": "node scripts/run-remote.mjs pnpm run test:e2e:tier2:local",
     "test:e2e:tier2:local": "pnpm --filter voicetree-webapp run test:e2e:tier2",
+    "release-smoke:mac": "node scripts/release-smoke.mjs --platform mac",
+    "release-smoke:linux-remote": "node scripts/release-smoke.mjs --platform linux-remote",
     "test:fuzz": "node scripts/run-remote.mjs pnpm run test:fuzz:local",
     "test:fuzz:local": "vitest run --config vitest.config.fuzz.ts"
   },

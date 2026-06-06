@@ -1,4 +1,5 @@
 import type { VTSettings, AgentConfig } from "@vt/graph-model/settings";
+import { mapAgentTreeByCommand } from "@vt/graph-model/settings";
 import { showAgentCommandEditor } from "@/shell/edge/UI-edge/graph/popups/agentCommandEditorPopup";
 
 export interface AgentLaunchConfig {
@@ -42,20 +43,10 @@ export async function resolveAgentLaunchConfig(
     // Check if user modified the command
     const commandChanged: boolean = result.command !== command;
 
-    // Update the agent's command in settings if it was modified
-    let updatedAgents: readonly AgentConfig[] = settings.agents;
-    if (commandChanged) {
-        updatedAgents = settings.agents.map((agent: AgentConfig): AgentConfig => {
-            // Update the agent whose command matches the original command
-            if (agent.command === command) {
-                return {
-                    ...agent,
-                    command: result.command,
-                };
-            }
-            return agent;
-        });
-    }
+    // Update the tree node(s) whose command matches the original, at any depth.
+    const updatedAgents: readonly AgentConfig[] = commandChanged
+        ? mapAgentTreeByCommand(settings.agents, command, result.command)
+        : settings.agents;
 
     return {
         finalCommand: result.command, popupWasShown: true, updatedAgents,

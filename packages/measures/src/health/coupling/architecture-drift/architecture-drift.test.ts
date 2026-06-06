@@ -1,10 +1,9 @@
-import {execFileSync} from 'node:child_process'
 import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join, relative, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
-import {envWithoutGitLocationOverrides} from '../../../_shared/discovery/run-git'
+import {runGitWorktreeCommand} from '../../../_shared/discovery/run-git'
 import {recordHealthMetric} from '../../../_shared/writers/report-writer'
 import {discoverArchitectureFiles, validateArchitectureDrift} from './validate-architecture-drift'
 
@@ -70,9 +69,13 @@ describe('architecture discovery', () => {
             await mkdir(churningRuntimeDir, {recursive: true})
             await writeFile(join(sandbox, 'storage', 'architecture.md'), '```mermaid\nflowchart TD\n  x[x]\n```\n')
 
-            const env = envWithoutGitLocationOverrides()
-            execFileSync('git', ['init', '-q'], {cwd: sandbox, env})
-            execFileSync('git', ['add', 'architecture.md', '.gitignore'], {cwd: sandbox, env})
+            // Use the GIT_DIR-immune runner for setup too: a pre-push hook leaks
+            // GIT_DIR/GIT_WORK_TREE into the env, which would otherwise make these
+            // commands operate on the real repo instead of the sandbox — leaving
+            // sandbox/.git uncreated and the discovery below failing with
+            // "fatal: not a git repository".
+            runGitWorktreeCommand(['init', '-q'], sandbox)
+            runGitWorktreeCommand(['add', 'architecture.md', '.gitignore'], sandbox)
 
             const discovered = (await discoverArchitectureFiles(sandbox))
                 .map(file => relative(sandbox, file.absPath))

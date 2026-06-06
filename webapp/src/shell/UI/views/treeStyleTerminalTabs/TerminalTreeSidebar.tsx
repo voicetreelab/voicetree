@@ -10,7 +10,7 @@
 
 import { createElement, useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { JSX } from 'react';
-import { Play } from 'lucide-react';
+import { Play, ChevronRight } from 'lucide-react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { TerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import { getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
@@ -191,14 +191,19 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
     const { terminal, depth, hasChildren, directChildCount, descendantSummary } = treeNode;
     const terminalId: TerminalId = terminal.terminalId;
 
-    // Clicking a parent row both navigates to the orchestrator's terminal AND
-    // toggles its sub-agent group — replaces the old separate chevron control.
+    // Clicking a row only navigates to its terminal. Collapsing the sub-agent
+    // group is a separate concern owned by the chevron control (parents only),
+    // so a click on the row body never hides children unexpectedly.
     const handleClick: () => void = useCallback((): void => {
-        if (hasChildren) {
-            onToggleCollapse(terminalId, directChildCount);
-        }
         onSelect(terminal);
-    }, [onSelect, terminal, hasChildren, onToggleCollapse, terminalId, directChildCount]);
+    }, [onSelect, terminal]);
+
+    // Chevron toggles the sub-agent group without navigating. stopPropagation
+    // keeps the row's onClick (navigate) from also firing.
+    const handleToggleCollapse: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        onToggleCollapse(terminalId, directChildCount);
+    }, [onToggleCollapse, terminalId, directChildCount]);
 
     const handleClose: (e: React.MouseEvent) => void = useCallback((e: React.MouseEvent): void => {
         e.stopPropagation();
@@ -245,15 +250,30 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
         ? renderSummaryChip(descendantSummary)
         : null;
 
-    return (
-        <div
-            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}${hasChildren ? ' has-children' : ''}`}
-            data-depth={depth}
-            data-terminal-id={terminalId}
-            onClick={handleClick}
-            onMouseDown={handleMouseDown}
-            aria-expanded={hasChildren ? !isCollapsed : undefined}
-        >
+    // Row content — rendered twice: once in the flex row (collapsed, ellipsised)
+    // and once inside the hover overlay (expanded, text wraps). Keeping it as one
+    // fragment means the two stay in lockstep; the only difference is the CSS the
+    // overlay applies to relax white-space.
+    const inner: JSX.Element = (
+        <>
+            {/* Collapse toggle for parents; an equal-width spacer for leaves so
+                every status dot stays vertically aligned. Decoupled from the row
+                click (which now only navigates). */}
+            {hasChildren ? (
+                <button
+                    className={`terminal-tree-chevron${isCollapsed ? '' : ' expanded'}`}
+                    type="button"
+                    onClick={handleToggleCollapse}
+                    onMouseDown={handleMouseDown}
+                    aria-label={isCollapsed ? 'Expand sub-agents' : 'Collapse sub-agents'}
+                    title={isCollapsed ? 'Expand sub-agents' : 'Collapse sub-agents'}
+                >
+                    <ChevronRight size={14} aria-hidden="true" />
+                </button>
+            ) : (
+                <span className="terminal-tree-chevron-spacer" aria-hidden="true" />
+            )}
+
             {/* Lifecycle indicator. Glyph (if any) supplied via CSS ::after. */}
             <span className={`terminal-tree-status ${statusClass}`} />
 
@@ -305,6 +325,28 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
             <button className="terminal-tree-close" onClick={handleClose}>
                 &times;
             </button>
+        </>
+    );
+
+    return (
+        <div
+            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}${hasChildren ? ' has-children' : ''}`}
+            data-depth={depth}
+            data-terminal-id={terminalId}
+            onClick={handleClick}
+            onMouseDown={handleMouseDown}
+            aria-expanded={hasChildren ? !isCollapsed : undefined}
+        >
+            {inner}
+
+            {/* Hover overlay — absolutely positioned, floats over the cards below.
+                Shown purely via CSS :hover (no JS state / re-render). Re-renders
+                the same row content with relaxed white-space so the full title,
+                worktree and status phrase wrap into view, with zero layout shift
+                on sibling nodes. */}
+            <div className="terminal-tree-hover-overlay">
+                {inner}
+            </div>
         </div>
     );
 }

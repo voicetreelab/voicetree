@@ -7,7 +7,7 @@
  * forever — never reaching green `completed`. This gate restores a finish-time
  * signal: when an agent goes sustained-idle without having declared a terminal
  * status this turn, the idle stop-gate audit nudges it to declare one (`vt agent
- * status done|failed|awaiting_input`, or `agentStatus` on its final node).
+ * status done|failed|awaiting_input`).
  *
  * Pure over the record's `lastReportedStatus` (set by `applyAgentStatus`, reset
  * to `null` when the terminal re-enters `active`). `lastReportedStatus` — not
@@ -35,8 +35,7 @@ function isTerminalDeclaredStatus(status: AgentStatus): boolean {
 
 const NUDGE_MESSAGE: string =
     'You have stopped but not declared your status. Run `vt agent status done` '
-    + '(or `failed` / `awaiting_input`) to close yourself out — or include '
-    + '`agentStatus` on your final progress node.'
+    + '(or `failed` / `awaiting_input`).'
 
 export function requireDeclaredStatus(record: TerminalRecord): StopHookResult {
     const declared: AgentStatus | null = record.terminalData.lastReportedStatus

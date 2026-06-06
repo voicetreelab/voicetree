@@ -9,11 +9,12 @@
 
 import type {CreateGraphNodeInput} from './createGraphTypes'
 import type {Graph, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {isFolderIdentityNote} from '@vt/graph-model/graph'
+import {isFolderIdentityNote, getFolderChildNodeIds, getFolderIdentityNoteId} from '@vt/graph-model/graph'
 import {extractParentRefs, normalizeBatchFilenameKey, findBestMatchingNode, type ParentLineRef} from '@vt/graph-model/markdown'
 import {computeGraphComplexity, type EdgePair, type GraphComplexityResult} from '@vt/graph-tools/node-runtime'
 import {countBodyLines} from '../tools/graph/addProgressNodeTool'
 import {countFolderBoundedComponent, collectFolderBoundedComponent} from './subgraphComponent'
+import {renderGardenProposal} from './gardenProposal'
 import * as daemonProtocol from '@vt/vt-daemon-protocol'
 import {
     type OverridableRuleId,
@@ -58,6 +59,8 @@ export interface ValidationContext {
     readonly subgraphErrorThreshold: number
     /** Max children a single node may have before child_count_limit blocks. */
     readonly maxChildrenPerNode: number
+    /** Max direct members a single folder may hold before folder_child_count_limit blocks. */
+    readonly maxFolderChildren: number
     /** Destination-component complexity score that triggers a non-blocking warning. */
     readonly complexityWarnScore: number
     /** Destination-component complexity score that blocks (overridable). */
@@ -340,12 +343,15 @@ const subgraphSizeLimitRule: ValidationRule = {
         }
 
         if (size >= ctx.subgraphErrorThreshold) {
+            const proposalPreview: string = renderGardenProposal(ctx.graph, ctx.destinationFolderPath)
             return [{
                 ruleId: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId,
                 message: daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatViolationMessage(
                     folderName,
+                    ctx.destinationFolderPath,
                     size,
                     ctx.subgraphErrorThreshold,
+                    proposalPreview,
                 ),
                 nodeFilename: '__graph_root__',
                 severity: 'violation',
@@ -505,6 +511,56 @@ const childCountLimitRule: ValidationRule = {
 }
 
 /**
+ * Per-folder direct-member limit rule (Manu's live-gardening prevention). Caps how
+ * many nodes a single folder may hold as DIRECT filesystem members — a different
+ * axis from `child_count_limit` (which caps one parent's incoming edges) and from
+ * `subgraph_size_limit` (which counts a connected component). Counts the
+ * destination folder's existing direct members (excluding its identity note;
+ * `getFolderChildNodeIds` already excludes context nodes) plus the batch's nodes,
+ * which all land flat in that folder on disk, and blocks (overridable) over the cap
+ * with a gardening-split preview.
+ *
+ * Only an ESTABLISHED folder node (one whose identity note is already in the graph)
+ * is capped. The graph root and any loose top-level directory have no identity note
+ * and are exempt — the cap is for folders that accumulate members over time, not for
+ * the initial batch that bootstraps a folder (the subgraph + complexity rules cover
+ * that). Migrating already-oversized folders is `vt graph garden --apply`'s job.
+ */
+const folderChildCountLimitRule: ValidationRule = {
+    id: 'folder_child_count_limit',
+    description: 'No single folder may exceed the configured number of direct members (overridable) — split it into sub-folders.',
+    check(ctx: ValidationContext): readonly RuleViolation[] {
+        const identityNote: NodeIdAndFilePath = getFolderIdentityNoteId(ctx.destinationFolderPath)
+        if (ctx.graph.nodes[identityNote] === undefined) return [] // not an established folder node → exempt
+
+        const existing: number = getFolderChildNodeIds(ctx.graph.nodes, ctx.destinationFolderPath)
+            .filter((id: NodeIdAndFilePath) => id !== identityNote).length
+        const total: number = existing + ctx.nodes.length
+        if (total <= ctx.maxFolderChildren) return []
+
+        const folderName: string = folderNameOf(ctx.destinationFolderPath)
+        const proposalPreview: string = renderGardenProposal(ctx.graph, ctx.destinationFolderPath)
+        const splitHint: string = proposalPreview === ''
+            ? 'Create a sub-folder and file related nodes into it.'
+            : `Suggested sub-folders (run \`vt graph garden\` to apply):\n${proposalPreview}`
+        return [{
+            ruleId: 'folder_child_count_limit',
+            message: `Folder "${folderName}" would hold ${total} direct nodes (limit ${ctx.maxFolderChildren}). Group related nodes into a sub-folder instead of piling them flat. ${splitHint}`,
+            nodeFilename: '__graph_root__',
+            severity: 'violation',
+            details: {
+                folder: ctx.destinationFolderPath,
+                folderName,
+                directMembers: total,
+                existingMembers: existing,
+                addedMembers: ctx.nodes.length,
+                limit: ctx.maxFolderChildren,
+            },
+        }]
+    },
+}
+
+/**
  * Build the post-insertion edge list (directed child→parent, matching
  * `vt graph complexity`'s loadProjectGraph) over the destination-folder
  * component plus the batch's new nodes. Edges to nodes outside the considered
@@ -593,7 +649,7 @@ const graphComplexityLimitRule: ValidationRule = {
 // ============================================================================
 
 function createValidationRules(): readonly ValidationRule[] {
-    return [grandparentAttachmentRule, nodeLineLimitRule, nodeMustHaveEdgeRule, subgraphSizeLimitRule, childCountLimitRule, graphComplexityLimitRule]
+    return [grandparentAttachmentRule, nodeLineLimitRule, nodeMustHaveEdgeRule, subgraphSizeLimitRule, childCountLimitRule, folderChildCountLimitRule, graphComplexityLimitRule]
 }
 
 export const ALL_RULES: readonly ValidationRule[] = createValidationRules()

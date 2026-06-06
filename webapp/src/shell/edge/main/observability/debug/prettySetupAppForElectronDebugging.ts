@@ -5,6 +5,7 @@ import { saveProject } from '@/shell/edge/main/workspace/project-store';
 import { loadSettings } from '@/shell/edge/main/settings/settings_IO';
 import { createEmptyGraph, type Graph, type NodeIdAndFilePath } from '@vt/graph-model/graph';
 import type { SavedProject } from '@vt/graph-model/project';
+import { flattenAgentTree, type AgentConfig } from '@vt/graph-model/settings';
 import * as path from 'path';
 import { app } from 'electron';
 import fsSync from 'fs';
@@ -52,14 +53,10 @@ function resolveDebugProjectPath(env: NodeJS.ProcessEnv = process.env): string {
     return getFallbackTestProjectPath();
 }
 
-type AgentCommandConfig = {
-    readonly name: string;
-    readonly command: string;
-};
-
-function findFakeAgentCommand(agents: readonly AgentCommandConfig[] | undefined): string | undefined {
-    return agents?.find((agent: AgentCommandConfig) =>
-        agent.name === FAKE_AGENT_NAME || agent.command.includes(FAKE_AGENT_COMMAND_FRAGMENT)
+function findFakeAgentCommand(agents: readonly AgentConfig[] | undefined): string | undefined {
+    // Search every spawnable leaf of the agent tree (the fake agent may sit at any depth).
+    return flattenAgentTree(agents ?? []).find(leaf =>
+        leaf.name === FAKE_AGENT_NAME || leaf.command.includes(FAKE_AGENT_COMMAND_FRAGMENT)
     )?.command;
 }
 

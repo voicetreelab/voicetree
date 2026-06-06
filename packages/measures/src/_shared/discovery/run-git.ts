@@ -1,24 +1,34 @@
 import {execFileSync, type ExecFileSyncOptionsWithStringEncoding} from 'node:child_process'
 
-// Git exports GIT_DIR (and sometimes GIT_WORK_TREE) into the environment of any
-// hook it runs (pre-commit, pre-push, …). When GIT_DIR is set WITHOUT
-// GIT_WORK_TREE, working-tree commands such as `git ls-files` abort with
-//   fatal: this operation must be run in a work tree
-// because the inherited GIT_DIR overrides the cwd-based repository discovery
-// those commands rely on. Server-side CI is unaffected (no hook wrapper exports
-// GIT_DIR there), so the breakage only bites git operations invoked from a local
-// hook — e.g. the architecture-drift / source-of-truth health checks during a
-// local push, which silently report as failures.
+// Git exports a whole family of location-pinning vars into the environment of any
+// hook it runs (pre-commit, pre-push, …): GIT_DIR, GIT_COMMON_DIR, GIT_WORK_TREE,
+// GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, … Any of them overrides the cwd-based
+// repository discovery that working-tree commands (`git ls-files`, `git init`)
+// rely on, so a measure that runs `git` in some OTHER directory (e.g. a freshly
+// `git init`-ed test sandbox) is silently retargeted at the hook's repo. That can
+// abort with `fatal: not a git repository` / `must be run in a work tree`, or write
+// refs into a leaked GIT_COMMON_DIR. Server-side CI is unaffected (no hook wrapper
+// exports them), so this only bites git operations invoked from a local hook, e.g.
+// the architecture-drift / source-of-truth checks during a local push.
 //
-// Stripping both overrides restores cwd-based resolution, which is exactly what
-// every measure git call already wants: they each pass an explicit `cwd` and
-// never depend on an ambient GIT_DIR.
-export function envWithoutGitLocationOverrides(): NodeJS.ProcessEnv {
-    return Object.fromEntries(
-        Object.entries(process.env).filter(
-            ([key]) => key !== 'GIT_DIR' && key !== 'GIT_WORK_TREE',
-        ),
-    )
+// Stripping the full set restores pure cwd-based resolution, which is exactly what
+// every measure git call wants: they each pass an explicit `cwd` and never depend
+// on an ambient git location. Exported so callers that spawn git directly (e.g.
+// test scaffolding that `git init`s a sandbox) can be made equally hermetic.
+const GIT_LOCATION_ENV_VARS = new Set([
+    'GIT_DIR',
+    'GIT_COMMON_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+    'GIT_PREFIX',
+    'GIT_NAMESPACE',
+    'GIT_CEILING_DIRECTORIES',
+])
+
+export function gitEnvWithoutLocationOverrides(): NodeJS.ProcessEnv {
+    return Object.fromEntries(Object.entries(process.env).filter(([key]) => !GIT_LOCATION_ENV_VARS.has(key)))
 }
 
 // Run a git working-tree command (e.g. `ls-files`) rooted at `cwd`, immune to a
@@ -31,10 +41,15 @@ export function runGitWorktreeCommand(
     cwd: string,
     options: Omit<ExecFileSyncOptionsWithStringEncoding, 'cwd' | 'env' | 'encoding'> = {},
 ): string {
-    return execFileSync('git', [...args], {
-        ...options,
-        cwd,
-        encoding: 'utf8',
-        env: envWithoutGitLocationOverrides(),
-    })
+    try {
+        return execFileSync('git', [...args], {
+            ...options,
+            cwd,
+            encoding: 'utf8',
+            env: gitEnvWithoutLocationOverrides(),
+        })
+    } catch (err) {
+        const e = err as {stderr?: Buffer | string; status?: number}
+        throw new Error(`git ${args.join(' ')} (cwd=${cwd}) exited ${e.status}: ${String(e.stderr ?? '').trim()}`)
+    }
 }

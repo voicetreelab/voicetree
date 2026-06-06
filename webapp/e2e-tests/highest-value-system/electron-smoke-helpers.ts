@@ -53,6 +53,26 @@ export function resolveGraphDaemonNodeBin(): string {
   return candidates.find(canLoadNativeGraphDbModules) ?? process.execPath;
 }
 
+export function releaseSmokeElectronExecutable(): string | undefined {
+  const executable = process.env.VOICETREE_RELEASE_SMOKE_EXECUTABLE?.trim();
+  return executable && executable.length > 0 ? executable : undefined;
+}
+
+export function cleanPackagedElectronEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const clean = { ...env };
+  for (const key of Object.keys(clean)) {
+    if (
+      key === 'NODE_OPTIONS' ||
+      key === 'npm_node_execpath' ||
+      key.startsWith('VOICETREE_') ||
+      key.startsWith('VT_')
+    ) {
+      delete clean[key];
+    }
+  }
+  return clean;
+}
+
 type ProcessRow = {
   readonly pid: number;
   readonly command: string;

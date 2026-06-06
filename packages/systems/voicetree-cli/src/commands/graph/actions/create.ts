@@ -131,14 +131,21 @@ async function runLiveDaemon(
     }
 }
 
+function defaultLiveOutputPath(): string | undefined {
+    const writePath: string | undefined = process.env.VOICETREE_WRITE_PATH
+    if (writePath === undefined || writePath.trim() === '') return undefined
+    return writePath
+}
+
 async function runStdinLive(
     terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'live'}>,
 ): Promise<void> {
-    const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides, agentStatus: stdinStatus, statusPhrase: stdinPhrase} =
+    const {callerTerminalId, parentNodeId, outputPath, nodes, overrides: stdinOverrides, agentStatus: stdinStatus, statusPhrase: stdinPhrase} =
         await readCreateGraphPayloadFromStdin(terminalId)
     const overrides: readonly OverrideSpec[] = mergeOverrideSpecs(stdinOverrides, parsedArgs.overrides)
     const effectiveParentNodeId: string | undefined = parentNodeId ?? parsedArgs.parentNodeId
+    const effectiveOutputPath: string | undefined = outputPath ?? defaultLiveOutputPath()
     // The `--status` flag is the canonical carrier; a status in the stdin JSON
     // payload is a programmatic fallback, so the flag wins when both are given.
     const agentStatus: AgentStatus | undefined = parsedArgs.agentStatus ?? (stdinStatus as AgentStatus | undefined)
@@ -160,6 +167,7 @@ async function runStdinLive(
     const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
         ...(effectiveParentNodeId !== undefined ? {parentNodeId: effectiveParentNodeId} : {}),
+        ...(effectiveOutputPath !== undefined ? {outputPath: effectiveOutputPath} : {}),
         nodes,
         ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
         ...(agentStatus !== undefined ? {agentStatus} : {}),
@@ -281,9 +289,11 @@ async function runFlagLive(
 
     requireDeclaredStatusForTerminal(callerTerminalId, parsedArgs.agentStatus)
 
+    const outputPath: string | undefined = defaultLiveOutputPath()
     const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
         ...(parsedArgs.parentNodeId ? {parentNodeId: parsedArgs.parentNodeId} : {}),
+        ...(outputPath !== undefined ? {outputPath} : {}),
         nodes,
         ...(parsedArgs.overrides.length > 0 ? {override_with_rationale: parsedArgs.overrides} : {}),
         ...(parsedArgs.agentStatus !== undefined ? {agentStatus: parsedArgs.agentStatus} : {}),

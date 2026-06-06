@@ -9,11 +9,25 @@ const SCREENSHOT_RUN_ID = new Date().toISOString().replace(/[:.]/g, '-');
 const SCREENSHOT_DIR = path.join(PROJECT_ROOT, 'test-results', 'folder-spec-screenshots', SCREENSHOT_RUN_ID);
 const LINUX_RENDERING_FLAGS = ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 
+// A MINIMIZE_TEST=1 spec shows the window with showInactive() then hide()s it
+// (create-window.ts). Chromium backgrounds a hidden renderer — throttling its
+// timers and suspending the render loop — so the projected graph never finishes
+// hydrating into cytoscape and the setup waits time out. These switches keep a
+// backgrounded renderer at full speed. The trigger is the hidden window, so they
+// are gated on MINIMIZE_TEST, independent of headless/CI.
+const HIDDEN_WINDOW_RENDERING_FLAGS = [
+    '--disable-background-timer-throttling',
+    '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
+];
+
 export function getStableElectronRenderingFlags(): string[] {
     const isHeadlessLinux = process.platform === 'linux' && process.env.HEADLESS_TEST !== '0';
-    return process.env.CI || process.env.VT_E2E_HEADLESS_LINUX || isHeadlessLinux
+    const headlessFlags = process.env.CI || process.env.VT_E2E_HEADLESS_LINUX || isHeadlessLinux
         ? LINUX_RENDERING_FLAGS
         : [];
+    const hiddenWindowFlags = process.env.MINIMIZE_TEST === '1' ? HIDDEN_WINDOW_RENDERING_FLAGS : [];
+    return [...headlessFlags, ...hiddenWindowFlags];
 }
 
 export async function captureStateScreenshot(

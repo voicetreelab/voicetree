@@ -32,6 +32,17 @@ describe('resolveDefaultDaemonArgs — entrypoint preference', () => {
     expect(args).toEqual([sibling, '--project', '/tmp/project'])
   })
 
+  test('uses an app.asar.unpacked sibling path for packaged Electron', () => {
+    const sibling = '/app/Resources/app.asar/dist-electron/main/vtd.mjs'
+    const unpacked = '/app/Resources/app.asar.unpacked/dist-electron/main/vtd.mjs'
+    const args = resolveDefaultDaemonArgs('/tmp/project', {
+      exists: (path) => path === unpacked,
+      resolveTsx: () => TSX,
+      siblingDaemonPath: () => sibling.replace('/app.asar/', '/app.asar.unpacked/'),
+    })
+    expect(args).toEqual([unpacked, '--project', '/tmp/project'])
+  })
+
   test('falls back to the @vt/vt-daemon dist build when no sibling ships', () => {
     const args = resolveDefaultDaemonArgs('/tmp/project', {
       exists: (path) => path.endsWith('/dist/vtd.mjs'),

@@ -74,9 +74,11 @@ Subcommands:
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
   create      Create progress nodes in the graph (agents must pass --status <working|awaiting_input|done|failed>)
   group       Group files into a new folder and update all references
+  garden      Suggest (and optionally apply) sub-folder groupings for an over-full folder
   lint        Lint graph for complexity violations and warnings
   complexity  Score graph cognitive complexity (branching, treewidth, crossings, coupling, cycles)
   rename      Rename a file and update all references
+  relink      Reconcile wikilinks to canonical bare or project-relative forms
   mv          Move a file or folder and update all references
   index       Build a local semantic search index for a project
   search      Search a local semantic search index for a project
@@ -223,6 +225,11 @@ async function dispatchGraphCommand(
             await graphRename(terminalId, args)
             return
         }
+        case 'relink': {
+            const {graphRelink} = await import('@vt/graph-tools/node-runtime')
+            await graphRelink(terminalId, args)
+            return
+        }
         case 'mv': {
             const {graphMove} = await import('./commands/graph-node/move.ts')
             await graphMove(terminalId, args)
@@ -231,6 +238,11 @@ async function dispatchGraphCommand(
         case 'group': {
             const {graphGroup} = await import('./commands/graph-node/group.ts')
             await graphGroup(terminalId, args)
+            return
+        }
+        case 'garden': {
+            const {graphGarden} = await import('@vt/graph-tools/node-runtime')
+            await graphGarden(terminalId, args)
             return
         }
         case '--help':
@@ -267,7 +279,7 @@ const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
     'spawn', 'list', 'wait', 'close', 'resume', 'fork', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
-    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',
+    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'relink', 'mv', 'group', 'garden',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
     'project', 'session', 'view', 'search', 'debug', 'serve', 'webapp', 'manual',
