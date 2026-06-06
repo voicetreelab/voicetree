@@ -66,6 +66,7 @@ export {
 export { graphRename } from './authoring/rename'
 export { graphMove } from './authoring/move'
 export { graphGroup } from './authoring/group'
+export { graphRelink } from './authoring/relink'
 
 export {
     computeMetricsFromProject,

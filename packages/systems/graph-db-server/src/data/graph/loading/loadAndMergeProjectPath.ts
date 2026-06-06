@@ -15,6 +15,7 @@ import {
 } from "./loadGraphFromDisk";
 import { notifyTextToTreeServerOfDirectory } from "./notifyTextToTreeServer";
 import { setGraph, getGraph, isFolderLayoutKey, mergeFolderLayout } from "@vt/graph-db-server/state/graph-store";
+import { getProjectRoot } from "@vt/graph-db-server/state/watch-folder-store";
 import { createStarterNode } from "@vt/graph-db-server/watch-folder/create-starter-node";
 import { traceGraphdSpan } from "@vt/graph-db-server/watch-folder/paths/traceGraphdSpan";
 
@@ -103,7 +104,7 @@ export async function loadAndMergeProjectPath(
     {
         const resolutionDelta: GraphDelta = await traceGraphdSpan('project.load-and-merge.resolve-linked-nodes', async (span) => {
             span.setAttribute('delta.count', accumulatedDelta.length);
-            return await resolveAbsoluteLinkedNodes(currentGraph, accumulatedDelta);
+            return await resolveAbsoluteLinkedNodes(currentGraph, accumulatedDelta, [getProjectRoot() ?? projectRoot, projectRoot]);
         });
         if (resolutionDelta.length > 0) {
             currentGraph = applyGraphDeltaToGraph(currentGraph, resolutionDelta);

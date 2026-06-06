@@ -4,6 +4,7 @@ import path from 'node:path'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {graphGroup} from '../../src/authoring/group'
 import {graphMove} from '../../src/authoring/move'
+import {graphRelink} from '../../src/authoring/relink'
 import {graphRename} from '../../src/authoring/rename'
 
 async function captureJsonOutput(run: () => Promise<void>): Promise<any> {
@@ -121,7 +122,7 @@ describe('graph move commands', () => {
 
         const indexContent = readFileSync(path.join(tempDir, 'index.md'), 'utf8')
         expect(indexContent).toContain('[[archive/source/a]]')
-        expect(indexContent).toContain('[[archive/source/nested/b.md|B]]')
+        expect(indexContent).toContain('[[archive/source/nested/b|B]]')
         expect(indexContent).toContain('~/brain/archive/source/a.md')
         expect(indexContent).toContain(path.join(destinationRoot, 'a.md'))
     })
@@ -197,9 +198,61 @@ describe('graph move commands', () => {
 
         const indexContent = readFileSync(path.join(tempDir, 'index.md'), 'utf8')
         expect(indexContent).toContain('[[archive/deep]]')
-        expect(indexContent).toContain('[[archive/other.md|Other]]')
+        expect(indexContent).toContain('[[archive/other|Other]]')
         expect(indexContent).toContain('~/brain/archive/deep.md')
         expect(indexContent).toContain(path.join(archivePath, 'deep.md'))
+    })
+
+    it('groups files into a folder and rewrites basename-stable bare inbound links', async () => {
+        const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-graph-group-bare-'))
+        tempDirs.push(tempDir)
+
+        const targetPath = path.join(tempDir, 'target.md')
+        writeFileSync(targetPath, '# Target\n')
+        writeFileSync(path.join(tempDir, 'index.md'), '# Index\n\n[[target]]\n')
+        writeFileSync(path.join(tempDir, 'another.md'), '# Another\n\n- parent [[target|parent]]\n')
+
+        const result = await captureJsonOutput(() =>
+            graphGroup(undefined, [
+                path.join(tempDir, 'archive'),
+                targetPath,
+                '--project',
+                tempDir,
+            ])
+        )
+
+        expect(result.referencesUpdated).toBe(2)
+        expect(readFileSync(path.join(tempDir, 'index.md'), 'utf8')).toContain('[[archive/target]]')
+        expect(readFileSync(path.join(tempDir, 'another.md'), 'utf8')).toContain('- parent [[archive/target|parent]]')
+        expect(readFileSync(path.join(tempDir, 'archive', 'target.md'), 'utf8')).toBe('# Target\n')
+    })
+
+    it('relinks a gardened vault to project-relative links and is idempotent', async () => {
+        const tempDir = mkdtempSync(path.join(os.tmpdir(), 'vt-graph-relink-'))
+        tempDirs.push(tempDir)
+
+        mkdirSync(path.join(tempDir, 'archive'), {recursive: true})
+        writeFileSync(path.join(tempDir, 'index.md'), '# Index\n\n[[target]]\n[[missing]]\n')
+        writeFileSync(path.join(tempDir, 'archive', 'target.md'), '# Target\n\n[[index]]\n')
+
+        const dryRun = await captureJsonOutput(() =>
+            graphRelink(undefined, ['--dry-run', '--project', tempDir])
+        )
+        expect(dryRun.referencesUpdated).toBe(1)
+        expect(readFileSync(path.join(tempDir, 'index.md'), 'utf8')).toContain('[[target]]')
+
+        const applied = await captureJsonOutput(() =>
+            graphRelink(undefined, ['--project', tempDir])
+        )
+        expect(applied.referencesUpdated).toBe(1)
+        expect(readFileSync(path.join(tempDir, 'index.md'), 'utf8')).toContain('[[archive/target]]')
+        expect(readFileSync(path.join(tempDir, 'index.md'), 'utf8')).toContain('[[missing]]')
+        expect(readFileSync(path.join(tempDir, 'index.md'), 'utf8')).not.toContain(tempDir)
+
+        const second = await captureJsonOutput(() =>
+            graphRelink(undefined, ['--project', tempDir])
+        )
+        expect(second.referencesUpdated).toBe(0)
     })
 
     it('prints human-readable dry-run output for grouping without moving files', async () => {
