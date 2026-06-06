@@ -14,7 +14,7 @@ import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {getFolderIdentityNoteId} from '@vt/graph-model/graph'
+import {getFolderIdentityNoteId, getFolderChildNodeIds, getSubFolderPaths, getFolderParent, isFolderIdentityNote} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {slugify} from '../_shared/slugify.ts'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
@@ -173,6 +173,58 @@ export function worktreeFolderNoteInput(
     }
 }
 
+/**
+ * Live-gardening task-folder routing. An agent anchored to a task node that is a
+ * folder identity note (every task node is created as one — see createTaskNode)
+ * files its progress nodes INTO that folder by default, so they nest under the task
+ * instead of cluttering the parent graph, and the folder is then subject to the
+ * `folder_child_count_limit` cap. Returns the absolute task folder to use as the
+ * effective outputPath, or null when task routing does not apply.
+ *
+ * Precedence: an explicit outputPath (deliberate placement) and worktree routing
+ * both win. A plain (non-folder) anchored node is left untouched — converting an
+ * existing populated node into a folder is `vt graph garden`'s job, not the spawn
+ * path's.
+ */
+export function resolveTaskFolderOutputPath(
+    explicitOutputPath: string | undefined,
+    worktreeRouting: WorktreeRouting,
+    anchoredToNodeId: NodeIdAndFilePath | null,
+): string | null {
+    const hasExplicit: boolean = !!explicitOutputPath && explicitOutputPath.trim() !== ''
+    if (hasExplicit || worktreeRouting.active || anchoredToNodeId === null) return null
+    if (!isFolderIdentityNote(anchoredToNodeId)) return null
+    return getFolderParent(anchoredToNodeId)
+}
+
+export interface SiblingFolderSummary {
+    /** Graph folder id (trailing slash) — pass as `outputPath` to file nodes here. */
+    readonly folder: string
+    /** Folder basename, for display. */
+    readonly name: string
+    /** Direct members already in the folder (excludes its identity note + context nodes). */
+    readonly directMembers: number
+}
+
+/**
+ * Existing sub-folders directly inside the destination folder (live-gardening
+ * "show folders"). Surfaced in the create response so an agent files related nodes
+ * into an existing folder instead of piling them flat. Only real folder nodes (those
+ * with an identity note already in the graph) are listed. Pure.
+ */
+export function existingSiblingFolders(graph: Graph, destinationFolderPath: string): readonly SiblingFolderSummary[] {
+    return getSubFolderPaths(graph.nodes, destinationFolderPath)
+        .filter((folder: string) => graph.nodes[getFolderIdentityNoteId(folder)] !== undefined)
+        .map((folder: string) => {
+            const identityNote: NodeIdAndFilePath = getFolderIdentityNoteId(folder)
+            const directMembers: number = getFolderChildNodeIds(graph.nodes, folder)
+                .filter((id: NodeIdAndFilePath) => id !== identityNote).length
+            const trimmed: string = folder.endsWith('/') ? folder.slice(0, -1) : folder
+            const name: string = trimmed.slice(trimmed.lastIndexOf('/') + 1)
+            return {folder, name, directMembers}
+        })
+}
+
 async function resolveConfiguredOutputDirectory(outputPath: string | undefined, bridge: GraphBridge): Promise<Result<string>> {
     const projectPathOpt: O.Option<string> = await getToolWriteFolderPath(bridge)
     if (O.isNone(projectPathOpt)) {
@@ -275,6 +327,7 @@ async function validateOverridableRules(
         subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphWarnThreshold,
         subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphErrorThreshold,
         maxChildrenPerNode: settings.maxChildrenPerNode ?? DEFAULT_SUBGRAPH_LIMITS.maxChildrenPerNode,
+        maxFolderChildren: settings.maxFolderChildren ?? DEFAULT_SUBGRAPH_LIMITS.maxFolderChildren,
         complexityWarnScore: settings.complexityWarnScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityWarnScore,
         complexityBlockScore: settings.complexityBlockScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityBlockScore,
         destinationFolderPath,
@@ -345,7 +398,13 @@ export async function createGraphTool(
     const callerRecord: TerminalRecord = callerRecordResult.value
 
     const worktreeRouting: WorktreeRouting = resolveWorktreeRouting(outputPath, callerRecord.terminalData.worktreeName)
-    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(worktreeRouting.outputPath, bridge)
+    const anchoredToNodeId: NodeIdAndFilePath | null =
+        O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
+    // Task-folder routing wins over worktree routing: an agent's progress nests inside
+    // its own task folder; both yield to an explicit outputPath.
+    const taskFolderOutputPath: string | null = resolveTaskFolderOutputPath(outputPath, worktreeRouting, anchoredToNodeId)
+    const effectiveOutputPath: string | undefined = taskFolderOutputPath ?? worktreeRouting.outputPath
+    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(effectiveOutputPath, bridge)
     if (!outputDirectoryResult.ok) return errorResponse(outputDirectoryResult.error)
     const outputDirectory: string = outputDirectoryResult.value
 
@@ -395,10 +454,14 @@ export async function createGraphTool(
         applyAgentStatus(callerTerminalId, {preset: agentStatus, phrase: statusPhrase})
     }
 
+    const siblingFolders: readonly SiblingFolderSummary[] = existingSiblingFolders(graph, destinationFolderPath)
     return buildJsonResponse({
         success: true,
         nodes: batchResult.results,
         warnings: formatWarnings(validation.warnings),
-        hint: 'To update a node, edit the file directly at its path. Do not call create_graph again for updates.',
+        ...(siblingFolders.length > 0 ? {existingFolders: siblingFolders} : {}),
+        hint: siblingFolders.length > 0
+            ? 'To update a node, edit the file directly at its path. Folders already exist here (see existingFolders) — file related nodes into one (pass its `folder` as outputPath) instead of adding them flat.'
+            : 'To update a node, edit the file directly at its path. Do not call create_graph again for updates.',
     })
 }

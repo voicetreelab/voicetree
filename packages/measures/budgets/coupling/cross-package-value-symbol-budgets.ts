@@ -241,7 +241,10 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-db-server -> observability': 10,
     'graph-db-server -> paths': 2,
     'graph-state -> graph-model': 8,
-    'graph-tools -> graph-model': 2,
+    // 2026-06-06 [live-gardening]: 2 -> 3 (+1). `vt graph garden` now sources its
+    // block-threshold warning from graph-model's canonical DEFAULT_SUBGRAPH_ERROR_THRESHOLD
+    // instead of a hardcoded literal that silently drifts from the settings default.
+    'graph-tools -> graph-model': 3,
     'graph-tools -> graph-state': 12,
     'graph-tools -> paths': 1,
     'graph-tools -> vt-rpc': 8,
@@ -364,7 +367,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // resolver: 27 -> 28 (+2 flattenAgentTree / resolveDefaultAgent, -1 the
     // removed flat getDefaultAgent). Kept to +1 net by inlining the resolvable-
     // command set in agentCommand.ts and reading the path label off ResolvedAgent.
-    'vt-daemon -> graph-model': 28,
+    // 2026-06-06 [live-gardening prevention]: 28 -> 29 (+1). The create_graph
+    // show-folders response reuses graph-model's getSubFolderPaths to list a
+    // destination's existing sub-folders; getFolderChildNodeIds + getFolderIdentityNoteId
+    // (the new folder_child_count_limit rule) were already imported by this boundary.
+    'vt-daemon -> graph-model': 29,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated

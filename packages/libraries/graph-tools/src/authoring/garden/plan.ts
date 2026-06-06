@@ -31,8 +31,6 @@ export interface GardenCluster {
     readonly folderName: string
     /** Member filenames (relative to the gardened folder). */
     readonly members: readonly string[]
-    /** Filename of the PageRank representative (drives the folder note's parent link). */
-    readonly representative: string
     readonly cohesion: number
 }
 
@@ -141,7 +139,7 @@ export function buildGardenPlan(nodes: readonly GardenFolderNode[]): GardenPlan 
         const folderName: string = uniqueName(slugifyTitle(seed), usedNames)
         usedNames.add(folderName)
         members.forEach((m) => claimed.add(m))
-        clusters.push({folderName, members, representative, cohesion: community.cohesion})
+        clusters.push({folderName, members, cohesion: community.cohesion})
     }
 
     const leftovers: readonly string[] = nodes.map((n) => n.filename).filter((f) => !claimed.has(f))
@@ -211,11 +209,18 @@ export function parseGardenPlan(text: string): readonly ParsedGroup[] {
     return groups.filter((group) => group.members.length > 0)
 }
 
-/** Render a folder identity note (`<folder>/<folder>.md`), capped near 15 body lines. */
+/**
+ * Render a folder identity note (`<folder>/<folder>.md`), capped near 15 body lines.
+ *
+ * `parentBasename` is the basename (no extension) of the node the new folder hangs
+ * off in the graph — the gardened folder's own identity note. It must NOT be one of
+ * the `members` (those are moved INTO this folder); parenting to a member would make
+ * the folder note a child of its own contents.
+ */
 export function renderFolderNote(
     folderName: string,
     members: readonly {filename: string; title: string}[],
-    representative: string,
+    parentBasename: string,
 ): string {
     const MAX_LISTED = 8
     const listed: readonly {filename: string; title: string}[] = members.slice(0, MAX_LISTED)
@@ -238,7 +243,7 @@ export function renderFolderNote(
         '## Contents',
         ...contents,
         '',
-        `- parent [[${basenameNoExt(representative)}]]`,
+        `- parent [[${parentBasename}]]`,
         '',
     ].join('\n')
 }
