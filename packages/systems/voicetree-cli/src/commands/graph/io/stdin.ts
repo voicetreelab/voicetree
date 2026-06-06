@@ -6,6 +6,7 @@ import {getErrorMessage, isRecord} from '../core/util'
 export async function readCreateGraphPayloadFromStdin(terminalId: string | undefined): Promise<{
     callerTerminalId: string
     parentNodeId?: string
+    outputPath?: string
     nodes: GraphCreateNode[]
     overrides: readonly OverrideSpec[]
     agentStatus?: string
@@ -51,6 +52,15 @@ export async function readCreateGraphPayloadFromStdin(terminalId: string | undef
 
     const parentNodeId: string | undefined = typedPayload.parentNodeId
 
+    if (
+        typedPayload.outputPath !== undefined &&
+        typeof typedPayload.outputPath !== 'string'
+    ) {
+        error('outputPath must be a string')
+    }
+
+    const outputPath: string | undefined = typedPayload.outputPath
+
     if (!Array.isArray(typedPayload.nodes)) {
         error('graph create via stdin requires nodes: GraphCreateNode[]')
     }
@@ -65,6 +75,9 @@ export async function readCreateGraphPayloadFromStdin(terminalId: string | undef
 
     if (parentNodeId !== undefined && parentNodeId.length === 0) {
         error('parentNodeId must be a non-empty string')
+    }
+    if (outputPath !== undefined && outputPath.trim().length === 0) {
+        error('outputPath must be a non-empty string')
     }
 
     const overrides: readonly OverrideSpec[] = parseStdinOverrides(typedPayload.override_with_rationale)
@@ -81,6 +94,7 @@ export async function readCreateGraphPayloadFromStdin(terminalId: string | undef
     return {
         callerTerminalId,
         ...(parentNodeId !== undefined ? {parentNodeId} : {}),
+        ...(outputPath !== undefined ? {outputPath} : {}),
         nodes,
         overrides,
         ...(agentStatus !== undefined ? {agentStatus} : {}),
