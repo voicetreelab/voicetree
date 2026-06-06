@@ -17,7 +17,7 @@ import {
   WEBAPP_ROOT, FAKE_AGENT_ENTRYPOINT,
   type ElectronDiagnostics, type ExtendedWindow,
   resolveGraphDaemonNodeBin, stopSmokeGraphDaemonForProject, stopSmokeTmuxServer,
-  expectNoCriticalElectronErrors
+  expectNoCriticalElectronErrors, releaseSmokeElectronExecutable, cleanPackagedElectronEnv
 } from './electron-smoke-helpers';
 
 // Extend test with Electron app
@@ -144,15 +144,24 @@ const test = base.extend<{
       ? ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
       : [];
 
+    const packagedExecutable = releaseSmokeElectronExecutable();
+    const launchArgs = packagedExecutable
+      ? [
+          ...linuxFlags,
+          `--user-data-dir=${tempUserDataPath}`,
+          '--open-folder', fixtureProjectPath
+        ]
+      : [
+          ...linuxFlags,
+          path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
+          `--user-data-dir=${tempUserDataPath}`,
+          '--open-folder', fixtureProjectPath
+        ];
     const electronApp = await electron.launch({
-      args: [
-        ...linuxFlags,
-        path.join(WEBAPP_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}`,
-        '--open-folder', fixtureProjectPath
-      ],
+      ...(packagedExecutable ? { executablePath: packagedExecutable } : {}),
+      args: launchArgs,
       env: {
-        ...process.env,
+        ...(packagedExecutable ? cleanPackagedElectronEnv(process.env) : process.env),
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         VOICETREE_PERSIST_STATE: '1',
