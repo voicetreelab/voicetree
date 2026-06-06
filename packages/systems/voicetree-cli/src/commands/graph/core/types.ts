@@ -97,6 +97,7 @@ export type ToolFailure = {
 export type GraphCreatePayload = {
     callerTerminalId?: string
     parentNodeId?: string
+    outputPath?: unknown
     nodes?: unknown
     override_with_rationale?: unknown
     agentStatus?: unknown
