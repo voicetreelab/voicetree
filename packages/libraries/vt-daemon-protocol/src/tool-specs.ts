@@ -127,7 +127,7 @@ export const AGENT_WAIT_SPEC: ToolSpec = {
     description: [
         'Wait for specified agent terminals to complete. Returns immediately with a `monitorId`. The monitor polls in the background and sends a completion message to your terminal when all agents are done.',
         '',
-        '**IMPORTANT:** This tool is non-blocking. After calling it, continue with other work or inform the user you are waiting. Do NOT manually poll agent status — a `[WaitForAgents] Agent(s) completed.` message will be automatically injected into your terminal when all agents finish. You will see this message appear as if the user sent it.',
+        '**IMPORTANT:** This tool is non-blocking. After calling it, do not poll, inspect output, or take further action on these agents; end your turn and wait for the automatic completion notification. A `[WaitForAgents] Agent(s) completed.` message will be automatically injected into your terminal when all agents finish. You will see this message appear as if the user sent it.',
         '',
         '**NOTE:** `vt agent spawn` now auto-starts a monitor, so you only need `vt agent wait` for explicit multi-agent waits or custom polling intervals.',
     ].join('\n'),
