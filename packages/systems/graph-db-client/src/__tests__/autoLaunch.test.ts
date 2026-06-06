@@ -178,6 +178,18 @@ describe('resolveDefaultDaemonArgs', () => {
     expect(args).toEqual([sibling, '--project-root', '/tmp/project'])
   })
 
+  test('uses an app.asar.unpacked sibling path for packaged Electron', () => {
+    const sibling = '/app/Resources/app.asar/dist-electron/main/vt-graphd.mjs'
+    const unpacked = '/app/Resources/app.asar.unpacked/dist-electron/main/vt-graphd.mjs'
+    const args = resolveDefaultDaemonArgs('/tmp/project', {
+      exists: (path) => path === unpacked,
+      resolveTsx: () => '/tmp/tsx',
+      siblingDaemonPath: () => sibling.replace('/app.asar/', '/app.asar.unpacked/'),
+    })
+
+    expect(args).toEqual([unpacked, '--project-root', '/tmp/project'])
+  })
+
   test('falls back to the @vt/graph-db-server dist build when no sibling daemon ships alongside', () => {
     const args = resolveDefaultDaemonArgs('/tmp/project', {
       exists: (path) => path.endsWith('/dist/vt-graphd.mjs'),
