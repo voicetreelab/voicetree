@@ -2,6 +2,7 @@ import {existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSy
 import {basename, dirname, isAbsolute, join, relative, resolve} from 'node:path'
 import {homedir} from 'node:os'
 import {error, output} from './output'
+import {buildRelinkDiskIndex, relinkContent} from './relink'
 
 const BRAIN = resolve(join(homedir(), 'brain'))
 
@@ -280,6 +281,8 @@ export function updateReferences(
         buildReferencePatterns(oldAbsPath, newAbsPath, projectRoot)
     )
     const mdFiles = findMdFiles(projectRoot)
+    const relinkIndex = buildRelinkDiskIndex(projectRoot, mappings)
+    const postMovePathByOldPath = new Map(mappings.map(({oldAbsPath, newAbsPath}) => [oldAbsPath, newAbsPath]))
 
     const summary: ReferenceUpdateSummary = {
         filesChanged: [],
@@ -291,6 +294,11 @@ export function updateReferences(
         const originalContent = readFileSync(filePath, 'utf8')
         let updatedContent = originalContent
         let fileRefCount = 0
+
+        const sourcePathAfterMove = postMovePathByOldPath.get(filePath) ?? filePath
+        const relinkResult = relinkContent(updatedContent, sourcePathAfterMove, projectRoot, relinkIndex)
+        fileRefCount += relinkResult.rewrites
+        updatedContent = relinkResult.content
 
         for (const {pattern, replacement} of patterns) {
             pattern.lastIndex = 0

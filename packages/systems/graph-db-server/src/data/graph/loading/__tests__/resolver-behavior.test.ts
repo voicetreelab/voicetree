@@ -132,3 +132,26 @@ test('absolute link loads a file outside every loaded folder and outside the pro
   expect(getGraph().nodes[outsideFileId]).toBeDefined()
   expect(outgoingTargets(getGraph().nodes[nodeId(root, 'a.md')])).toContain(outsideFileId)
 })
+
+test('project-relative link loads an exact file from an unloaded folder', async () => {
+  const root = projectRoot!
+  await fs.mkdir(path.join(root, 'archive'), { recursive: true })
+  await fs.writeFile(path.join(root, 'archive', 'target.md'), '# Target\n')
+
+  const aDelta = deltaForAdded(getGraph(), path.join(root, 'a.md'), '# A\n\n- ref [[archive/target]]\n')
+  await applyGraphDeltaToMemState(aDelta)
+
+  const targetId = nodeId(root, 'archive/target.md')
+  expect(getGraph().nodes[targetId]).toBeDefined()
+  expect(outgoingTargets(getGraph().nodes[nodeId(root, 'a.md')])).toContain(targetId)
+})
+
+test('missing project-relative exact path does not load a node', async () => {
+  const root = projectRoot!
+
+  const aDelta = deltaForAdded(getGraph(), path.join(root, 'a.md'), '# A\n\n- ref [[archive/missing]]\n')
+  await applyGraphDeltaToMemState(aDelta)
+
+  expect(getGraph().nodes[nodeId(root, 'archive/missing.md')]).toBeUndefined()
+  expect(outgoingTargets(getGraph().nodes[nodeId(root, 'a.md')])).toContain('archive/missing')
+})

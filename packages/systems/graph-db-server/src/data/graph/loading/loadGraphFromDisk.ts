@@ -266,6 +266,10 @@ export function isReadPath(nodeId: string, expandedPaths: readonly string[]): bo
     });
 }
 
+function normalizeProjectRoots(projectRoots: readonly string[]): readonly string[] {
+    return [...new Set(projectRoots.map(projectRoot => normalizePath(projectRoot)))]
+}
+
 /**
  * Loads a single file and returns the delta.
  * I/O function - reads file from disk.
@@ -307,33 +311,50 @@ function upsertedNodesOf(delta: GraphDelta): readonly GraphNode[] {
  *
  * @param attemptedTargets - Per-pass set of normalized paths already considered (mutated).
  */
-function resolveAbsoluteTargetPath(
+function resolveLoadableTargetPath(
     linkTarget: string,
+    projectRoots: readonly string[],
     graph: Graph,
     attemptedTargets: Set<string>
 ): string | undefined {
-    if (!linkTarget.startsWith('/')) return undefined;
-
     const withExtension: string = linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`;
-    const targetPath: string = normalizePath(withExtension);
+    let targetPath: string | undefined;
+    let targetExists = false;
+    if (linkTarget.startsWith('/')) {
+        targetPath = normalizePath(withExtension);
+        targetExists = fsSync.existsSync(targetPath);
+    } else {
+        if (!linkTarget.includes('/') && !linkTarget.includes('\\')) return undefined;
+        for (const projectRoot of projectRoots) {
+            const candidate = normalizePath(path.join(projectRoot, withExtension));
+            if (fsSync.existsSync(candidate)) {
+                targetPath = candidate;
+                targetExists = true;
+                break;
+            }
+        }
+    }
+
+    if (!targetPath) return undefined;
 
     if (graph.nodes[targetPath]) return undefined;
     if (attemptedTargets.has(targetPath)) return undefined;
     attemptedTargets.add(targetPath);
 
-    return fsSync.existsSync(targetPath) ? targetPath : undefined;
+    return targetExists ? targetPath : undefined;
 }
 
 /** Collects the loadable absolute targets across a frontier of nodes (deduped). */
 function collectLoadableAbsoluteTargets(
     nodes: readonly GraphNode[],
+    projectRoots: readonly string[],
     graph: Graph,
     attemptedTargets: Set<string>
 ): readonly string[] {
     const targets: Set<string> = new Set();
     for (const node of nodes) {
         for (const edge of node.outgoingEdges) {
-            const resolved: string | undefined = resolveAbsoluteTargetPath(edge.targetId, graph, attemptedTargets);
+            const resolved: string | undefined = resolveLoadableTargetPath(edge.targetId, projectRoots, graph, attemptedTargets);
             if (resolved) targets.add(resolved);
         }
     }
@@ -366,16 +387,18 @@ function collectLoadableAbsoluteTargets(
  */
 export async function resolveAbsoluteLinkedNodes(
     graph: Graph,
-    delta: GraphDelta
+    delta: GraphDelta,
+    projectRoots: readonly string[] = []
 ): Promise<GraphDelta> {
     const accumulatedDelta: GraphDelta[number][] = [];
     // Normalized target paths already considered, across the whole transitive pass.
     const attemptedTargets: Set<string> = new Set();
+    const normalizedProjectRoots: readonly string[] = normalizeProjectRoots(projectRoots);
     let workingGraph: Graph = graph;
     let frontier: readonly GraphNode[] = upsertedNodesOf(delta);
 
     while (frontier.length > 0) {
-        const targetsToLoad: readonly string[] = collectLoadableAbsoluteTargets(frontier, workingGraph, attemptedTargets);
+        const targetsToLoad: readonly string[] = collectLoadableAbsoluteTargets(frontier, normalizedProjectRoots, workingGraph, attemptedTargets);
         const newlyLoaded: GraphNode[] = [];
 
         for (const targetPath of targetsToLoad) {
