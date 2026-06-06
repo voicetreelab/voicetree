@@ -17,9 +17,7 @@ import {WebSocket} from 'ws'
 
 import {generateAuthToken} from '@vt/vt-rpc'
 
-import {startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
-
-const noopHook: HookHandler = (): unknown => ({ok: true})
+import {startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
 interface Ctx {
     handle: HttpDaemonServerHandle
@@ -39,7 +37,6 @@ async function bring(): Promise<Ctx> {
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: new Map() as ToolCatalog,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},
@@ -102,15 +99,15 @@ describe('GET /events — vt-bearer subprotocol auth (Step 9b.1)', (): void => {
         expect(ws.protocol).toBe('vt-bearer')
 
         ws.on('message', (raw: Buffer): void => { received.push(raw.toString('utf8')) })
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-events'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'terminal-registry'}]}))
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('agent-events', 'agent-spawned', {terminalId: 'T1'})
+        handle.hub.publish('terminal-registry', 'agent-spawned', {terminalId: 'T1'})
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
         ws.close()
 
         expect(received).toHaveLength(1)
         const event = JSON.parse(received[0]) as {topic: string; event: string}
-        expect(event).toMatchObject({topic: 'agent-events', event: 'agent-spawned'})
+        expect(event).toMatchObject({topic: 'terminal-registry', event: 'agent-spawned'})
     })
 
     it('2. valid literal + wrong token → 401 before handshake', async (): Promise<void> => {
@@ -226,16 +223,16 @@ describe('cross-wire renderer smoke — browser-shape WebSocket against real dae
             received.push(ev.data)
         })
 
-        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'agent-events'}]}))
+        ws.send(JSON.stringify({op: 'subscribe', topics: [{topic: 'terminal-registry'}]}))
         await new Promise<void>((r): void => { setTimeout((): void => r(), 50) })
-        handle.hub.publish('agent-events', 'agent-spawned', {terminalId: 'T-renderer-smoke'})
+        handle.hub.publish('terminal-registry', 'agent-spawned', {terminalId: 'T-renderer-smoke'})
         await new Promise<void>((r): void => { setTimeout((): void => r(), 100) })
         ws.close()
 
         expect(received).toHaveLength(1)
         const event = JSON.parse(received[0]) as {topic: string; event: string; data: {terminalId: string}}
         expect(event).toMatchObject({
-            topic: 'agent-events',
+            topic: 'terminal-registry',
             event: 'agent-spawned',
             data: {terminalId: 'T-renderer-smoke'},
         })

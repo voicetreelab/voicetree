@@ -73,7 +73,6 @@ async function startFullStack(): Promise<FullStack> {
 
     const rpc: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: buildDefaultToolCatalog(buildDisabledMcpBridges()),
-        hookHandler: (): unknown => ({ok: true}),
         token,
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},

@@ -56,7 +56,6 @@ import {resolveVoicetreeHomePath} from '@vt/paths'
 import {loadSettings} from '@vt/app-config/settings'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
 import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
@@ -64,7 +63,6 @@ import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
 import {createGatewayLiveUpdates} from '@vt/vt-daemon/transport/gatewayLiveUpdates.ts'
 import {parseLocalhostCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
-import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
@@ -284,12 +282,6 @@ async function main(): Promise<void> {
     const token: string = generateAuthToken()
     await writeAuthTokenFile(args.project, token)
 
-    const hookHandler: HookHandler = (input): unknown =>
-        handleHookEventRequest(
-            {source: input.source, terminalId: input.terminalId, hookEventName: input.eventName},
-            {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
-        )
-
     const startMs: number = Date.now()
     let httpHandle: HttpDaemonServerHandle
 
@@ -315,7 +307,6 @@ async function main(): Promise<void> {
     try {
         httpHandle = await startHttpDaemonServer({
             catalog: buildDefaultToolCatalog(mcpBridges, graphGatewayRoutes),
-            hookHandler,
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override

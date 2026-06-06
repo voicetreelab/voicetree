@@ -1,35 +1,35 @@
 /**
  * Terminal lifecycle types — the state machine that replaces the boolean `isDone`.
  *
- * See plan: terminalstatusimplementationplan.md
- *
  * Pure types only. No I/O, no runtime logic.
  *
- * `TerminalLifecycle`, `TerminalKillReason`, and `AgentEventKind` are now
- * canonically owned by `@vt/vt-daemon-protocol` (BF-376 outbound) so the
- * VTD wire contract can describe them without back-importing agent-runtime.
- * Re-exported here to keep the in-package `lifecycle` deep path stable.
+ * `TerminalLifecycle` and `TerminalKillReason` are canonically owned by
+ * `@vt/vt-daemon-protocol` (BF-376 outbound) so the VTD wire contract can
+ * describe them without back-importing agent-runtime. Re-exported here to keep
+ * the in-package `lifecycle` deep path stable.
+ *
+ * The lifecycle is pure *liveness*, derived from raw PTY activity and process
+ * exit only. The semantic "what is the agent doing" signal is a separate,
+ * agent-declared concern (`AgentStatusPreset`, set via `create_graph`) and
+ * never flows through this reducer.
  */
 
 import type {
     TerminalLifecycle,
     TerminalKillReason,
-    AgentEventKind,
 } from '@vt/vt-daemon-protocol'
 
-export type {TerminalLifecycle, TerminalKillReason, AgentEventKind}
+export type {TerminalLifecycle, TerminalKillReason}
 
 /**
  * Discriminated union of every signal the lifecycle reducer can consume.
- * All sources (PTY, hook server, OS poller) push events onto a single
- * stream; `derive` is agnostic to who produced what.
+ * All sources (PTY, OS poller) push events onto a single stream; `derive` is
+ * agnostic to who produced what.
  */
 export type TerminalEvent =
     | { readonly type: 'output'; readonly at: number }
-    | { readonly type: 'input'; readonly at: number }
     | { readonly type: 'exit'; readonly at: number; readonly code: number | null; readonly signal: string | null }
-    | { readonly type: 'tick'; readonly at: number }
-    | { readonly type: 'agent_event'; readonly at: number; readonly kind: AgentEventKind };
+    | { readonly type: 'tick'; readonly at: number };
 
 /**
  * Per-terminal carry state for the reducer. The `lifecycle` field is what

@@ -11,10 +11,6 @@ describe('shouldFlipToActiveOnOutput', () => {
         expect(shouldFlipToActiveOnOutput('idle')).toBe(true);
     });
 
-    it('returns true for awaiting_input (output observed while waiting on user means agent resumed work — matches derive() output branch)', () => {
-        expect(shouldFlipToActiveOnOutput('awaiting_input')).toBe(true);
-    });
-
     it('returns false for active (no-op IPC suppression)', () => {
         expect(shouldFlipToActiveOnOutput('active')).toBe(false);
     });
@@ -28,7 +24,7 @@ describe('shouldFlipToActiveOnOutput', () => {
     });
 
     it('covers every TerminalLifecycle variant', () => {
-        const all: readonly TerminalLifecycle[] = ['spawning', 'active', 'idle', 'awaiting_input', 'completed', 'errored'];
+        const all: readonly TerminalLifecycle[] = ['spawning', 'active', 'idle', 'completed', 'errored'];
         for (const lc of all) {
             const result: boolean = shouldFlipToActiveOnOutput(lc);
             expect(typeof result).toBe('boolean');

@@ -6,26 +6,27 @@
  * Black-box testable: feed any sequence of events, observe the resulting
  * state. No I/O, no side effects.
  *
+ * Pure liveness only — derived from raw PTY output and process exit. The
+ * semantic "what is the agent doing" signal is the agent-declared
+ * `AgentStatusPreset` (set via create_graph), which never touches this reducer.
+ *
  * State diagram:
  *
  *                   ┌──────────┐
  *                   │ spawning │
  *                   └─────┬────┘
- *                         │ output | agent_event(working)
+ *                         │ output
  *                         ▼
- *                   ┌──────────┐ ◄────────── output | input | agent_event(working)
+ *                   ┌──────────┐ ◄────────── output
  *                   │  active  │
- *                   └──┬─────┬─┘
- *      tick (idle ms)  │     │  agent_event(awaiting)
- *                      ▼     ▼
- *               ┌──────────┐ ┌────────────────┐
- *               │   idle   │ │ awaiting_input │
- *               └──────┬───┘ └──────┬─────────┘
- *                      │            │
- *                      └─────┬──────┘
- *                            │
- *                            │  exit | agent_event(done)
- *                            ▼
+ *                   └────┬─────┘
+ *           tick (idle ms)│
+ *                         ▼
+ *                   ┌──────────┐
+ *                   │   idle   │
+ *                   └────┬─────┘
+ *                        │  exit
+ *                        ▼
  *                  ┌──────────┐  ┌──────────┐
  *                  │completed │  │ errored  │  ← terminal states (sticky)
  *                  └──────────┘  └──────────┘
@@ -51,25 +52,6 @@ function activeFromOutput(state: TerminalSignalState, at: number): TerminalSigna
 function deriveExit(state: TerminalSignalState, event: Extract<TerminalEvent, { readonly type: 'exit' }>): TerminalSignalState {
     const lifecycle: TerminalLifecycle = classifyExit(event.code, event.signal, state.killReason);
     return { ...state, lifecycle };
-}
-
-function deriveInput(state: TerminalSignalState): TerminalSignalState {
-    // User typing always means engagement, never "awaiting".
-    // Don't touch lastOutputTime — input is not output.
-    if (state.lifecycle !== 'awaiting_input') return state;
-    return { ...state, lifecycle: 'active' };
-}
-
-function deriveAgentEvent(state: TerminalSignalState, event: Extract<TerminalEvent, { readonly type: 'agent_event' }>): TerminalSignalState {
-    // Hook events from the agent. Drive the state directly.
-    switch (event.kind) {
-        case 'awaiting':
-            return { ...state, lifecycle: 'awaiting_input' };
-        case 'done':
-            return { ...state, lifecycle: 'completed' };
-        case 'working':
-            return activeFromOutput(state, event.at);
-    }
 }
 
 function hasReachedInactivityThreshold(
@@ -112,14 +94,6 @@ export function derive(
 
         case 'output': {
             return activeFromOutput(state, event.at);
-        }
-
-        case 'input': {
-            return deriveInput(state);
-        }
-
-        case 'agent_event': {
-            return deriveAgentEvent(state, event);
         }
 
         case 'tick': {

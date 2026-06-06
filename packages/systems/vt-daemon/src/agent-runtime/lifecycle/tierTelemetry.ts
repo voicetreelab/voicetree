@@ -1,23 +1,20 @@
 /**
- * Agent-hook lifecycle telemetry.
+ * Agent status-declaration telemetry.
  *
- * Records every hook firing (Claude Code / Codex / SDK) with timestamp and
+ * Records every agent-declared status transition (the `AgentStatusPreset` set
+ * when an agent records a progress node via `create_graph`) with timestamp and
  * agent type, into both an in-memory ring buffer (10k events) for live
  * snapshots and an optional sink (the JSONL file at VOICETREE_HOME/
  * lifecycle-telemetry.jsonl).
  *
- * Useful for spotting regressions: if hooks stop firing for a supported
- * agent (e.g. a future Claude Code version changes hook payload shape),
- * the snapshot will show zero events for that agent type.
- *
- * The Tier-3 heuristic prompt detector that previously produced
- * `detected`/`cleared` events was deleted once Tier-1 hooks were proven
- * sufficient; the `kind` union now mirrors `AgentEventKind` directly.
+ * Useful for spotting regressions: if a supported agent stops declaring status
+ * (e.g. a prompt-template change drops the instruction), the snapshot will
+ * show zero events for that agent type.
  */
 
-import type {AgentEventKind} from './types'
+import {AGENT_STATUS_PRESETS, type AgentStatusPreset} from '@vt/vt-daemon-protocol'
 
-export type TierEventKind = AgentEventKind
+export type TierEventKind = AgentStatusPreset
 
 export type TierEvent = {
     readonly ts: number
@@ -42,7 +39,9 @@ export type TelemetrySnapshot = {
 }
 
 function emptyByKind(): Record<TierEventKind, number> {
-    return {awaiting: 0, working: 0, done: 0}
+    return Object.fromEntries(
+        AGENT_STATUS_PRESETS.map((preset: AgentStatusPreset) => [preset, 0]),
+    ) as Record<TierEventKind, number>
 }
 
 function bumpAgentBreakdown(

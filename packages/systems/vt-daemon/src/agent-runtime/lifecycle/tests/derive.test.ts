@@ -48,37 +48,6 @@ describe('derive — happy path transitions', () => {
     });
 });
 
-describe('derive — agent hook events', () => {
-    it('agent_event awaiting → awaiting_input', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'agent_event', at: T0 + 200, kind: 'awaiting' },
-        ])).toBe('awaiting_input');
-    });
-
-    it('agent_event done → completed', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'agent_event', at: T0 + 200, kind: 'done' },
-        ])).toBe('completed');
-    });
-
-    it('agent_event working clears awaiting state', () => {
-        expect(lifecycleAfter([
-            { type: 'output', at: T0 + 100 },
-            { type: 'agent_event', at: T0 + 200, kind: 'awaiting' },
-            { type: 'agent_event', at: T0 + 300, kind: 'working' },
-        ])).toBe('active');
-    });
-
-    it('agent_event awaiting works even from spawning state', () => {
-        // Hook fires before any output — accept it.
-        expect(lifecycleAfter([
-            { type: 'agent_event', at: T0 + 100, kind: 'awaiting' },
-        ])).toBe('awaiting_input');
-    });
-});
-
 describe('derive — exit events', () => {
     it('exit code 0 → completed', () => {
         expect(lifecycleAfter([
@@ -120,7 +89,6 @@ describe('derive — terminal-state stickiness', () => {
         const result: TerminalSignalState = deriveAll(init(), [
             { type: 'exit', at: T0 + 100, code: 0, signal: null },
             { type: 'output', at: T0 + 200 },
-            { type: 'agent_event', at: T0 + 300, kind: 'awaiting' },
             { type: 'tick', at: T0 + 9_999_999 },
         ], cfg);
         expect(result.lifecycle).toBe('completed');
@@ -130,7 +98,6 @@ describe('derive — terminal-state stickiness', () => {
         const result: TerminalSignalState = deriveAll(init(), [
             { type: 'exit', at: T0 + 100, code: 1, signal: null },
             { type: 'output', at: T0 + 200 },
-            { type: 'agent_event', at: T0 + 300, kind: 'done' },
         ], cfg);
         expect(result.lifecycle).toBe('errored');
     });
@@ -146,32 +113,12 @@ describe('derive — invariants', () => {
         expect(result.lastOutputTime).toBe(T0 + 999);
     });
 
-    it('input does not advance lastOutputTime', () => {
-        const result: TerminalSignalState = deriveAll(init(), [
-            { type: 'output', at: T0 + 100 },
-            { type: 'input', at: T0 + 500 },
-        ], cfg);
-        expect(result.lastOutputTime).toBe(T0 + 100);
-    });
-
-    it('tick alone never produces awaiting_input', () => {
-        // No prompt detected → tick can only produce active or idle.
-        const result: TerminalSignalState = deriveAll(init(), [
-            { type: 'output', at: T0 + 100 },
-            { type: 'tick', at: T0 + 200 },
-            { type: 'tick', at: T0 + 99_999 },
-        ], cfg);
-        expect(result.lifecycle).not.toBe('awaiting_input');
-    });
-
-    it('full cycle: spawn → active → awaiting → respond → working → idle → completed', () => {
+    it('full liveness cycle: spawn → active → idle → completed', () => {
         const events: readonly TerminalEvent[] = [
-            { type: 'output', at: T0 + 100 },                    // → active
-            { type: 'agent_event', at: T0 + 500, kind: 'awaiting' }, // → awaiting_input
-            { type: 'input', at: T0 + 1000 },                    // → active
-            { type: 'output', at: T0 + 1100 },                   // → active (refresh)
+            { type: 'output', at: T0 + 100 },                            // → active
+            { type: 'output', at: T0 + 1100 },                           // → active (refresh)
             { type: 'tick', at: T0 + 1100 + cfg.inactivityThresholdMs }, // → idle
-            { type: 'exit', at: T0 + 9000, code: 0, signal: null }, // → completed
+            { type: 'exit', at: T0 + 9000, code: 0, signal: null },      // → completed
         ];
         const final: TerminalSignalState = deriveAll(init(), events, cfg);
         expect(final.lifecycle).toBe('completed');

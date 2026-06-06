@@ -1,15 +1,14 @@
 /**
  * Public API surface for the terminal lifecycle module.
  *
- * Pure types + derive function. No I/O — edge code (PTY, hook server)
- * feeds events into `derive`; consumers read the `lifecycle` field of
+ * Pure types + derive function. No I/O — edge code (PTY activity, process
+ * exit) feeds events into `derive`; consumers read the `lifecycle` field of
  * the resulting state.
  */
 
 export type {
     TerminalLifecycle,
     TerminalKillReason,
-    AgentEventKind,
     TerminalEvent,
     TerminalSignalState,
     DeriveConfig,

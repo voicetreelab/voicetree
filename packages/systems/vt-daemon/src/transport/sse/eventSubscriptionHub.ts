@@ -1,12 +1,10 @@
 // Per-topic monotonic-seq pubsub with a bounded resume buffer and a
-// per-subscriber bounded outbound queue. Post-Phase-0 + Phase-2 topics:
-// `agent-events` (hook ingestion — renamed from agent-lifecycle in
-// BF-376) and `terminal-registry` (BF-376 outbound — registry mutations
-// + imperative UI-launch instructions). The pre-Phase-0 `project-state`
-// topic was deleted by BF-366; the single FS-watcher invariant lives in
-// vt-graphd. Per BF-376 design decision 2 (outbound design.md §6),
-// terminal-registry is its own narrow homogeneous topic, NOT a widening
-// of the agent-events envelope.
+// per-subscriber bounded outbound queue. Live topics: `graph` (full
+// ProjectedGraph snapshots) and `terminal-registry` (BF-376 outbound —
+// registry mutations + imperative UI-launch instructions). The pre-Phase-0
+// `project-state` topic was deleted by BF-366; the single FS-watcher
+// invariant lives in vt-graphd. Per BF-376 design decision 2 (outbound
+// design.md §6), terminal-registry is its own narrow homogeneous topic.
 //
 // Wire envelopes (text frames on the WS):
 //   server→client: { type: 'event', topic, seq, event, data }
@@ -25,18 +23,17 @@ import type {TerminalRegistryTopic} from '@vt/vt-daemon-protocol'
 // drift from the canonical 'terminal-registry' string in the protocol.
 export const TERMINAL_REGISTRY_TOPIC: TerminalRegistryTopic = 'terminal-registry'
 
-export type TopicName = 'agent-events' | 'graph' | TerminalRegistryTopic
+export type TopicName = 'graph' | TerminalRegistryTopic
 
-export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-events', 'graph', TERMINAL_REGISTRY_TOPIC]
+export const ALLOWED_TOPICS: readonly TopicName[] = ['graph', TERMINAL_REGISTRY_TOPIC]
 
 /**
  * Topics whose payloads are idempotent full-replace snapshots, delivered with
  * LATEST-WINS CONFLATION instead of exact replay (RE-PLAN B). The `graph` topic
  * carries full `ProjectedGraph` snapshots (large + frequent); a slow subscriber
  * keeps only the newest unsent snapshot rather than queuing every intermediate,
- * so it is never force-closed for overflow. Exact-replay topics
- * (`agent-events`, `terminal-registry`) are NOT here — their consumers need
- * every event in order.
+ * so it is never force-closed for overflow. The exact-replay `terminal-registry`
+ * topic is NOT here — its consumers need every event in order.
  */
 const CONFLATING_TOPICS: ReadonlySet<TopicName> = new Set<TopicName>(['graph'])
 

@@ -30,15 +30,15 @@ import type { NodeIdAndFilePath } from './core-types.ts';
 // ---------------------------------------------------------------------------
 
 /**
- * Six mutually-exclusive lifecycle states. Drives the icon shown in the
- * sidebar.
+ * Mutually-exclusive *liveness* states, derived purely from PTY output and
+ * process exit. Drives the base icon shown in the sidebar; the agent-declared
+ * `AgentStatusPreset` overlays it when present.
  */
 export type TerminalLifecycle =
     | 'spawning'         // created, no output yet
     | 'active'           // output observed within INACTIVITY_THRESHOLD_MS
     | 'idle'             // alive, quiet, no completion signal
-    | 'awaiting_input'   // agent hook says it is waiting on user
-    | 'completed'        // exit code 0, agent self-reported done, or VoiceTree-initiated kill
+    | 'completed'        // exit code 0 or VoiceTree-initiated kill
     | 'errored';         // crash, non-zero exit, or external kill
 
 /**
@@ -49,12 +49,34 @@ export type TerminalLifecycle =
 export type TerminalKillReason = 'user' | 'external';
 
 /**
- * Agent lifecycle events emitted by hooks (Claude Code
- * Notification/Stop/UserPromptSubmit, Codex Stop/PermissionRequest/
- * UserPromptSubmit) or the SDK (`markAwaiting` / `markDone`). The sole
- * source of `awaiting_input`.
+ * Agent-declared work status. Unlike `TerminalLifecycle` (which the daemon
+ * derives from raw PTY output / process exit), a preset is chosen *by the
+ * agent itself* when it records a progress node via `create_graph`. It is the
+ * semantic "what am I doing" signal — distinct from the liveness signal of
+ * `lifecycle` (`active`/`idle`). Rendered as the sidebar status glyph.
+ *
+ * `AGENT_STATUS_PRESETS` is the single runtime source of truth (the type is
+ * derived from it) so the create_graph validator and the renderer's glyph map
+ * cannot drift apart.
  */
-export type AgentEventKind = 'awaiting' | 'done' | 'working';
+export const AGENT_STATUS_PRESETS = [
+    'planning',
+    'implementing',
+    'verifying',
+    'blocked',
+    'awaiting_input',
+    'done',
+] as const;
+
+export type AgentStatusPreset = (typeof AGENT_STATUS_PRESETS)[number];
+
+/** Type guard: is `value` one of the known agent status presets? */
+export function isAgentStatusPreset(value: unknown): value is AgentStatusPreset {
+    return typeof value === 'string' && (AGENT_STATUS_PRESETS as readonly string[]).includes(value);
+}
+
+/** Max length of the free-text `liveStatus` phrase; longer phrases are truncated. */
+export const STATUS_PHRASE_MAX_LEN: number = 48;
 
 // ---------------------------------------------------------------------------
 // Terminal identity & data
@@ -102,6 +124,25 @@ export type TerminalData = {
     readonly isMinimized: boolean;
     readonly contextContent: string;
     readonly agentTypeName: string;
+
+    /**
+     * Agent-declared status, set the last time this terminal recorded a
+     * progress node via `create_graph`. `undefined` until the agent declares
+     * one. Drives the sidebar status glyph (overlaid on `lifecycle`).
+     */
+    readonly statusPreset: AgentStatusPreset | undefined;
+    /**
+     * Short free-text status phrase (≤ STATUS_PHRASE_MAX_LEN chars) shown next
+     * to the agent's model name in the terminal tree. Set alongside
+     * `statusPreset`. `undefined` until declared.
+     */
+    readonly liveStatus: string | undefined;
+    /**
+     * Epoch-ms timestamp of the last `statusPreset`/`liveStatus` update. Used
+     * by the staleness watchdog to nudge agents that go quiet without
+     * declaring fresh status. `undefined` until the first declaration.
+     */
+    readonly statusUpdatedAt: number | undefined;
 };
 
 /**
@@ -186,12 +227,13 @@ export interface TerminalOperationResult {
 // RPC. The discriminant `kind` selects the field; `value` carries the
 // new value with kind-specific shape.
 //
-// `lifecycle` is the one OUTBOUND-ONLY kind: the daemon computes it
-// authoritatively (idle timer, agent hooks, process exit) and broadcasts
-// it over the `terminal-registry` SSE topic. The renderer never sends a
-// `lifecycle` patch — the inbound `patchTerminalRecord` RPC rejects it —
-// so the sidebar icon always reflects daemon-derived state rather than a
-// renderer-side re-derivation that lacks those inputs.
+// `lifecycle` and `status` are the OUTBOUND-ONLY kinds. `lifecycle` is
+// computed authoritatively by the daemon (idle timer, process exit);
+// `status` is set when the agent declares it via create_graph. Both are
+// broadcast over the `terminal-registry` SSE topic. The renderer never sends
+// either patch — the inbound `patchTerminalRecord` RPC rejects them — so the
+// sidebar always reflects daemon-held state rather than a renderer-side
+// re-derivation that lacks those inputs.
 // ---------------------------------------------------------------------------
 
 export type TerminalRecordPatch =
@@ -206,3 +248,11 @@ export type TerminalRecordPatch =
     }
     | { readonly kind: 'done'; readonly value: boolean }
     | { readonly kind: 'lifecycle'; readonly value: TerminalLifecycle }
+    | {
+        readonly kind: 'status'
+        readonly value: {
+            readonly statusPreset: AgentStatusPreset | undefined
+            readonly liveStatus: string | undefined
+            readonly statusUpdatedAt: number | undefined
+        }
+    }

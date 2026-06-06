@@ -1,7 +1,6 @@
 // Unified HTTP daemon server. Single http.createServer bound to 0.0.0.0 (or
-// $VOICETREE_DAEMON_BIND). Five routes per design doc §2.5 / §4:
+// $VOICETREE_DAEMON_BIND). Routes per design doc §2.5 / §4:
 //   POST /rpc                        — JSON-RPC tool dispatch (catalog)
-//   POST /hook/:source               — agent lifecycle ingestion
 //   GET  /events                     — WebSocket subscription channel
 //   GET  /terminals/:id/attach       — tmux relay (wired in Step 9f)
 //   GET  /health                     — owner-identity probe (BF-372,
@@ -17,7 +16,7 @@
 // The same gate covers the WS upgrade — bad tokens are rejected BEFORE the
 // WS handshake completes.
 //
-// Body caps: 64 KiB on /rpc and /hook (§4.1). WS inbound frame cap 256 KiB
+// Body caps: 64 KiB on /rpc (§4.1). WS inbound frame cap 256 KiB
 // (close 1009, §8.6). Per-subscriber outbound buffer cap 1 MiB / 1000 frames
 // (close 1011, §2.6 — enforced in eventSubscriptionHub).
 //
@@ -29,11 +28,6 @@ import type {Duplex} from 'node:stream'
 import {WebSocket, WebSocketServer} from 'ws'
 
 import type {VtDaemonHealthResponse} from '../contract.ts'
-import {
-    handleAgentEventsSse,
-    matchAgentEventsPath,
-    parseSinceQuery,
-} from './sse/agentEventsSse.ts'
 import {
     handleTerminalRegistrySse,
     matchTerminalRegistryPath,
@@ -56,7 +50,6 @@ import {handleHealth} from './browser/healthHandler.ts'
 import {handleSettings} from './browser/settingsHandler.ts'
 import type {
     AccessLogger,
-    HookHandler,
     HttpDaemonServerHandle,
     ToolCatalog,
 } from './httpServerTypes.ts'
@@ -66,8 +59,6 @@ import type {
 // httpServerTypes.ts; the re-export is the stable public surface.
 export type {
     AccessLogger,
-    HookHandler,
-    HookHandlerInvocation,
     HttpDaemonServerHandle,
     ToolCatalog,
     ToolHandler,
@@ -77,7 +68,6 @@ export {isAuthorized} from './wsUpgradeAuth.ts'
 
 export interface StartHttpDaemonOptions {
     readonly catalog: ToolCatalog
-    readonly hookHandler: HookHandler
     readonly token: string
     readonly bindHost?: string
     readonly port?: number
@@ -108,13 +98,13 @@ export interface StartHttpDaemonOptions {
      */
     readonly readHealth?: () => VtDaemonHealthResponse
     /**
-     * Canonical project path. Stamped into every `agent-events` SSE envelope
-     * so consumers can apply the project-switch fence
+     * Canonical project path. Stamped into every `terminal-registry` SSE
+     * envelope so consumers can apply the project-switch fence
      * (`specs/main-host-purity/spec.md` §"Project-switch fence drops stale
-     * events"). Optional during decomposition: when absent, the agent-events
-     * SSE route returns 503 with an explanatory body so the unwired state
-     * is observable rather than silently emitting envelopes with an empty
-     * project.
+     * events"). Optional during decomposition: when absent, the
+     * terminal-registry SSE route returns 503 with an explanatory body so the
+     * unwired state is observable rather than silently emitting envelopes with
+     * an empty project.
      */
     readonly canonicalProject?: string
     /**
@@ -130,7 +120,6 @@ export interface StartHttpDaemonOptions {
 
 const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
 const RPC_PATH: string = '/rpc'
-const HOOK_PATH_PREFIX: string = '/hook/'
 const EVENTS_PATH: string = '/events'
 const HEALTH_PATH: string = '/health'
 const BROWSER_TOKEN_PATH: string = '/browser-token'
@@ -167,62 +156,16 @@ function methodNotAllowed(req: IncomingMessage, res: ServerResponse, logger: Acc
     logger.logRequest(buildAccessLogLine(req, 405))
 }
 
-async function handleHook(
-    req: IncomingMessage,
-    res: ServerResponse,
-    hookHandler: HookHandler,
-    hub: EventSubscriptionHub,
-    logger: AccessLogger,
-): Promise<void> {
-    const url: URL = new URL(req.url ?? '/', 'http://127.0.0.1')
-    const source: string = url.pathname.slice(HOOK_PATH_PREFIX.length)
-    const terminalId: string | undefined = url.searchParams.get('terminal') ?? undefined
-    const queryEvent: string | undefined = url.searchParams.get('event') ?? undefined
-
-    const body: string | {tooLarge: true} = await readBodyWithCap(req)
-    if (typeof body !== 'string') {
-        res.statusCode = 413
-        res.end()
-        logger.logRequest(buildAccessLogLine(req, 413))
-        return
-    }
-
-    let parsedBody: Record<string, unknown> | undefined
-    if (body.length > 0) {
-        try {
-            const raw: unknown = JSON.parse(body)
-            parsedBody = isRecord(raw) ? raw : undefined
-        } catch {
-            parsedBody = undefined
-        }
-    }
-    const bodyEvent: string | undefined = parsedBody && typeof parsedBody.hook_event_name === 'string'
-        ? parsedBody.hook_event_name
-        : undefined
-    const eventName: string | undefined = bodyEvent ?? queryEvent
-
-    const result: unknown = hookHandler({source, terminalId, eventName})
-    res.statusCode = 200
-    res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify(result))
-    logger.logRequest(buildAccessLogLine(req, 200))
-
-    // The body is parsed only to extract `hook_event_name` (already done
-    // above); we don't forward `parsedBody` to the handler because the
-    // handler contract takes the resolved event name.
-    void parsedBody
-
-    // Publish agent-events event regardless of whether the hook handler
-    // ignored or mapped it — subscribers learn about every hook ingestion.
-    // Source typing kept loose intentionally; subscriber decides what to do.
-    if (terminalId && eventName) {
-        hub.publish('agent-events', eventName, {
-            terminalId,
-            source,
-            at: Date.now(),
-            handlerResult: result,
-        })
-    }
+/**
+ * Parse the `?since=<n>` resume cursor from an SSE request URL. Returns 0 on
+ * absence / non-finite (consumer replays from the start of the hub buffer).
+ */
+function parseSinceQuery(rawUrl: string): number {
+    const url: URL = new URL(rawUrl, 'http://127.0.0.1')
+    const raw: string | null = url.searchParams.get('since')
+    if (raw === null) return 0
+    const n: number = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 0 ? n : 0
 }
 
 function isWebsocketUpgrade(req: IncomingMessage): boolean {
@@ -241,7 +184,6 @@ function rejectUpgradeNotFound(socket: Duplex): void {
 
 function buildRequestHandler(
     catalog: ToolCatalog,
-    hookHandler: HookHandler,
     hub: EventSubscriptionHub,
     token: string,
     logger: AccessLogger,
@@ -310,35 +252,8 @@ function buildRequestHandler(
             })
             return
         }
-        if (method === 'POST' && url.startsWith(HOOK_PATH_PREFIX)) {
-            void handleHook(req, res, hookHandler, hub, logger).catch((err: unknown): void => {
-                logger.logError('hook handler error', err)
-                if (!res.headersSent) { res.statusCode = 500; res.end() }
-            })
-            return
-        }
         if (method === 'GET') {
             const pathname: string = new URL(url, 'http://127.0.0.1').pathname
-            const agentEventsSessionId: string | null = matchAgentEventsPath(pathname)
-            if (agentEventsSessionId !== null) {
-                if (canonicalProject === undefined) {
-                    res.statusCode = 503
-                    res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({error: 'agent-events sse not wired (canonicalProject unset)'}))
-                    logger.logRequest(buildAccessLogLine(req, 503))
-                    return
-                }
-                handleAgentEventsSse(req, res, {
-                    hub,
-                    canonicalProject,
-                    resumeSeq: parseSinceQuery(url),
-                })
-                // SSE is long-lived; log the open here so we still see the
-                // request in the access log. Close is observed at the
-                // socket layer (logged by node's keep-alive close handler).
-                logger.logRequest(buildAccessLogLine(req, 200))
-                return
-            }
             const terminalRegistrySessionId: string | null = matchTerminalRegistryPath(pathname)
             if (terminalRegistrySessionId !== null) {
                 if (canonicalProject === undefined) {
@@ -357,10 +272,7 @@ function buildRequestHandler(
                 return
             }
         }
-        if (
-            method !== 'POST'
-            && (url === RPC_PATH || url.startsWith(HOOK_PATH_PREFIX))
-        ) {
+        if (method !== 'POST' && url === RPC_PATH) {
             methodNotAllowed(req, res, logger)
             return
         }
@@ -399,7 +311,7 @@ function buildUpgradeHandler(
 
         // Parse pathname first — req.url carries any query string (e.g. the
         // renderer's ?cols=120&rows=40 on attach), so matching against req.url
-        // directly would miss anchored route patterns. Mirrors handleHook.
+        // directly would miss anchored route patterns.
         const pathname: string = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
         if (pathname === EVENTS_PATH) {
             wss.handleUpgrade(req, socket, head, (ws: WebSocket): void => {
@@ -438,7 +350,7 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
 
     const allowedOrigins: readonly string[] = options.allowedOrigins ?? []
     const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, options.hookHandler, hub, options.token, logger,
+        options.catalog, hub, options.token, logger,
         options.readHealth, options.canonicalProject,
         allowedOrigins, options.projectPath,
     ))

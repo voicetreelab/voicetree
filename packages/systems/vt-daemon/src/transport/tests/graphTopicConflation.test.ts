@@ -111,10 +111,10 @@ describe('graph topic latest-wins conflation', () => {
             },
             overflow: (): void => {},
         })
-        handle.subscribe([{topic: 'agent-events'}])
+        handle.subscribe([{topic: 'terminal-registry'}])
 
         for (let i = 0; i < 4; i++) {
-            hub.publish('agent-events', 'tick', {terminalId: 't', source: 'claude', at: i})
+            hub.publish('terminal-registry', 'tick', {terminalId: 't', source: 'claude', at: i})
         }
         // No onSent honoured, yet all four arrive: agent-events uses the
         // synchronous (non-conflating) path.

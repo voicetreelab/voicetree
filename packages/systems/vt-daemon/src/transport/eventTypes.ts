@@ -14,29 +14,14 @@ import type {TopicName} from './sse/eventSubscriptionHub.ts'
 
 export type {TopicName}
 
-export interface AgentLifecycleData {
-    readonly terminalId: string
-    readonly source: 'claude' | 'codex' | 'opencode'
-    readonly at: number
-    readonly [extra: string]: unknown
-}
-
 /**
  * Renderer-visible /events frame, discriminated on `topic` so each topic
  * carries its own `data` shape (RE-PLAN B). A consumer that already filters by
  * topic (`events.on(topic, …)`) narrows type-safely instead of casting:
- *   - `agent-events`      → hook lifecycle (`AgentLifecycleData`)
  *   - `graph`             → full `ProjectedGraph` snapshots (event `projectedGraph`)
  *   - `terminal-registry` → registry mutations (`TerminalRegistryEvent`)
  */
 export type EventFrame =
-    | {
-        readonly type: 'event'
-        readonly topic: 'agent-events'
-        readonly seq: number
-        readonly event: string
-        readonly data: AgentLifecycleData
-    }
     | {
         readonly type: 'event'
         readonly topic: 'graph'

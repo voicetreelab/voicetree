@@ -61,7 +61,7 @@ function lifecycleFromDoneSignal(
     records: TerminalRegistrySnapshot,
 ): TerminalLifecycle {
     const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
-    if (currentLifecycle === 'completed' || currentLifecycle === 'errored' || currentLifecycle === 'awaiting_input') {
+    if (currentLifecycle === 'completed' || currentLifecycle === 'errored') {
         return currentLifecycle
     }
     if (isDone && hasActiveChildren(records, record.terminalId)) {

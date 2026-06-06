@@ -20,7 +20,7 @@ import {
     updateTerminalIsDone,
     markTerminalExited,
     markTerminalKillReason,
-    updateTerminalAgentEvent,
+    updateTerminalStatus,
 } from '../terminal-registry';
 import {
     setPublishTerminalRegistryEvent,
@@ -142,117 +142,55 @@ describe('terminal-registry lifecycle wiring', () => {
     });
 
     // =========================================================================
-    // Orchestrator standby — when a parent terminal has active children, the
-    // parent is by definition waiting on those children, not on the user.
-    // The lifecycle indicator must reflect that as 'idle' (orange standby),
-    // not 'awaiting_input' (BLUE — reserved for genuine user-input prompts).
+    // Agent-declared status — set via create_graph (updateTerminalStatus).
+    // Independent of lifecycle (pure PTY/exit liveness): a status declaration
+    // sets statusPreset + liveStatus but must NOT move the lifecycle icon.
     // =========================================================================
-    describe('orchestrator standby — parent with active children does not go awaiting_input', () => {
-        it('parent with active child + hook fires awaiting → "idle" (not "awaiting_input")', () => {
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            updateTerminalIsDone('parent-1', false);
-            updateTerminalAgentEvent('parent-1', 'awaiting');
-            expect(lifecycleOf('parent-1')).toBe('idle');
-        });
+    describe('updateTerminalStatus — agent-declared status', () => {
+        function statusOf(id: string): {preset: string | undefined; live: string | undefined} {
+            const rec = getTerminalRecords().find(r => r.terminalId === id);
+            return {preset: rec?.terminalData.statusPreset, live: rec?.terminalData.liveStatus};
+        }
 
-        it('parent with active child + isDone=true → "idle" (orchestrator drops out of active spinner)', () => {
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            updateTerminalIsDone('parent-1', false); // becomes active
-            updateTerminalIsDone('parent-1', true);  // poller fires while waiting on child
-            expect(lifecycleOf('parent-1')).toBe('idle');
-        });
-
-        it('parent with NO children + hook fires awaiting → "awaiting_input" (leaf agents still go blue)', () => {
-            spawn('solo-1');
-            updateTerminalIsDone('solo-1', false);
-            updateTerminalAgentEvent('solo-1', 'awaiting');
-            expect(lifecycleOf('solo-1')).toBe('awaiting_input');
-        });
-
-        it('parent with all-exited children + hook fires awaiting → "awaiting_input" (no longer orchestrating)', () => {
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            markTerminalExited('child-1', 0, null);
-            updateTerminalAgentEvent('parent-1', 'awaiting');
-            expect(lifecycleOf('parent-1')).toBe('awaiting_input');
-        });
-    });
-
-    // =========================================================================
-    // Agent hook events — sole driver of awaiting_input. Sourced from
-    // Claude Code (Notification/Stop/UserPromptSubmit) or Codex (Stop/
-    // PermissionRequest/UserPromptSubmit). Orchestrator-aware: parents with
-    // active children stay 'idle' rather than going blue.
-    // =========================================================================
-    describe('updateTerminalAgentEvent — agent hook events', () => {
-        it('kind="awaiting" → lifecycle "awaiting_input" for leaf agents', () => {
+        it('sets statusPreset + liveStatus on the record', () => {
             spawn('t1');
-            updateTerminalIsDone('t1', false);
-            updateTerminalAgentEvent('t1', 'awaiting');
-            expect(lifecycleOf('t1')).toBe('awaiting_input');
+            updateTerminalStatus('t1', {statusPreset: 'implementing', liveStatus: 'wiring the route'});
+            expect(statusOf('t1')).toEqual({preset: 'implementing', live: 'wiring the route'});
         });
 
-        it('kind="working" → lifecycle "active"', () => {
+        it('does not move the lifecycle icon (status is orthogonal to liveness)', () => {
             spawn('t1');
-            updateTerminalAgentEvent('t1', 'awaiting');
-            updateTerminalAgentEvent('t1', 'working');
+            updateTerminalIsDone('t1', false); // → active
+            updateTerminalStatus('t1', {statusPreset: 'blocked', liveStatus: 'need creds'});
             expect(lifecycleOf('t1')).toBe('active');
         });
 
-        it('kind="done" → lifecycle "awaiting_input" (turn end blocks on user, not PTY exit)', () => {
-            // Claude Code's Stop hook fires at every turn end, not on shutdown.
-            // The PTY is still alive; the agent is now blocking on the user
-            // typing the next prompt. So 'done' should look identical to
-            // 'awaiting' for the lifecycle — exit lifecycle is markTerminalExited's job.
+        it('truncates an over-long live phrase and drops a blank one', () => {
             spawn('t1');
-            updateTerminalAgentEvent('t1', 'working');
-            updateTerminalAgentEvent('t1', 'done');
-            expect(lifecycleOf('t1')).toBe('awaiting_input');
+            const long = 'x'.repeat(200);
+            updateTerminalStatus('t1', {statusPreset: 'verifying', liveStatus: long});
+            expect((statusOf('t1').live ?? '').length).toBe(48);
+            updateTerminalStatus('t1', {statusPreset: 'done', liveStatus: '   '});
+            expect(statusOf('t1').live).toBeUndefined();
         });
 
-        it('kind="awaiting" on orchestrator with active child → "idle" (standby), not blue', () => {
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            updateTerminalAgentEvent('parent-1', 'awaiting');
-            expect(lifecycleOf('parent-1')).toBe('idle');
-        });
-
-        it('kind="done" on orchestrator with active child → "idle" (standby), not blue', () => {
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            updateTerminalAgentEvent('parent-1', 'done');
-            expect(lifecycleOf('parent-1')).toBe('idle');
-        });
-
-        it('kind="awaiting" on parent with all-exited children → "awaiting_input" (no longer orchestrating)', () => {
-            spawn('parent-1');
-            spawn('child-1', 'parent-1');
-            markTerminalExited('child-1', 0, null);
-            updateTerminalAgentEvent('parent-1', 'awaiting');
-            expect(lifecycleOf('parent-1')).toBe('awaiting_input');
-        });
-
-        it('does not override completed lifecycle', () => {
+        it('records status on an exited terminal (final "done" survives)', () => {
             spawn('t1');
             markTerminalExited('t1', 0, null);
-            updateTerminalAgentEvent('t1', 'working');
+            updateTerminalStatus('t1', {statusPreset: 'done', liveStatus: undefined});
+            expect(statusOf('t1').preset).toBe('done');
             expect(lifecycleOf('t1')).toBe('completed');
-            updateTerminalAgentEvent('t1', 'awaiting');
-            expect(lifecycleOf('t1')).toBe('completed');
-        });
-
-        it('does not override errored lifecycle', () => {
-            spawn('t1');
-            markTerminalExited('t1', 1, null);
-            updateTerminalAgentEvent('t1', 'awaiting');
-            expect(lifecycleOf('t1')).toBe('errored');
         });
 
         it('no-op on unknown terminalId', () => {
-            updateTerminalAgentEvent('ghost', 'awaiting');
+            updateTerminalStatus('ghost', {statusPreset: 'planning', liveStatus: 'x'});
             expect(lifecycleOf('ghost')).toBe('MISSING');
+        });
+
+        it('no-op when neither preset nor phrase is supplied', () => {
+            spawn('t1');
+            updateTerminalStatus('t1', {statusPreset: undefined, liveStatus: undefined});
+            expect(statusOf('t1')).toEqual({preset: undefined, live: undefined});
         });
     });
 
@@ -307,30 +245,34 @@ describe('terminal-registry lifecycle wiring', () => {
                 .map(e => (e.patch as {kind: 'lifecycle'; value: string}).value);
         }
 
+        function statusPatchesFor(id: string): Array<{statusPreset: string | undefined; liveStatus: string | undefined; statusUpdatedAt: number | undefined}> {
+            return published
+                .filter((e): e is Extract<TerminalRegistryEvent, {type: 'terminal-record-changed'}> =>
+                    e.type === 'terminal-record-changed' && e.terminalId === id)
+                .filter(e => e.patch.kind === 'status')
+                .map(e => (e.patch as {kind: 'status'; value: {statusPreset: string | undefined; liveStatus: string | undefined; statusUpdatedAt: number | undefined}}).value);
+        }
+
         it('output-driven flip (isDone=false) broadcasts lifecycle "active"', () => {
             spawn('t1');
             updateTerminalIsDone('t1', false);
             expect(lifecyclePatchesFor('t1')).toContain('active');
         });
 
-        it('agent hook "awaiting" broadcasts lifecycle "awaiting_input"', () => {
+        it('agent-declared status broadcasts a "status" patch (not a lifecycle patch)', () => {
             spawn('t1');
-            updateTerminalIsDone('t1', false);
-            updateTerminalAgentEvent('t1', 'awaiting');
-            expect(lifecyclePatchesFor('t1')).toContain('awaiting_input');
+            updateTerminalStatus('t1', {statusPreset: 'planning', liveStatus: 'scoping'});
+            const patches = statusPatchesFor('t1');
+            expect(patches).toHaveLength(1);
+            expect(patches[0]).toMatchObject({statusPreset: 'planning', liveStatus: 'scoping'});
+            expect(typeof patches[0].statusUpdatedAt).toBe('number');
+            expect(lifecyclePatchesFor('t1')).toEqual([]);
         });
 
         it('process exit broadcasts the classified terminal lifecycle', () => {
             spawn('t1');
             markTerminalExited('t1', 0, null);
             expect(lifecyclePatchesFor('t1')).toContain('completed');
-        });
-
-        it('no redundant lifecycle patch when the value does not change', () => {
-            spawn('t1');
-            updateTerminalIsDone('t1', false);      // spawning → active (1 patch)
-            updateTerminalAgentEvent('t1', 'working'); // active → active (no change)
-            expect(lifecyclePatchesFor('t1')).toEqual(['active']);
         });
     });
 });

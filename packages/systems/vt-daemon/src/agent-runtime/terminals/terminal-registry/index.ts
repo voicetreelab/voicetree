@@ -20,7 +20,8 @@ export {
     markTerminalExited,
     markTerminalKillReason,
     resetAuditRetryCount,
-    updateTerminalAgentEvent,
+    updateTerminalStatus,
+    type AgentStatusDeclaration,
     updateTerminalIsDone,
 } from './lifecycle'
 

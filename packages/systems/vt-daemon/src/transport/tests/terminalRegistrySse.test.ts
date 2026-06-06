@@ -20,7 +20,6 @@ const asTerminalId = (id: string): TerminalId => id as TerminalId
 import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
     type ToolCatalog,
 } from '../httpServer.ts'
@@ -32,7 +31,6 @@ import {
     type TerminalRegistryEnvelope,
 } from '../sse/terminalRegistrySse.ts'
 
-const noopHook: HookHandler = (): unknown => ({ok: true})
 const NOOP_CATALOG: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([
     ['echo', async (args): Promise<McpToolResponse> => buildJsonResponse({echoed: args})],
 ])
@@ -65,7 +63,6 @@ async function bring(opts: BringOptions = {}): Promise<Ctx> {
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: NOOP_CATALOG,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         canonicalProject,

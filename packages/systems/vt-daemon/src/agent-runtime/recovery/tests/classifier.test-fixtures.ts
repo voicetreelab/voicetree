@@ -41,6 +41,9 @@ export function makeTerminalData(overrides: Partial<TerminalData> = {}): Termina
             VOICETREE_TERMINAL_ID: TERMINAL_A,
             VOICETREE_PROJECT_PATH: PROJECT_PATH,
         },
+        statusPreset: undefined,
+        liveStatus: undefined,
+        statusUpdatedAt: undefined,
         ...overrides,
     }
 }

@@ -61,5 +61,8 @@ export function createTerminalData(
         isMinimized: params.isMinimized ?? false,
         contextContent: params.contextContent ?? '',
         agentTypeName: params.agentTypeName ?? '',
+        statusPreset: undefined,
+        liveStatus: undefined,
+        statusUpdatedAt: undefined,
     };
 }
