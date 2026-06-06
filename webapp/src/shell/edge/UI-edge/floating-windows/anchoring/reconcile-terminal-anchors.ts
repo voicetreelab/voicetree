@@ -7,6 +7,7 @@ import { findVisibleCollapsedAncestorForNode } from '@vt/graph-state/project-hel
 
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore'
 import { getShadowNodeId, getTerminalId } from '@/shell/edge/UI-edge/floating-windows/anchoring/types'
+import { resolveVisibleAnchorNodeId } from '@/shell/edge/UI-edge/floating-windows/anchoring/resolve-visible-anchor-node-id'
 
 // The structural tether between a terminal's shadow node and the graph node it
 // is anchored to (the visible line; it also participates in Cola layout). Class
@@ -67,8 +68,9 @@ export function reconcileTerminalAnchorEdges(
     const collapsedFolders = visibleCollapsedFolders(graph)
     for (const { shadowNodeId, anchoredNodeId } of anchors) {
         if (cy.getElementById(shadowNodeId).length === 0) continue
-        const endpoint: string =
+        const logicalEndpoint: string =
             findVisibleCollapsedAncestorForNode(anchoredNodeId, collapsedFolders) ?? anchoredNodeId
+        const endpoint: string = resolveVisibleAnchorNodeId(cy, logicalEndpoint)
         if (cy.getElementById(endpoint).length === 0) continue
         ensureAnchorEdge(cy, endpoint, shadowNodeId)
     }
