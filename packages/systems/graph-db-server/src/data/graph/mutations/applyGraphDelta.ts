@@ -43,7 +43,8 @@ async function prepareGraphDeltaMemState(
     if (hasAddOrUpdate) {
         const resolutionDelta: GraphDelta = await traceGraphdSpan('daemon.apply-delta.mem.resolve-links', async span => {
             span.setAttribute('vt.unresolved.size', newGraph.unresolvedLinksIndex.size)
-            const r = await resolveAbsoluteLinkedNodes(newGraph, appliedDelta);
+            const projectRoot: string | null = getProjectRoot();
+            const r = await resolveAbsoluteLinkedNodes(newGraph, appliedDelta, projectRoot ? [projectRoot] : []);
             span.setAttribute('vt.resolved.delta.size', r.length)
             return r
         });
