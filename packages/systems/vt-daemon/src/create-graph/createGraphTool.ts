@@ -14,7 +14,7 @@ import path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {getFolderIdentityNoteId, getFolderChildNodeIds, getSubFolderPaths} from '@vt/graph-model/graph'
+import {getFolderIdentityNoteId, getFolderChildNodeIds, getSubFolderPaths, getFolderParent, isFolderIdentityNote} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {slugify} from '../_shared/slugify.ts'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
@@ -171,6 +171,30 @@ export function worktreeFolderNoteInput(
         title: routing.worktreeName,
         summary: `Folder for nodes created by agents in the ${routing.worktreeName} worktree.`,
     }
+}
+
+/**
+ * Live-gardening task-folder routing. An agent anchored to a task node that is a
+ * folder identity note (every task node is created as one — see createTaskNode)
+ * files its progress nodes INTO that folder by default, so they nest under the task
+ * instead of cluttering the parent graph, and the folder is then subject to the
+ * `folder_child_count_limit` cap. Returns the absolute task folder to use as the
+ * effective outputPath, or null when task routing does not apply.
+ *
+ * Precedence: an explicit outputPath (deliberate placement) and worktree routing
+ * both win. A plain (non-folder) anchored node is left untouched — converting an
+ * existing populated node into a folder is `vt graph garden`'s job, not the spawn
+ * path's.
+ */
+export function resolveTaskFolderOutputPath(
+    explicitOutputPath: string | undefined,
+    worktreeRouting: WorktreeRouting,
+    anchoredToNodeId: NodeIdAndFilePath | null,
+): string | null {
+    const hasExplicit: boolean = !!explicitOutputPath && explicitOutputPath.trim() !== ''
+    if (hasExplicit || worktreeRouting.active || anchoredToNodeId === null) return null
+    if (!isFolderIdentityNote(anchoredToNodeId)) return null
+    return getFolderParent(anchoredToNodeId)
 }
 
 export interface SiblingFolderSummary {
@@ -374,7 +398,13 @@ export async function createGraphTool(
     const callerRecord: TerminalRecord = callerRecordResult.value
 
     const worktreeRouting: WorktreeRouting = resolveWorktreeRouting(outputPath, callerRecord.terminalData.worktreeName)
-    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(worktreeRouting.outputPath, bridge)
+    const anchoredToNodeId: NodeIdAndFilePath | null =
+        O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
+    // Task-folder routing wins over worktree routing: an agent's progress nests inside
+    // its own task folder; both yield to an explicit outputPath.
+    const taskFolderOutputPath: string | null = resolveTaskFolderOutputPath(outputPath, worktreeRouting, anchoredToNodeId)
+    const effectiveOutputPath: string | undefined = taskFolderOutputPath ?? worktreeRouting.outputPath
+    const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(effectiveOutputPath, bridge)
     if (!outputDirectoryResult.ok) return errorResponse(outputDirectoryResult.error)
     const outputDirectory: string = outputDirectoryResult.value
 

@@ -272,6 +272,44 @@ describe('createTaskNode', () => {
   })
 
   describe('node ID generation', () => {
+    it('should create the task node as a folder identity note (<dir>/task_x/task_x.md)', () => {
+      const nodes: Record<NodeIdAndFilePath, GraphNode> = {
+        '/project/a.md': createTestNode('/project/a.md', [])
+      }
+      const graph: Graph = createGraphFromNodes(nodes)
+
+      const result: GraphDelta = createTaskNode({
+        taskDescription: 'Folder task',
+        selectedNodeIds: ['/project/a.md'] as readonly NodeIdAndFilePath[],
+        graph,
+        writeFolderPath: '/project',
+      })
+
+      const id: string = (result[0] as UpsertNodeDelta).nodeToUpsert.absoluteFilePathIsID
+      // A folder identity note: the file basename equals its containing folder name.
+      expect(id).toMatch(/^\/project\/(task_[a-z0-9]+)\/\1\.md$/)
+    })
+
+    it('keeps the folder-identity invariant when the folder name collides (varies the folder, not the note)', () => {
+      // Pre-seed the exact folder note id this task would produce, forcing a collision.
+      const graph0: Graph = createGraphFromNodes({'/project/a.md': createTestNode('/project/a.md', [])})
+      const firstId: string = (createTaskNode({
+        taskDescription: 'Dup task', selectedNodeIds: ['/project/a.md'] as readonly NodeIdAndFilePath[], graph: graph0, writeFolderPath: '/project',
+      })[0] as UpsertNodeDelta).nodeToUpsert.absoluteFilePathIsID
+
+      const graph1: Graph = createGraphFromNodes({
+        '/project/a.md': createTestNode('/project/a.md', []),
+        [firstId]: createTestNode(firstId, []),
+      })
+      const secondId: string = (createTaskNode({
+        taskDescription: 'Dup task', selectedNodeIds: ['/project/a.md'] as readonly NodeIdAndFilePath[], graph: graph1, writeFolderPath: '/project',
+      })[0] as UpsertNodeDelta).nodeToUpsert.absoluteFilePathIsID
+
+      expect(secondId).not.toBe(firstId)
+      // Still a valid <folder>/<folder>.md identity note (the folder name was disambiguated).
+      expect(secondId).toMatch(/^\/project\/(task_[a-z0-9_]+)\/\1\.md$/)
+    })
+
     it('should generate unique node ID in writeFolderPath directory', () => {
       const nodes: Record<NodeIdAndFilePath, GraphNode> = {
         '/project/a.md': createTestNode('/project/a.md', [])
