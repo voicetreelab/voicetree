@@ -171,7 +171,7 @@ describe('headlessAgentManager tmux backend', () => {
         const meta: TmuxMetadata | null = await readMetadata(metadataPath)
         expect(meta?.status).toBe('running')
         expect(meta?.terminalData.isHeadless).toBe(false)
-        expect(meta?.terminalData.agentName).toBe(terminalId)
+        expect(meta?.terminalData.terminalId).toBe(terminalId)
 
         const record = getTerminalRecords().find((r) => r.terminalId === terminalId)
         expect(record).toBeDefined()

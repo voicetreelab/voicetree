@@ -172,7 +172,7 @@ function collectEvidence(terminalId: string, graph: Graph, records: readonly Ter
     if (!record) return { progressNodes: [], childSkillPaths: [] }
 
     // Progress nodes: nodes created by this agent (via agent_name YAML matching)
-    const progressNodes: readonly GraphNode[] = getNodesByAgentName(graph, record.terminalData.agentName)
+    const progressNodes: readonly GraphNode[] = getNodesByAgentName(graph, record.terminalId)
 
     // Child skill paths: derive each child agent's skill paths from their task nodes
     const children: readonly TerminalRecord[] = records.filter(r => r.terminalData.parentTerminalId === terminalId)

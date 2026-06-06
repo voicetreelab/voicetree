@@ -99,7 +99,6 @@ describe('MCP list_agents tool', () => {
             terminalCount: 0,
             title: 'Agent A',
             executeCommand: true,
-            agentName: 'Sam',
         })
         const terminalDataB: TerminalData = createTerminalData({
             terminalId: 'agent-b-terminal-1' as TerminalId,
@@ -107,7 +106,6 @@ describe('MCP list_agents tool', () => {
             terminalCount: 1,
             title: 'Agent B',
             executeCommand: true,
-            agentName: 'Max',
         })
         const terminalDataPlain: TerminalData = createTerminalData({
             terminalId: 'plain-terminal-0' as TerminalId,
@@ -115,7 +113,6 @@ describe('MCP list_agents tool', () => {
             terminalCount: 0,
             title: 'Plain Terminal',
             executeCommand: false,
-            agentName: 'plain',
         })
 
         recordTerminalSpawn('agent-a-terminal-0', terminalDataA)
@@ -125,8 +122,8 @@ describe('MCP list_agents tool', () => {
 
         currentGraph = {
             nodes: {
-                'new-node-a.md': buildGraphNode('new-node-a.md' as NodeIdAndFilePath, '# Node A', 'Sam'),
-                'new-node-b.md': buildGraphNode('new-node-b.md' as NodeIdAndFilePath, '# Node B', 'Max'),
+                'new-node-a.md': buildGraphNode('new-node-a.md' as NodeIdAndFilePath, '# Node A', 'agent-a-terminal-0'),
+                'new-node-b.md': buildGraphNode('new-node-b.md' as NodeIdAndFilePath, '# Node B', 'agent-b-terminal-1'),
             },
             incomingEdgesIndex: new Map(),
             nodeByBaseName: new Map(),
@@ -189,7 +186,6 @@ describe('MCP list_agents tool', () => {
             terminalCount: 0,
             title: 'Idle Agent',
             executeCommand: true,
-            agentName: 'idle-agent',
         })
 
         recordTerminalSpawn('idle-agent-terminal-0', terminalData)

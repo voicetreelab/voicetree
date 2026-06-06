@@ -55,7 +55,6 @@ export function createTerminalData(
         lastOutputTime: now(),
         activityCount: 0,
         parentTerminalId: params.parentTerminalId ?? null,
-        agentName: params.agentName,
         worktreeName: params.worktreeName,
         isHeadless: params.isHeadless ?? false,
         isMinimized: params.isMinimized ?? false,

@@ -24,7 +24,6 @@ function makeRecord(terminalId: string, initialEnvVars: Record<string, string> =
             attachedToNodeId: '/project/task.md' as NodeIdAndFilePath,
             terminalCount: 0,
             title: terminalId,
-            agentName: terminalId,
             initialEnvVars,
         }),
         status: 'running',
@@ -103,7 +102,6 @@ describe('unclaimed tmux discovery', () => {
                 attachable: false,
                 createdAt: 200000,
                 panePid: 3,
-                agentName: 'Jay',
                 projectRoot: '/other/project',
             }),
             expect.objectContaining({
@@ -113,7 +111,6 @@ describe('unclaimed tmux discovery', () => {
                 attachable: true,
                 createdAt: 100000,
                 panePid: 2,
-                agentName: 'Ivy',
                 projectRoot: '/repo/project',
                 contextNodePath: '/repo/project/ctx.md',
                 taskNodePath: '/repo/project/task.md',
@@ -191,7 +188,6 @@ describe('unclaimed tmux discovery', () => {
             expect.objectContaining({
                 sessionName,
                 terminalId: 'Ivy',
-                agentName: 'Ivy',
                 classification: 'this-project',
             }),
         ])
@@ -219,7 +215,6 @@ describe('unclaimed tmux discovery', () => {
             attachable: true,
             createdAt: 1000,
             panePid: 123,
-            agentName: 'Ivy',
         }
         const allowedDeps: KillUnclaimedTmuxDeps = {
             listUnclaimedTmuxSessions: async () => [unclaimedSession],

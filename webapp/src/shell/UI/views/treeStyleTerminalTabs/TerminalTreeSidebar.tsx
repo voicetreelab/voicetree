@@ -186,8 +186,10 @@ interface TreeNodeProps {
     readonly resumeCliType: 'claude' | 'codex' | null;
 }
 
+// Exported as a test seam (mirrors the sibling SurvivingAgentsSection): a single
+// terminal row is the unit that owns the id→display-name derivation.
 // eslint-disable-next-line react-refresh/only-export-components
-function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onToggleCollapse, resumeCliType }: TreeNodeProps): JSX.Element {
+export function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onToggleCollapse, resumeCliType }: TreeNodeProps): JSX.Element {
     const { terminal, depth, hasChildren, directChildCount, descendantSummary } = treeNode;
     const terminalId: TerminalId = terminal.terminalId;
 

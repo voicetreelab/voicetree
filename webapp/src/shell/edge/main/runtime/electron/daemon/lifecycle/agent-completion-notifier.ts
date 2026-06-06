@@ -1,5 +1,6 @@
 import {BrowserWindow, Notification} from 'electron';
 import {loadSettings} from '@vt/app-config/settings';
+import {agentBaseName} from '@vt/graph-model/settings';
 import type {TerminalLifecycle, TerminalRecord} from '@vt/vt-daemon-client';
 
 const NOTIFY_STATES: ReadonlySet<TerminalLifecycle> = new Set(['completed', 'errored', 'awaiting_input']);
@@ -7,7 +8,6 @@ const BATCH_WINDOW_MS: number = 5_000;
 
 export type CompletionEvent = {
     readonly terminalId: string;
-    readonly agentName: string;
     readonly lifecycle: 'completed' | 'errored' | 'awaiting_input';
 };
 
@@ -29,7 +29,6 @@ export function detectCompletions(
 
         events.push({
             terminalId: record.terminalId,
-            agentName: record.terminalData.agentName,
             lifecycle: lifecycle as CompletionEvent['lifecycle'],
         });
     }
@@ -58,17 +57,17 @@ function showCompletionNotification(events: readonly CompletionEvent[]): void {
 
     const parts: string[] = [];
     if (awaiting.length === 1) {
-        parts.push(`${awaiting[0].agentName} is waiting for input`);
+        parts.push(`${agentBaseName(awaiting[0].terminalId)} is waiting for input`);
     } else if (awaiting.length > 1) {
         parts.push(`${awaiting.length} agents waiting for input`);
     }
     if (completed.length === 1) {
-        parts.push(`${completed[0].agentName} completed`);
+        parts.push(`${agentBaseName(completed[0].terminalId)} completed`);
     } else if (completed.length > 1) {
         parts.push(`${completed.length} agents completed`);
     }
     if (errored.length === 1) {
-        parts.push(`${errored[0].agentName} errored`);
+        parts.push(`${agentBaseName(errored[0].terminalId)} errored`);
     } else if (errored.length > 1) {
         parts.push(`${errored.length} agents errored`);
     }

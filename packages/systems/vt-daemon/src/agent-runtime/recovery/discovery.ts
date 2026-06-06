@@ -159,17 +159,15 @@ export async function discoverRecoverableAgentSessions(
 function metadataLessAttachableRow(session: UnclaimedTmuxSession): RecoverableAgentSession {
     const terminalId: TerminalId = session.terminalId as TerminalId
     const attachedToNodeId: string = session.contextNodePath ?? `tmux-session:${session.sessionName}`
-    const title: string = session.agentName ?? session.terminalId
+    const title: string = session.terminalId
     return {
         terminalId,
-        agentName: title,
         metadataPath: '',
         terminalData: createTerminalData({
             terminalId,
             attachedToNodeId,
             terminalCount: 0,
             title,
-            agentName: title,
             initialEnvVars: {
                 ...(session.projectRoot ? {VOICETREE_PROJECT_PATH: session.projectRoot} : {}),
                 ...(session.contextNodePath ? {CONTEXT_NODE_PATH: session.contextNodePath} : {}),

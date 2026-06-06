@@ -83,7 +83,7 @@ export function isAgentComplete(
     // it's likely still working (between tool calls or waiting on sub-agents).
     // Safety valve: after 30 minutes from spawn, consider complete anyway so orchestration doesn't hang.
     const indexNodes: readonly {readonly nodeId: string; readonly title: string}[] = deps.getAgentNodes(record.terminalId)
-    const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, record.terminalData.agentName, record.spawnedAt)
+    const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, record.terminalId, record.spawnedAt)
     if (indexNodes.length === 0 && graphNodes.length === 0) {
         const aliveMs: number = now - record.spawnedAt
         if (!Number.isFinite(aliveMs) || aliveMs < NO_PROGRESS_TIMEOUT_MS) {

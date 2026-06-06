@@ -112,7 +112,7 @@ export function startMonitor(
                 const agentStatus: string = getAgentStatus(r)
                 if (agentStatus === 'idle') {
                     const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                    const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                    const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalId, r.spawnedAt)
                     if (indexNodes.length === 0 && graphNodes.length === 0) {
                         void sendTerminalText(r.terminalId,
                             '\n\n[WaitForAgents] You have been idle for over 30 minutes without creating progress nodes. ' +
@@ -124,7 +124,7 @@ export function startMonitor(
 
             const results: AgentResult[] = targetRecords.map((r: TerminalRecord) => {
                 const indexNodes: readonly AgentNodeEntry[] = getAgentNodes(r.terminalId)
-                const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalData.agentName, r.spawnedAt)
+                const graphNodes: Array<{nodeId: string; title: string}> = deps.getNewNodesForAgent(graph, r.terminalId, r.spawnedAt)
                 const seenIds: Set<string> = new Set(indexNodes.map((n: AgentNodeEntry) => n.nodeId))
                 const mergedNodes: Array<{nodeId: string; title: string}> = [
                     ...indexNodes.map((n: AgentNodeEntry) => ({nodeId: n.nodeId, title: n.title})),
@@ -136,7 +136,6 @@ export function startMonitor(
                     : undefined
                 return {
                     terminalId: r.terminalId,
-                    agentName: r.terminalData.agentName,
                     status: getAgentStatus(r),
                     exitCode: r.exitCode,
                     nodes: mergedNodes,
@@ -148,7 +147,6 @@ export function startMonitor(
             for (const missingId of missingIds) {
                 results.push({
                     terminalId: missingId,
-                    agentName: undefined,
                     status: 'exited',
                     exitCode: null,
                     nodes: []
@@ -228,7 +226,7 @@ export async function getPendingAgentNamesForCaller(callerTerminalId: string, ex
                 (r: TerminalRecord) => r.terminalId === tid
             )
             if (record && !isAgentComplete(record, graph, now, currentRecords)) {
-                names.push(record.terminalData.agentName ?? record.terminalId)
+                names.push(record.terminalId)
             }
         }
     }

@@ -20,7 +20,7 @@ import {type TerminalId } from '@vt/vt-daemon/agent-runtime/terminals/terminal-r
 import type { NodeIdAndFilePath, GraphNode, Graph } from '@vt/graph-model/graph';
 import { findFirstParentNode } from '@vt/graph-model/graph';
 import type { VTSettings } from '@vt/graph-model/settings';
-import { getUniqueAgentName, pickAgentName } from '@vt/graph-model/settings';
+import { allocateUniqueAgentId, pickAgentName } from '@vt/graph-model/settings';
 import { getNextTerminalCountForNode, getExistingAgentNames, recordTerminalPending } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
 import {
     getRuntimeGraph,
@@ -97,15 +97,14 @@ export async function spawnTerminalWithContextNode(
         resolvedTaskNodeId = taskNodeId;
     }
 
-    // Compute the eventual terminalId / agentName eagerly so we can return to the
-    // caller before the heavy terminal-prep work finishes. getExistingAgentNames
+    // Compute the eventual terminalId eagerly so we can return to the caller
+    // before the heavy terminal-prep work finishes. getExistingAgentNames
     // includes pending entries, so concurrent spawns won't collide.
-    const agentName: string = inheritTerminalId ?? (() => {
+    const terminalId: TerminalId = (inheritTerminalId ?? (() => {
         const baseAgentName: string = pickAgentName(settings);
         const existingNames: Set<string> = getExistingAgentNames();
-        return getUniqueAgentName(baseAgentName, existingNames);
-    })();
-    const terminalId: TerminalId = agentName as TerminalId;
+        return allocateUniqueAgentId(baseAgentName, existingNames);
+    })()) as TerminalId;
 
     const resolvedTerminalCount: number = typeof terminalCount === 'number'
         ? terminalCount
@@ -132,7 +131,6 @@ export async function spawnTerminalWithContextNode(
         headless,
         inheritTerminalId,
         envOverrides,
-        agentName,
         terminalId,
         skipFitAnimation,
         logger: deps.logger,

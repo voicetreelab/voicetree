@@ -77,7 +77,6 @@ describe('resume capability — Claude', () => {
         if (result.kind === 'recoverable') {
             expect(result.record.terminalId).toBe(TERMINAL_A)
             expect(result.record.resume?.cliType).toBe('claude')
-            expect(result.record.agentName).toBe('Ari')
             expect(result.record.metadataPath).toBe(METADATA_PATH_A)
         }
     })
@@ -152,7 +151,6 @@ describe('resume capability — Codex', () => {
         if (result.kind === 'recoverable') {
             expect(result.record.terminalId).toBe('B')
             expect(result.record.resume?.cliType).toBe('codex')
-            expect(result.record.agentName).toBe('Bea')
         }
     })
 })

@@ -101,7 +101,7 @@ function firstNonEmpty(...candidates: ReadonlyArray<string | undefined>): string
 }
 
 function displayTitle(row: RecoverableAgentSession): string {
-    return firstNonEmpty(row.title, row.terminalData.title, row.agentName) ?? row.terminalId;
+    return firstNonEmpty(row.title, row.terminalData.title) ?? row.terminalId;
 }
 
 function rowTooltip(row: RecoverableAgentSession): string {
@@ -403,7 +403,7 @@ export function SurvivingAgentsSection({
                                         type="button"
                                         onClick={() => runAction(key, () => onKill(row.attach!.session.sessionName))}
                                         title="Kill live tmux session"
-                                        aria-label={`Kill ${row.agentName || row.terminalId}`}
+                                        aria-label={`Kill ${row.terminalId}`}
                                         disabled={isBusy}
                                     >
                                         <X size={13} aria-hidden="true" />

@@ -95,7 +95,6 @@ export interface ResumeCapability {
  */
 export interface RecoverableAgentSession {
     readonly terminalId: TerminalId
-    readonly agentName: string
     readonly metadataPath: string
     readonly terminalData: TerminalData
     readonly isClaimed: boolean
@@ -140,7 +139,6 @@ export interface UnclaimedTmuxSession {
     readonly attachable: boolean
     readonly createdAt: number
     readonly panePid: number
-    readonly agentName: string
     readonly projectRoot?: string
     readonly contextNodePath?: string
     readonly taskNodePath?: string

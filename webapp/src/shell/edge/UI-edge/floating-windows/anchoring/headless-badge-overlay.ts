@@ -14,6 +14,7 @@
 import type {Core, CollectionReturnValue} from 'cytoscape';
 import type {TerminalId} from '@/shell/edge/UI-edge/floating-windows/anchoring/types';
 import type {TerminalData} from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
+import {agentBaseName} from '@vt/graph-model/settings';
 import {getTerminals} from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import {getCyInstance} from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import {getOrCreateOverlay} from '@/shell/edge/UI-edge/floating-windows/anchoring/cytoscape-floating-windows';
@@ -173,7 +174,7 @@ function updateBadgeContent(badge: HTMLElement, terminal: TerminalData): void {
         badge.className = `headless-agent-badge minimized ${statusClass}`;
         badge.innerHTML =
             `<span class="headless-badge-dot"></span>` +
-            `<span class="headless-badge-name">${escapeHtml(terminal.agentName)}</span>` +
+            `<span class="headless-badge-name">${escapeHtml(agentBaseName(terminal.terminalId))}</span>` +
             `<span class="headless-badge-status">${statusIcon} ${statusLabel}</span>`;
     } else {
         // Headless: running vs done is read from the daemon-authoritative
@@ -188,7 +189,7 @@ function updateBadgeContent(badge: HTMLElement, terminal: TerminalData): void {
         badge.className = `headless-agent-badge ${statusClass}`;
         badge.innerHTML =
             `<span class="headless-badge-dot"></span>` +
-            `<span class="headless-badge-name">${escapeHtml(terminal.agentName)}</span>` +
+            `<span class="headless-badge-name">${escapeHtml(agentBaseName(terminal.terminalId))}</span>` +
             `<span class="headless-badge-status">${statusIcon} ${statusLabel}</span>`;
     }
 }

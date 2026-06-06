@@ -2,10 +2,10 @@ import {describe, expect, it} from 'vitest';
 import {detectCompletions, type CompletionEvent} from './agent-completion-notifier';
 import type {TerminalLifecycle, TerminalRecord} from '@vt/vt-daemon-client';
 
-function makeRecord(terminalId: string, lifecycle: TerminalLifecycle, agentName: string = 'Ren'): TerminalRecord {
+function makeRecord(terminalId: string, lifecycle: TerminalLifecycle): TerminalRecord {
     return {
         terminalId,
-        terminalData: { lifecycle, agentName } as TerminalRecord['terminalData'],
+        terminalData: { lifecycle } as TerminalRecord['terminalData'],
         status: lifecycle === 'completed' || lifecycle === 'errored' ? 'exited' : 'running',
         exitCode: null,
         exitSignal: null,
@@ -22,24 +22,24 @@ describe('detectCompletions', () => {
     });
 
     it('detects active → completed transition', () => {
-        const prev: TerminalRecord[] = [makeRecord('t1', 'active', 'Aki')];
-        const next: TerminalRecord[] = [makeRecord('t1', 'completed', 'Aki')];
+        const prev: TerminalRecord[] = [makeRecord('t1', 'active')];
+        const next: TerminalRecord[] = [makeRecord('t1', 'completed')];
         const result: readonly CompletionEvent[] = detectCompletions(prev, next);
-        expect(result).toEqual([{ terminalId: 't1', agentName: 'Aki', lifecycle: 'completed' }]);
+        expect(result).toEqual([{ terminalId: 't1', lifecycle: 'completed' }]);
     });
 
     it('detects active → errored transition', () => {
-        const prev: TerminalRecord[] = [makeRecord('t1', 'active', 'Ben')];
-        const next: TerminalRecord[] = [makeRecord('t1', 'errored', 'Ben')];
+        const prev: TerminalRecord[] = [makeRecord('t1', 'active')];
+        const next: TerminalRecord[] = [makeRecord('t1', 'errored')];
         const result: readonly CompletionEvent[] = detectCompletions(prev, next);
-        expect(result).toEqual([{ terminalId: 't1', agentName: 'Ben', lifecycle: 'errored' }]);
+        expect(result).toEqual([{ terminalId: 't1', lifecycle: 'errored' }]);
     });
 
     it('detects active → awaiting_input transition', () => {
-        const prev: TerminalRecord[] = [makeRecord('t1', 'active', 'Cho')];
-        const next: TerminalRecord[] = [makeRecord('t1', 'awaiting_input', 'Cho')];
+        const prev: TerminalRecord[] = [makeRecord('t1', 'active')];
+        const next: TerminalRecord[] = [makeRecord('t1', 'awaiting_input')];
         const result: readonly CompletionEvent[] = detectCompletions(prev, next);
-        expect(result).toEqual([{ terminalId: 't1', agentName: 'Cho', lifecycle: 'awaiting_input' }]);
+        expect(result).toEqual([{ terminalId: 't1', lifecycle: 'awaiting_input' }]);
     });
 
     it('ignores terminals already in notify state', () => {
@@ -56,27 +56,27 @@ describe('detectCompletions', () => {
 
     it('detects multiple transitions in one update', () => {
         const prev: TerminalRecord[] = [
-            makeRecord('t1', 'active', 'Aki'),
-            makeRecord('t2', 'idle', 'Ben'),
-            makeRecord('t3', 'completed', 'Cho'),
+            makeRecord('t1', 'active'),
+            makeRecord('t2', 'idle'),
+            makeRecord('t3', 'completed'),
         ];
         const next: TerminalRecord[] = [
-            makeRecord('t1', 'completed', 'Aki'),
-            makeRecord('t2', 'errored', 'Ben'),
-            makeRecord('t3', 'completed', 'Cho'),
+            makeRecord('t1', 'completed'),
+            makeRecord('t2', 'errored'),
+            makeRecord('t3', 'completed'),
         ];
         const result: readonly CompletionEvent[] = detectCompletions(prev, next);
         expect(result).toEqual([
-            { terminalId: 't1', agentName: 'Aki', lifecycle: 'completed' },
-            { terminalId: 't2', agentName: 'Ben', lifecycle: 'errored' },
+            { terminalId: 't1', lifecycle: 'completed' },
+            { terminalId: 't2', lifecycle: 'errored' },
         ]);
     });
 
     it('detects new terminal that appears already completed', () => {
         const prev: TerminalRecord[] = [];
-        const next: TerminalRecord[] = [makeRecord('t1', 'completed', 'Eve')];
+        const next: TerminalRecord[] = [makeRecord('t1', 'completed')];
         const result: readonly CompletionEvent[] = detectCompletions(prev, next);
-        expect(result).toEqual([{ terminalId: 't1', agentName: 'Eve', lifecycle: 'completed' }]);
+        expect(result).toEqual([{ terminalId: 't1', lifecycle: 'completed' }]);
     });
 
     it('ignores terminals that remain non-terminal', () => {

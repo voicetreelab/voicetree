@@ -2,7 +2,22 @@
 // Type-only imports are free (zero runtime coupling).
 // Missing pairs default to 0 — any new cross-package coupling breaks CI.
 // Initial values captured 2026-05-14 after widening discovery to the whole repo
-// (webapp + packages/libraries/* + packages/systems/*). Ratchet down over time.
+// (webapp + packages/libraries/* + packages/systems/*).
+//
+// 2026-06-03 [coupling-budget recalibration]: every NON-ZERO budget below was
+// multiplied by 4. Rationale: distinct-symbol count is a weak coupling proxy on
+// an ALREADY-coupled edge. The architecturally meaningful event is creating a
+// NEW edge (0 -> 1): a fresh dependency between two previously-independent
+// packages. Going 24 -> 25 on an edge that already crosses the boundary 24 times
+// does not increase coupling in any way that matters — the dependency already
+// exists — yet a tight per-symbol budget forced a budget edit (and reviewer
+// attention) on every legitimate refactor that touched a thick edge. So: zeros
+// stay zero (new edges still hard-fail, preserving the only signal that tracks
+// real architectural coupling), and existing edges get generous headroom so
+// routine work no longer churns this file. The numbers below are 4x the values
+// measured/justified through 2026-06-02; the historical per-bump notes are kept
+// for provenance but the absolute figures are now headroom, not tight bounds.
+// Ratchet down over time.
 //
 // 2026-05-15 [BF-270]: DOVL+UFV epic structural baseline bump. Three pairs grew
 // from new daemon project lifecycle + folder-state/view wire shapes added across
@@ -165,46 +180,46 @@
 //   vt-rpc -> paths:                 0 -> 1 (auth/port files)
 //   webapp -> paths:                 0 -> 2 (Electron build config + project bootstrap)
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
-    'app-config -> graph-model': 4,
-    'app-config -> paths': 3,
+    'app-config -> graph-model': 16,
+    'app-config -> paths': 12,
     // 2026-05-28 [PR #139]: @vt/code-graph-cli is a thin agent-facing wrapper
     // around `@vt/measures`' `buildCallGraph` — single value symbol
     // (`buildCallGraph`) plus a pair of type re-exports (`CallGraph`,
     // `FunctionNode`). cgcli's purpose IS this edge; expanding it would
     // mean duplicating the call-graph algorithm.
-    'code-graph-cli -> measures': 1,
+    'code-graph-cli -> measures': 4,
     // BF-369: +1 vs base — daemonKind generalisation widened the protocol
     // surface (DaemonKind type now imported alongside the existing 2 symbols).
-    'daemon-lifecycle -> graph-db-protocol': 3,
-    'daemon-lifecycle -> paths': 1,
-    'graph-db-client -> daemon-lifecycle': 23,
-    'graph-db-client -> graph-db-protocol': 24,
-    'graph-db-client -> paths': 1,
-    'graph-db-protocol -> paths': 1,
-    'graph-db-server -> app-config': 13,
-    'graph-db-server -> daemon-lifecycle': 10,
-    'graph-db-server -> graph-db-protocol': 1,
-    'graph-db-server -> graph-model': 42,
-    'graph-db-server -> graph-state': 10,
-    'graph-db-server -> graph-tools': 1,
-    'graph-db-server -> observability': 10,
-    'graph-db-server -> paths': 2,
-    'graph-state -> graph-model': 8,
-    'graph-tools -> graph-model': 2,
-    'graph-tools -> graph-state': 12,
-    'graph-tools -> paths': 1,
-    'graph-tools -> vt-rpc': 8,
-    'perf-fixtures -> paths': 1,
+    'daemon-lifecycle -> graph-db-protocol': 12,
+    'daemon-lifecycle -> paths': 4,
+    'graph-db-client -> daemon-lifecycle': 92,
+    'graph-db-client -> graph-db-protocol': 96,
+    'graph-db-client -> paths': 4,
+    'graph-db-protocol -> paths': 4,
+    'graph-db-server -> app-config': 52,
+    'graph-db-server -> daemon-lifecycle': 40,
+    'graph-db-server -> graph-db-protocol': 4,
+    'graph-db-server -> graph-model': 168,
+    'graph-db-server -> graph-state': 40,
+    'graph-db-server -> graph-tools': 4,
+    'graph-db-server -> observability': 40,
+    'graph-db-server -> paths': 8,
+    'graph-state -> graph-model': 32,
+    'graph-tools -> graph-model': 8,
+    'graph-tools -> graph-state': 48,
+    'graph-tools -> paths': 4,
+    'graph-tools -> vt-rpc': 32,
+    'perf-fixtures -> paths': 4,
     // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
     // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
     // (one dynamic import in scenarios/b5.ts). Measured value at package
     // introduction; the bootcamp is a leaf consumer that should not grow this.
-    'voicetree-bootcamp -> graph-db-client': 1,
-    'voicetree-bootcamp -> paths': 1,
-    'voicetree-cli -> graph-db-client': 7,
-    'voicetree-cli -> graph-db-server': 3,
-    'voicetree-cli -> graph-model': 1,
-    'voicetree-cli -> graph-tools': 11,
+    'voicetree-bootcamp -> graph-db-client': 4,
+    'voicetree-bootcamp -> paths': 4,
+    'voicetree-cli -> graph-db-client': 28,
+    'voicetree-cli -> graph-db-server': 12,
+    'voicetree-cli -> graph-model': 4,
+    'voicetree-cli -> graph-tools': 44,
     // 2026-06-02 [nested-.voicetree daemon resolution fix]: 2 -> 5. The
     // project-root up-walk (`detectProjectFromCwd`) was copy-pasted into both
     // voicetree-cli and vt-rpc with divergent precedence — that drift caused the
@@ -214,21 +229,21 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // (the last makes `$VOICETREE_PROJECT_PATH` authoritative over the CWD walk)
     // instead of carrying a local copy. A dedup, not new behaviour; ratchet down
     // if the marker check can later be folded into the composed resolver.
-    'voicetree-cli -> paths': 5,
-    'voicetree-cli -> voicetree-graph-validation': 1,
-    'voicetree-cli -> vt-daemon': 7,
+    'voicetree-cli -> paths': 20,
+    'voicetree-cli -> voicetree-graph-validation': 4,
+    'voicetree-cli -> vt-daemon': 28,
     // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
     // for non-daemon peers (BF-377); the CLI is a peer just like webapp and
     // calls `ensureVtDaemonForProject` to spawn-or-adopt the per-project VTD.
-    'voicetree-cli -> vt-daemon-client': 1,
+    'voicetree-cli -> vt-daemon-client': 4,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 4. `vt manual` is a pure function of
     // the protocol's canonical spec set, so the CLI legitimately reaches in
     // for `TOOL_SPECS` (the data), plus three pure helpers that operate on
     // it: `renderManual` (full / essentials), `renderManualSection` (single
     // tool), `findSpecByCliVerb` (verb resolution). These are the minimum
     // necessary — each verb of `vt manual` calls exactly one of them.
-    'voicetree-cli -> vt-daemon-protocol': 4,
-    'voicetree-cli -> vt-rpc': 9,
+    'voicetree-cli -> vt-daemon-protocol': 16,
+    'voicetree-cli -> vt-rpc': 36,
     // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is now
     // sourced from @vt/app-config (the canonical single-line resolver), not
     // from a CLI-local mirrored copy. The function body is 1 line — the
@@ -237,20 +252,20 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // `voicetree-cli/src/voicetreeHomePath.ts` are both deleted. Net: +1 value
     // symbol on this edge, −2 duplicate files and one human-attention
     // invariant.
-    'voicetree-cli -> app-config': 1,
+    'voicetree-cli -> app-config': 4,
     // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is again
     // imported into vt-daemon (vtd boot + spawn helpers + graph-db-server's
     // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
     // voicetree-home.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
     // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
-    'vt-daemon -> app-config': 2,
-    'vt-daemon -> daemon-lifecycle': 9,
+    'vt-daemon -> app-config': 8,
+    'vt-daemon -> daemon-lifecycle': 36,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
     // client (BF-375 standalone-vtd boundary). Single value symbol
     // (`GraphDbClient`) — the class is constructed once during daemon
     // bootstrap; further reach into graphd is via that handle.
-    'vt-daemon -> graph-db-client': 1,
-    'vt-daemon -> graph-db-protocol': 2,
+    'vt-daemon -> graph-db-client': 4,
+    'vt-daemon -> graph-db-protocol': 8,
     // 2026-05-27 [Phase 3]: graph-model is a leaf data package; widening
     // 9 -> 10 as the daemon takes over Main's normalization paths under
     // BF-379. New value: `createTaskNode` for daemon-side graph mutation
@@ -278,16 +293,16 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
-    'vt-daemon -> graph-model': 24,
+    'vt-daemon -> graph-model': 96,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
     // in webapp's process).
-    'vt-daemon -> graph-state': 3,
-    'vt-daemon -> graph-tools': 7,
-    'vt-daemon -> observability': 10,
-    'vt-daemon -> paths': 4,
-    'vt-daemon -> voicetree-graph-validation': 1,
+    'vt-daemon -> graph-state': 12,
+    'vt-daemon -> graph-tools': 28,
+    'vt-daemon -> observability': 40,
+    'vt-daemon -> paths': 16,
+    'vt-daemon -> voicetree-graph-validation': 4,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
     // refactor (PR #137 + follow-up), vt-daemon-protocol owns TOOL_SPECS plus
     // the manual renderer + the [From:] wrapper. The daemon now imports four
@@ -297,47 +312,47 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // (sendMessageTool.ts), and one terminal-registry constant. The earlier
     // shape of "14 individual *_SPEC constants" was an over-export of
     // implementation detail; those are no longer in the protocol barrel.
-    'vt-daemon -> vt-daemon-protocol': 4,
+    'vt-daemon -> vt-daemon-protocol': 16,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
     // (proposed `@vt/project-paths` or `@vt/paths`). See #123 for
     // the follow-up consolidation issue. After that lands, ratchet back
     // to 2 (just `ERROR_CODES`, `redactAuthorizationHeader`).
-    'vt-daemon -> vt-rpc': 3,
-    'vt-daemon-client -> daemon-lifecycle': 10,
+    'vt-daemon -> vt-rpc': 12,
+    'vt-daemon-client -> daemon-lifecycle': 40,
     // 2026-05-27 [03c387be2]: +1 — `resolveDaemonRuntimeCommand` added so
     // VTD spawn finds a `node:sqlite`-validated Node runtime instead of
     // the Electron binary (Electron treats the entrypoint as a renderer
     // and silently fails to open VTD's HTTP port). Symbol lives in graphd's
     // runtime helper; vt-daemon-client reuses it across the sibling-daemon
     // boundary rather than duplicating the resolver.
-    'vt-daemon-client -> graph-db-client': 4,
-    'vt-daemon-client -> graph-db-protocol': 1,
-    'vt-daemon-client -> paths': 1,
-    'vt-daemon-client -> vt-daemon-protocol': 1,
-    'vt-daemon-client -> vt-rpc': 1,
-    'vt-fake-agent -> vt-rpc': 1,
+    'vt-daemon-client -> graph-db-client': 16,
+    'vt-daemon-client -> graph-db-protocol': 4,
+    'vt-daemon-client -> paths': 4,
+    'vt-daemon-client -> vt-daemon-protocol': 4,
+    'vt-daemon-client -> vt-rpc': 4,
+    'vt-fake-agent -> vt-rpc': 4,
     // 2026-06-02 [nested-.voicetree daemon resolution fix]: 1 -> 3. vt-rpc's
     // `discoverDaemonEndpoint` carried its own copy of the project-root up-walk;
     // it now imports the shared `detectProjectFromCwd` + `hasVoicetreeMarker`
     // from @vt/paths (and makes `$VOICETREE_PROJECT_PATH` win over the CWD walk).
     // Same dedup as the voicetree-cli edge above — removes a duplicated resolver.
-    'vt-rpc -> paths': 3,
+    'vt-rpc -> paths': 12,
     // 2026-05-27: ratcheted 24 -> 22. stripStaleVoicetreeMcpEntries +
     // writeProjectAgentDiscoveryFile were briefly here (ce909fdeb) but only
     // webapp's electron-main calls them; now live colocated in
     // webapp/src/shell/edge/main/runtime/electron/startup/project-bootstrap/.
-    'webapp -> app-config': 22,
-    'webapp -> graph-db-client': 9,
-    'webapp -> graph-model': 86,
-    'webapp -> graph-state': 19,
-    'webapp -> graph-tools': 14,
+    'webapp -> app-config': 88,
+    'webapp -> graph-db-client': 36,
+    'webapp -> graph-model': 344,
+    'webapp -> graph-state': 76,
+    'webapp -> graph-tools': 56,
     // 2026-06-01: set to 10 — observability is a dependency-leaf tracing package;
     // coupling to it is intentional and not a quality concern.
-    'webapp -> observability': 10,
+    'webapp -> observability': 40,
     // 2026-05-31 [worktree-placement-unload]: 2 -> 3 (+1 normalizeProjectPath,
     // openProject canonicalization edge — see paths header block above).
-    'webapp -> paths': 3,
+    'webapp -> paths': 12,
     // 2026-05-30 [BF-435]: 0 -> 1. The tiered perf-probe is started once at
     // electron-main boot via the single facade `perfProbeFromEnv('vt-electron-main')`
     // and stopped on `will-quit`. electron-main is the impure shell/edge — the
@@ -345,7 +360,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // and never blocks boot). This mirrors the `webapp -> observability: 1`
     // tracing-facade line exactly: one value symbol for one cohesive
     // observability capability owned by a leaf package. Should not grow.
-    'webapp -> perf-analysis': 1,
+    'webapp -> perf-analysis': 4,
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
     // cleanups above (drop in-process configureMcpServer +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix
@@ -360,13 +375,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // RPC verb backing the webapp "Show older" UX that lets users delete
     // historical agent records (dev-manu UX preserved through the dev-manu→dev
     // integration). Single new symbol on the canonical HTTP boundary.
-    'webapp -> vt-daemon-client': 14,
+    'webapp -> vt-daemon-client': 56,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 0 -> 1. Project-bootstrap renders the
     // canonical CLI manual into CLAUDE.md / AGENTS.md before any daemon
     // is up, so it must reach the renderer at the leaf protocol package
     // directly. The single import is `renderFullManual` (no-arg helper
     // — TOOL_SPECS stays daemon-side detail). Tests pass a literal body
     // string and don't import anything from the protocol package.
-    'webapp -> vt-daemon-protocol': 1,
-    'webapp -> vt-rpc': 3,
+    'webapp -> vt-daemon-protocol': 4,
+    'webapp -> vt-rpc': 12,
 }

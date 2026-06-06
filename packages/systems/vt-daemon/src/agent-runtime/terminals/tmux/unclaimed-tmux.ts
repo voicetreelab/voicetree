@@ -36,7 +36,6 @@ export type UnclaimedTmuxSession = {
     readonly attachable: boolean
     readonly createdAt: number
     readonly panePid: number
-    readonly agentName: string
     readonly projectRoot?: string
     readonly contextNodePath?: string
     readonly taskNodePath?: string
@@ -158,7 +157,6 @@ export async function listUnclaimedTmuxSessions(
             attachable: classification === 'this-project',
             createdAt: session.createdAtSeconds * 1000,
             panePid: session.panePid,
-            agentName: env.AGENT_NAME || parsed.terminalId,
             projectRoot: env.VOICETREE_PROJECT_PATH,
             contextNodePath: env.CONTEXT_NODE_PATH,
             taskNodePath: env.TASK_NODE_PATH,
@@ -181,7 +179,6 @@ function fallbackTerminalData(terminalId: string, env: Record<string, string>): 
         initialSpawnDirectory: env.PWD,
         isPinned: true,
         parentTerminalId: null,
-        agentName: env.AGENT_NAME ?? terminalId,
         isHeadless: false,
         isMinimized: false,
         contextContent: '',

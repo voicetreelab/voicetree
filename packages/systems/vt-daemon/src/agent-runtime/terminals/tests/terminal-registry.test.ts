@@ -59,19 +59,6 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
             expect(record.terminalData.isDone).toBe(false)
         })
 
-        it('stores agentName when provided', () => {
-            const terminalData: TerminalData = createTerminalData({
-                attachedToNodeId: 'agent-node.md',
-                terminalCount: 0,
-                title: 'Agent Terminal',
-                agentName: 'test-agent-123'
-            })
-
-            recordTerminalSpawn('agent-node.md-terminal-0', terminalData)
-
-            const records: TerminalRecord[] = getTerminalRecords()
-            expect(records[0].terminalData.agentName).toBe('test-agent-123')
-        })
     })
 
     describe('getTerminalRecords returns complete TerminalRecord', () => {
@@ -85,8 +72,7 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
                 initialSpawnDirectory: '/test/dir',
                 initialCommand: 'echo hello',
                 executeCommand: true,
-                parentTerminalId: 'parent-terminal' as TerminalId,
-                agentName: 'test-agent'
+                parentTerminalId: 'parent-terminal' as TerminalId
             })
 
             recordTerminalSpawn('complete-node.md-terminal-1', terminalData)
@@ -110,7 +96,6 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
             expect(record.terminalData.initialCommand).toBe('echo hello')
             expect(record.terminalData.executeCommand).toBe(true)
             expect(record.terminalData.parentTerminalId).toBe('parent-terminal')
-            expect(record.terminalData.agentName).toBe('test-agent')
         })
     })
 
@@ -275,8 +260,7 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
                 attachedToNodeId: 'preserve-test-node.md',
                 terminalCount: 0,
                 title: 'Preserve Test Terminal',
-                isPinned: false,
-                agentName: 'preserve-agent'
+                isPinned: false
             })
             recordTerminalSpawn('preserve-test-node.md-terminal-0', terminalData)
 
@@ -287,7 +271,6 @@ describe('Terminal Registry - Phase 1: Expand Registry', () => {
             const record: TerminalRecord = getTerminalRecords()[0]
             expect(record.terminalData.isPinned).toBe(false)
             expect(record.terminalData.isDone).toBe(false)
-            expect(record.terminalData.agentName).toBe('preserve-agent')
             expect(record.terminalData.title).toBe('Preserve Test Terminal')
         })
     })

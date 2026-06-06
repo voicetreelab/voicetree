@@ -30,7 +30,6 @@ export function makeTerminalData(overrides: Partial<TerminalData> = {}): Termina
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
-        agentName: 'Ari',
         worktreeName: undefined,
         isHeadless: false,
         isMinimized: false,
@@ -63,7 +62,6 @@ export function makeRunningCodexMetadata(overrides: Record<string, unknown> = {}
         terminalData: makeTerminalData({
             terminalId: 'B' as TerminalData['terminalId'],
             initialCommand: 'codex',
-            agentName: 'Bea',
             initialEnvVars: {
                 VOICETREE_TERMINAL_ID: 'B',
                 VOICETREE_PROJECT_PATH: PROJECT_PATH,
@@ -104,7 +102,6 @@ export function makeLiveSession(sessionName: string, overrides: Partial<Unclaime
         sessionName,
         terminalId: TERMINAL_A,
         hash: PROJECT_HASH,
-        agentName: 'Ari',
         panePid: 12345,
         createdAt: 0,
         classification: 'this-project',

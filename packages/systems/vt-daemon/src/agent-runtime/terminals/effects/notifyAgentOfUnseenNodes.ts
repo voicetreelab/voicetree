@@ -43,7 +43,7 @@ export async function notifyAgentOfUnseenNodes(
 ): Promise<void> {
     try {
         const contextNodeId: NodeIdAndFilePath = record.terminalData.attachedToContextNodeId
-        const agentName: string = record.terminalData.agentName
+        const agentName: string = record.terminalId
 
         const notificationState: UnseenNodesNotificationState = getOrCreateNotificationState(terminalId, deps)
 

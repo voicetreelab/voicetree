@@ -2,7 +2,7 @@ import path from 'path'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getUniqueAgentName, pickAgentName} from '@vt/graph-model/settings'
+import {allocateUniqueAgentId, pickAgentName} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
@@ -85,11 +85,11 @@ export async function prepareTerminalDataInMain(
             ? getNodeTitle(contextNode)
             : 'Terminal'
 
-    const agentName: string = precomputedAgentName ?? inheritTerminalId ?? (() => {
+    const terminalId: TerminalId = (precomputedAgentName ?? inheritTerminalId ?? (() => {
         const baseAgentName: string = pickAgentName(settings)
         const existingNames: Set<string> = getExistingAgentNames()
-        return getUniqueAgentName(baseAgentName, existingNames)
-    })()
+        return allocateUniqueAgentId(baseAgentName, existingNames)
+    })()) as TerminalId
 
     const watchStatus: {
         readonly isWatching: boolean
@@ -102,12 +102,10 @@ export async function prepareTerminalDataInMain(
     )
 
     const taskNodeAbsolutePath: string = taskNode ? taskNode.absoluteFilePathIsID : ''
-    const terminalId: TerminalId = agentName as TerminalId
     const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({
         contextNodePath: contextNodeId,
         taskNodePath: taskNodeAbsolutePath,
-        terminalId: agentName,
-        agentName,
+        terminalId,
         settings,
         promptTemplate,
         envOverrides,
@@ -151,7 +149,6 @@ export async function prepareTerminalDataInMain(
         initialSpawnDirectory,
         initialEnvVars: expandedEnvVars,
         isPinned: !startUnpinned,
-        agentName,
         parentTerminalId: parentTerminalId as TerminalId | null,
         worktreeName,
         isHeadless: headless,

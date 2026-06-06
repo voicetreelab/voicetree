@@ -112,7 +112,6 @@ async function spawnHookTerminal(
         contextNodePath: hookNodeId,
         taskNodePath: hookNodeId,
         terminalId: HOOK_TERMINAL_ID,
-        agentName: HOOK_TERMINAL_ID,
         settings,
     })
 
@@ -125,7 +124,6 @@ async function spawnHookTerminal(
         executeCommand: false,
         initialSpawnDirectory,
         initialEnvVars: expandedEnvVars,
-        agentName: HOOK_TERMINAL_ID,
         isPinned: false,
     })
 

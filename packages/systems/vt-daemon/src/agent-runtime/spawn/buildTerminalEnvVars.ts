@@ -26,7 +26,6 @@ export async function buildTerminalEnvVars(params: {
     readonly contextNodePath: string
     readonly taskNodePath: string
     readonly terminalId: string
-    readonly agentName: string
     readonly settings: VTSettings
     readonly promptTemplate?: string
     readonly envOverrides?: Record<string, string>
@@ -87,7 +86,7 @@ export async function buildTerminalEnvVars(params: {
         TASK_NODE_PATH: params.taskNodePath,
         VOICETREE_TERMINAL_ID: params.terminalId,
         VOICETREE_CALLER_TERMINAL_ID: params.terminalId,
-        AGENT_NAME: params.agentName,
+        AGENT_NAME: params.terminalId,
         // §5.3 — spawn pipeline injects DAEMON_URL (not the token, which the
         // hook subprocess reads via `cat` from disk to avoid `ps` leak, §3.3).
         // Spawned agents always run inside WSL alongside the daemon, so
@@ -98,7 +97,7 @@ export async function buildTerminalEnvVars(params: {
     }
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
     const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered)
-    const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withManual, params.agentName, params.settings)
+    const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withManual, params.terminalId, params.settings)
     const vtBinDir: string | null = await readVtBinDirOrNull()
     // $HOME/bin is prepended first so the daemon's vt-bin can sit in front of it.
     // Final order: vtBinDir : $HOME/bin : ...inherited PATH

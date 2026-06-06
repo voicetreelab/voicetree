@@ -6,7 +6,7 @@ import {
 import {buildResumeCommand, type ResumeMode} from '@vt/vt-daemon/agent-runtime/spawn/cli/resumeCli.ts'
 import {spawnTmuxBackedTerminal} from '../headless/tmuxHeadlessRuntime'
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
-import {agentBaseName, getUniqueAgentName} from '@vt/graph-model/settings'
+import {agentBaseName, allocateUniqueAgentId} from '@vt/graph-model/settings'
 import {
     defaultResolveNativeSession,
     type NativeSessionMissReason,
@@ -97,18 +97,16 @@ export async function forkAgentSession(
     })
     if (built.kind === 'unsupported') return {kind: 'unsupported', reason: built.reason}
 
-    const forkedAgentName: string = deps.allocateForkAgentName(source.agentName)
-    const forkedTerminalId: TerminalId = forkedAgentName as TerminalId
+    const forkedTerminalId: TerminalId = deps.allocateForkAgentName(source.terminalId) as TerminalId
     const env: Record<string, string> = {
         ...(source.terminalData.initialEnvVars ?? {}),
         VOICETREE_TERMINAL_ID: forkedTerminalId,
-        AGENT_NAME: forkedAgentName,
+        AGENT_NAME: forkedTerminalId,
     }
     const forkedTerminalData: TerminalData = {
         ...source.terminalData,
         terminalId: forkedTerminalId,
-        agentName: forkedAgentName,
-        title: forkedAgentName,
+        title: forkedTerminalId,
         parentTerminalId: sourceTerminalId,
         initialEnvVars: env,
         initialCommand,  // preserve the original command so future forks/resumes have the same base
@@ -137,7 +135,7 @@ export function defaultForkAgentDeps(
         allocateForkAgentName: (sourceAgentName: string): string => {
             // Fork keeps the source's friendly base name but earns its own hash,
             // so the forked id is distinct from the session it resumes.
-            return getUniqueAgentName(agentBaseName(sourceAgentName), getExistingAgentNames())
+            return allocateUniqueAgentId(agentBaseName(sourceAgentName), getExistingAgentNames())
         },
         spawn: (terminalId, terminalData, command, cwd, env) =>
             spawnTmuxBackedTerminal(terminalId, terminalData, command, cwd, env),

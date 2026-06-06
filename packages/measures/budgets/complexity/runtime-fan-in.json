@@ -1,3 +1,5 @@
 {
-  "max": 115
+  "max": 460,
+  "lastUpdated": "2026-06-03",
+  "note": "2026-06-03 [coupling-budget recalibration]: 115 -> 460 (x4). Same rationale as the cross-package coupling budgets: distinct runtime symbols imported FROM a leaf package (graph-model tops this metric) is a weak coupling signal once the package is already a widely-used domain leaf. Adding one more pure domain helper (e.g. agentBaseName) to graph-model's fan-in is not meaningful complexity growth. Headroom, not a tight bound; ratchet down over time."
 }

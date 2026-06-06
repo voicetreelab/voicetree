@@ -72,7 +72,6 @@ export type TerminalData = {
     readonly lastOutputTime: number;
     readonly activityCount: number;
     readonly parentTerminalId: TerminalId | null;
-    readonly agentName: string;
     readonly worktreeName: string | undefined;
     readonly isHeadless: boolean;
     readonly isMinimized: boolean;
@@ -95,7 +94,6 @@ export type CreateTerminalDataParams = {
     readonly shadowNodeDimensions?: { readonly width: number; readonly height: number };
     readonly isPinned?: boolean;
     readonly parentTerminalId?: TerminalId | null;
-    readonly agentName: string;
     readonly worktreeName?: string;
     readonly isHeadless?: boolean;
     readonly isMinimized?: boolean;
@@ -181,7 +179,6 @@ export function createTerminalData(params: CreateTerminalDataParams): TerminalDa
         lastOutputTime: Date.now(),
         activityCount: 0,
         parentTerminalId: params.parentTerminalId ?? null,
-        agentName: params.agentName,
         worktreeName: params.worktreeName,
         isHeadless: params.isHeadless ?? false,
         isMinimized: params.isMinimized ?? false,

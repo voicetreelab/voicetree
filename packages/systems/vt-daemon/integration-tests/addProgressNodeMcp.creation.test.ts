@@ -68,7 +68,7 @@ describe('MCP create_graph tool — node creation', () => {
         it('uses agent color and name from caller terminal record', async () => {
             await cleanupVoicetreeHome(voicetreeHome)
             ;({voicetreeHome, state, bridge} = await setupRealDeps({
-                callerOptions: {agentName: 'my-agent', color: 'green'},
+                callerOptions: {color: 'green'},
             }))
 
             const response: McpToolResponse = await createGraphTool({
@@ -81,7 +81,9 @@ describe('MCP create_graph tool — node creation', () => {
             const firstDelta: GraphDelta = state.deltas[0]
             const upserted: GraphNode = findUpsert(firstDelta, n => n.absoluteFilePathIsID.endsWith('a.md'))!
             expect(upserted.nodeUIMetadata.color).toEqual(O.some('green'))
-            expect(upserted.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe('my-agent')
+            // agent_name attribution IS the caller's terminal identity (single
+            // source of truth) — the edge matcher keys on agent_name === terminalId.
+            expect(upserted.nodeUIMetadata.additionalYAMLProps['agent_name']).toBe(CALLER_TERMINAL_ID)
         })
 
         it('creates a node in a relative outputPath under the write folder path', async () => {

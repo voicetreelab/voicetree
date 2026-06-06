@@ -96,7 +96,7 @@ function progressNodesForAgent(graph: Graph, record: TerminalRecord): readonly A
     const indexedNodes: readonly AgentNode[] = getAgentNodes(record.terminalId)
     const graphMatchedNodes: readonly AgentNode[] = getNewNodesForAgentIdentities(
         graph,
-        [record.terminalData.agentName, record.terminalId],
+        [record.terminalId],
         record.spawnedAt
     )
     return Array.from(

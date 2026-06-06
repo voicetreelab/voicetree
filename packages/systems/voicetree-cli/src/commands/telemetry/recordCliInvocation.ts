@@ -15,6 +15,7 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {agentBaseName} from '@vt/graph-model/settings'
 
 export interface GateRejectionInfo {
     readonly typeName: string
@@ -47,7 +48,6 @@ export interface BuildRecordInput {
     readonly errorClass: string | null
     readonly gateRejection: GateRejectionInfo | null
     readonly terminalId: string | null
-    readonly agentName: string | null
     readonly vtVersion: string
     readonly nowIso: string
     readonly phase: 'start' | 'end'
@@ -62,7 +62,7 @@ export function buildCliInvocationRecord(input: BuildRecordInput): CliInvocation
         duration_ms: Math.max(0, input.endMs - input.startMs),
         error_class: input.errorClass,
         gate_rejection: input.gateRejection,
-        agent: {terminalId: input.terminalId, name: input.agentName},
+        agent: {terminalId: input.terminalId, name: input.terminalId !== null ? agentBaseName(input.terminalId) : null},
         vt_version: input.vtVersion,
         phase: input.phase,
     }
@@ -184,7 +184,6 @@ export function emitInvocationStart(): void {
         errorClass: null,
         gateRejection: null,
         terminalId: state.deps.getEnv('VOICETREE_TERMINAL_ID') ?? null,
-        agentName: state.deps.getEnv('AGENT_NAME') ?? null,
         vtVersion: state.vtVersion,
         nowIso: state.deps.nowIso(),
         phase: 'start',
@@ -203,7 +202,6 @@ function emitEnd(): void {
         errorClass: state.errorClass,
         gateRejection: state.gateRejection,
         terminalId: state.deps.getEnv('VOICETREE_TERMINAL_ID') ?? null,
-        agentName: state.deps.getEnv('AGENT_NAME') ?? null,
         vtVersion: state.vtVersion,
         nowIso: state.deps.nowIso(),
         phase: 'end',

@@ -26,7 +26,6 @@ export type LaunchTerminalSpawnParams = {
     readonly headless?: boolean
     readonly inheritTerminalId?: string
     readonly envOverrides?: Record<string, string>
-    readonly agentName: string
     readonly terminalId: TerminalId
     readonly skipFitAnimation?: boolean
     readonly logger: SpawnTerminalLogger
@@ -115,7 +114,7 @@ export async function launchTerminalSpawn(params: LaunchTerminalSpawnParams): Pr
             params.headless,
             params.inheritTerminalId,
             params.envOverrides,
-            params.agentName
+            params.terminalId
         )
 
         await launchPreparedTerminal(params, terminalData)

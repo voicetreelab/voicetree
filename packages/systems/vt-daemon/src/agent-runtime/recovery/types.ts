@@ -37,7 +37,6 @@ import type {UnclaimedTmuxSession} from '@vt/vt-daemon/agent-runtime/terminals/t
  */
 export type RecoverableAgentSession = {
     readonly terminalId: TerminalId
-    readonly agentName: string
     readonly metadataPath: string
     readonly terminalData: TerminalData
     readonly isClaimed: boolean

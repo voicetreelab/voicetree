@@ -42,15 +42,17 @@ import {isAgentComplete} from '../src/agent-runtime/agent-control/completion/isA
  */
 function onFSNodeWithAgentName(agentName: string, nodeId: string, title: string): void {
     const record: TerminalRecord | undefined = getTerminalRecords().find(
-        (r: TerminalRecord) => r.terminalData.agentName === agentName,
+        (r: TerminalRecord) => r.terminalId === agentName,
     )
     if (!record) return
     registerAgentNodes(record.terminalId, [{nodeId, title}])
     resetAuditRetryCount(record.terminalId)
 }
 
+// agent_name written into FS-node frontmatter IS the terminal identity
+// (AGENT_NAME env var === terminalId), so attribution keys on terminalId.
 const TERMINAL_ID: string = 'test-fs-terminal'
-const AGENT_NAME: string = 'TestFS'
+const AGENT_NAME: string = TERMINAL_ID
 const NODE_ID: string = '/project/voicetree-1/progress-node.md'
 const NODE_TITLE: string = 'Progress Node'
 
@@ -61,13 +63,12 @@ const emptyGraph: Graph = {
     unresolvedLinksIndex: new Map(),
 }
 
-function registerTestTerminal(agentName: string = AGENT_NAME, terminalId: string = TERMINAL_ID): void {
+function registerTestTerminal(terminalId: string = TERMINAL_ID): void {
     const data: TerminalData = createTerminalData({
         terminalId: terminalId as TerminalId,
         attachedToNodeId: 'ctx-nodes/test.md',
         terminalCount: 0,
         title: 'Test Terminal',
-        agentName,
     })
     recordTerminalSpawn(terminalId, data)
 }
@@ -114,10 +115,10 @@ describe('FS node agent_name → agentNodeIndex → blue edge', () => {
     })
 
     it('routes FS nodes to correct terminal when multiple terminals exist', () => {
-        registerTestTerminal('AgentA', 'terminal-a')
-        registerTestTerminal('AgentB', 'terminal-b')
+        registerTestTerminal('terminal-a')
+        registerTestTerminal('terminal-b')
 
-        onFSNodeWithAgentName('AgentB', NODE_ID, NODE_TITLE)
+        onFSNodeWithAgentName('terminal-b', NODE_ID, NODE_TITLE)
 
         expect(getAgentNodes('terminal-a')).toHaveLength(0)
         expect(getAgentNodes('terminal-b')).toHaveLength(1)

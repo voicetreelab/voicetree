@@ -46,7 +46,6 @@ export function getNextAgentName(names: readonly string[] = AGENT_NAMES): string
  */
 export const AGENT_ID_SEPARATOR = '-';
 export const AGENT_ID_HASH_LENGTH = 3;
-const AGENT_ID_HASH_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 /** Compose an agent id from its base name and uniqueness hash. */
 export function formatAgentId(baseName: string, hash: string): string {
@@ -65,23 +64,17 @@ export function agentBaseName(agentId: string): string {
     return agentId.replace(AGENT_ID_HASH_SUFFIX_RE, '');
 }
 
-/** Impure default hash source — the only randomness in the name pipeline. */
-function randomAgentHash(): string {
-    return Array.from(
-        { length: AGENT_ID_HASH_LENGTH },
-        () => AGENT_ID_HASH_ALPHABET[Math.floor(Math.random() * AGENT_ID_HASH_ALPHABET.length)],
-    ).join('');
-}
-
 /**
- * Build a unique agent id by appending a random hash to the base name,
- * regenerating on the rare chance the candidate collides with a live id.
- * `generateHash` is injectable so tests can supply a deterministic source.
+ * Build a unique agent id by appending a hash to the base name, regenerating on
+ * the rare chance the candidate collides with a live id. Pure: `generateHash` is
+ * a required injected source so this stays deterministic for the given source.
+ * The real (impure, `Math.random`) generator lives at the edge — see
+ * `allocateUniqueAgentId` in `../../agentId.ts`.
  */
 export function getUniqueAgentName(
     baseName: string,
     existingNames: ReadonlySet<string>,
-    generateHash: () => string = randomAgentHash,
+    generateHash: () => string,
 ): string {
     const candidate: string = formatAgentId(baseName, generateHash());
     return existingNames.has(candidate)

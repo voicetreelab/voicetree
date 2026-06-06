@@ -37,7 +37,6 @@ const discoverRecoverableAgentSessionsRoute: RpcRoute = {
         const sessions = await discoverRecoverableAgentSessions(undefined, {horizonMs: req.horizonMs})
         const projected: DiscoverRecoverableAgentSessions.Response = sessions.map((s): WireRecoverableAgentSession => ({
             terminalId: s.terminalId,
-            agentName: s.agentName,
             metadataPath: s.metadataPath,
             terminalData: s.terminalData,
             isClaimed: s.isClaimed,

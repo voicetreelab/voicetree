@@ -49,7 +49,7 @@ export async function getUnseenNodesNearbyTool(
         )
 
         // 4. Filter out nodes created by this agent and the agent's task node
-        const agentName: string = callerRecord.terminalData.agentName
+        const agentName: string = callerRecord.terminalId
         const taskNodeId: NodeIdAndFilePath | undefined = O.isSome(callerRecord.terminalData.anchoredToNodeId)
             ? callerRecord.terminalData.anchoredToNodeId.value
             : undefined

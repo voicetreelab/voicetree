@@ -53,7 +53,6 @@ function fallbackTerminalData(metadata: TmuxTerminalMetadata, projectRoot: strin
         attachedToNodeId: join(recoveryMetadataDir(projectRoot), `${metadata.name}.json`),
         terminalCount: 0,
         title: metadata.name,
-        agentName: metadata.name,
         isHeadless: true,
         initialEnvVars: {
             VOICETREE_TERMINAL_ID: metadata.name,

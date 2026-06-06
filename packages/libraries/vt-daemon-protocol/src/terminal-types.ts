@@ -96,7 +96,6 @@ export type TerminalData = {
 
     readonly parentTerminalId: TerminalId | null;
 
-    readonly agentName: string;
     readonly worktreeName: string | undefined;
     readonly isHeadless: boolean;
     readonly isMinimized: boolean;
@@ -122,7 +121,6 @@ export type CreateTerminalDataParams = {
     readonly shadowNodeDimensions?: { width: number; height: number };
     readonly isPinned?: boolean;
     readonly parentTerminalId?: TerminalId | null;
-    readonly agentName: string;
     readonly worktreeName?: string;
     readonly isHeadless?: boolean;
     readonly isMinimized?: boolean;

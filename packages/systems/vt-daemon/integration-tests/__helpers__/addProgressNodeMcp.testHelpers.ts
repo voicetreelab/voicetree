@@ -137,7 +137,6 @@ export function buildBridge(state: BridgeState): GraphBridge {
 }
 
 export function recordCaller(options?: {
-    agentName?: string
     color?: string
     attachedToNodeId?: NodeIdAndFilePath
     anchoredToNodeId?: NodeIdAndFilePath
@@ -153,7 +152,6 @@ export function recordCaller(options?: {
         terminalCount: 0,
         title: 'Test Agent',
         executeCommand: true,
-        agentName: options?.agentName ?? 'test-agent',
         initialEnvVars: envVars,
     })
     recordTerminalSpawn(CALLER_TERMINAL_ID, data)

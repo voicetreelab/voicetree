@@ -341,7 +341,7 @@ export async function createGraphTool(
     if (!graphParentResult.ok) return errorResponse(graphParentResult.error)
     const graphParent: GraphParentContext = graphParentResult.value
 
-    const agentName: string = callerRecord.terminalData.agentName
+    const agentName: string = callerRecord.terminalId
     const defaultColor: string = callerRecord.terminalData.initialEnvVars?.['AGENT_COLOR'] ?? 'blue'
 
     // The destination folder (graph folder id) is the output directory the batch

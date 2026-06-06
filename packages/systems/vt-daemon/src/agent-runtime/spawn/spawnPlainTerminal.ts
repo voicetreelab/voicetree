@@ -8,7 +8,7 @@ import type {Position} from '@vt/graph-model/graph';
 import {createNewNodeNoParent} from '@vt/graph-model/graph';
 import {getNodeTitle} from '@vt/graph-model/markdown';
 import type {VTSettings} from '@vt/graph-model/settings';
-import {getUniqueAgentName, pickAgentName} from '@vt/graph-model/settings';
+import {allocateUniqueAgentId, pickAgentName} from '@vt/graph-model/settings';
 import {createTerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts';
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts';
 import {getTerminalManager} from '@vt/vt-daemon/agent-runtime/terminals/manager/terminal-manager-instance.ts';
@@ -36,24 +36,21 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     initialSpawnDirectory = path.join(watchStatus.directory, relativePath);
   }
 
-  // Generate unique agent name with collision handling for terminal identification
-  // Plain terminals still need unique IDs for registry tracking
+  // Generate a unique terminal id (collision-handled) — plain terminals still
+  // need a stable identity for registry tracking.
   const baseAgentName: string = pickAgentName(settings);
   const existingNames: Set<string> = getExistingAgentNames();
-  const agentName: string = getUniqueAgentName(baseAgentName, existingNames);
-  // terminalId = agentName (unified identification)
-  const terminalId: TerminalId = agentName as TerminalId;
+  const terminalId: TerminalId = allocateUniqueAgentId(baseAgentName, existingNames) as TerminalId;
 
   const expandedEnvVars: Record<string, string> = await buildTerminalEnvVars({
     contextNodePath: nodeId,
     taskNodePath: nodeId,
-    terminalId: agentName,
-    agentName,
+    terminalId,
     settings,
   });
 
   const terminalData: TerminalData = createTerminalData({
-    terminalId: terminalId, // terminalId = agentName (unified)
+    terminalId,
     attachedToNodeId: nodeId,
     terminalCount: terminalCount,
     title: title,
@@ -62,7 +59,6 @@ export async function spawnPlainTerminal(nodeId: NodeIdAndFilePath, terminalCoun
     executeCommand: false,
     initialSpawnDirectory: initialSpawnDirectory,
     initialEnvVars: expandedEnvVars,
-    agentName: agentName,
   });
 
   // The renderer's xterm attaches via WebSocket to /terminals/:id/attach, which

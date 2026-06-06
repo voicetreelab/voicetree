@@ -1,8 +1,9 @@
+import {agentBaseName} from '@vt/graph-model/settings'
+
 export type QuitTerminalRecord = {
     readonly terminalId: string
     readonly status: 'running' | 'exited'
     readonly terminalData: {
-        readonly agentName: string
         readonly isHeadless: boolean
         readonly title: string
     }
@@ -11,7 +12,6 @@ export type QuitTerminalRecord = {
 export type QuitTmuxSessionDecision = 'quit' | 'cancel'
 
 export type QuitTmuxSessionSummary = {
-    readonly agentName: string
     readonly mode: 'headless' | 'interactive'
     readonly name: string
     readonly terminalId: string
@@ -38,7 +38,6 @@ export function getActiveTmuxSessionSummaries(records: readonly QuitTerminalReco
     return records
         .filter((record: QuitTerminalRecord): boolean => record.status === 'running')
         .map((record: QuitTerminalRecord): QuitTmuxSessionSummary => ({
-            agentName: fallbackText(record.terminalData.agentName, '(unknown)'),
             mode: record.terminalData.isHeadless ? 'headless' : 'interactive',
             name: fallbackText(record.terminalData.title, record.terminalId),
             terminalId: record.terminalId,
@@ -48,7 +47,7 @@ export function getActiveTmuxSessionSummaries(records: readonly QuitTerminalReco
 export function formatQuitTmuxSessionDetails(sessions: readonly QuitTmuxSessionSummary[]): string {
     const sessionLines: readonly string[] = sessions.map(
         (session: QuitTmuxSessionSummary, index: number): string =>
-            `${index + 1}. Name: ${session.name} | Agent: ${session.agentName} | Mode: ${session.mode}`,
+            `${index + 1}. Name: ${session.name} | Agent: ${agentBaseName(session.terminalId)} | Mode: ${session.mode}`,
     )
     return [
         'Active tmux sessions:',

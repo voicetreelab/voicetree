@@ -116,7 +116,7 @@ function normalizeMetadataTerminalData(metadata: TmuxTerminalMetadata): Terminal
         terminalId,
         attachedToNodeId,
         terminalCount: numberField(obj, 'terminalCount') ?? 0,
-        title: stringField(obj, 'title') ?? stringField(obj, 'agentName') ?? metadata.name,
+        title: stringField(obj, 'title') ?? metadata.name,
         anchoredToNodeId: anchoredNodeIdField(obj, env),
         initialEnvVars: env,
         initialSpawnDirectory: stringField(obj, 'initialSpawnDirectory'),
@@ -126,7 +126,6 @@ function normalizeMetadataTerminalData(metadata: TmuxTerminalMetadata): Terminal
         shadowNodeDimensions: dimensionsField(obj),
         isPinned: booleanField(obj, 'isPinned'),
         parentTerminalId: parentTerminalIdField(obj),
-        agentName: stringField(obj, 'agentName') ?? metadata.name,
         worktreeName: stringField(obj, 'worktreeName'),
         isHeadless: booleanField(obj, 'isHeadless'),
         isMinimized: booleanField(obj, 'isMinimized'),
@@ -177,7 +176,6 @@ function classifyRecord(record: MetadataRecord, input: ClassifierInput): Recover
 
     const recoverable: RecoverableAgentSession = {
         terminalId,
-        agentName: terminalData.agentName ?? metadata.name,
         metadataPath: record.path,
         terminalData,
         isClaimed: input.registryTerminalIds.has(metadata.name),

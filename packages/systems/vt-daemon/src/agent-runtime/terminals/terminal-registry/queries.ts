@@ -38,7 +38,7 @@ export function removeTerminalFromRegistry(terminalId: string): void {
  */
 export function getExistingAgentNames(): Set<string> {
     const records: TerminalRecord[] = getTerminalRecords()
-    const names: Set<string> = new Set(records.map((r: TerminalRecord) => r.terminalData.agentName))
+    const names: Set<string> = new Set(records.map((r: TerminalRecord) => r.terminalId))
     for (const pendingId of pendingTerminals.keys()) {
         names.add(pendingId)
     }

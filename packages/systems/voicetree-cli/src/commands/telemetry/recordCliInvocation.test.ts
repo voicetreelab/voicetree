@@ -24,8 +24,7 @@ describe('buildCliInvocationRecord — pure shape transform', () => {
         exitCode: 0,
         errorClass: null,
         gateRejection: null,
-        terminalId: 'Ari',
-        agentName: 'Vic',
+        terminalId: 'Ari-k3f',
         vtVersion: '0.42.1',
         nowIso: '2026-05-21T14:32:01.123Z',
         phase: 'end' as const,
@@ -40,7 +39,9 @@ describe('buildCliInvocationRecord — pure shape transform', () => {
             duration_ms: 142,
             error_class: null,
             gate_rejection: null,
-            agent: {terminalId: 'Ari', name: 'Vic'},
+            // name is the pure display mapping agentBaseName(terminalId) — the
+            // hash suffix is stripped; there is no separate stored agent name.
+            agent: {terminalId: 'Ari-k3f', name: 'Ari'},
             vt_version: '0.42.1',
             phase: 'end',
         })
@@ -78,7 +79,6 @@ describe('buildCliInvocationRecord — pure shape transform', () => {
         const r: CliInvocationRecord = buildCliInvocationRecord({
             ...baseInput,
             terminalId: null,
-            agentName: null,
         })
         expect(r.agent).toEqual({terminalId: null, name: null})
     })
@@ -158,8 +158,7 @@ describe('installCliInvocationSink — edge behaviour with injected deps', () =>
 
     it('emits exactly one phase="end" record when the exit handler fires', () => {
         const h: SinkTestHarness = makeHarness()
-        h.env.set('VOICETREE_TERMINAL_ID', 'Ari')
-        h.env.set('AGENT_NAME', 'Vic')
+        h.env.set('VOICETREE_TERMINAL_ID', 'Ari-k3f')
 
         installCliInvocationSink({
             filePath: '/tmp/x/cli-telemetry.jsonl',
@@ -185,7 +184,7 @@ describe('installCliInvocationSink — edge behaviour with injected deps', () =>
             duration_ms: 250,
             error_class: null,
             gate_rejection: null,
-            agent: {terminalId: 'Ari', name: 'Vic'},
+            agent: {terminalId: 'Ari-k3f', name: 'Ari'},
             vt_version: '0.0.1-test',
             phase: 'end',
         })

@@ -6,6 +6,7 @@ import {
     formatAgentId,
     getUniqueAgentName,
 } from './types';
+import {allocateUniqueAgentId} from '../../settings';
 
 describe('formatAgentId', () => {
     it('joins base name and hash with the separator', () => {
@@ -42,18 +43,21 @@ describe('getUniqueAgentName', () => {
         expect(getUniqueAgentName('Sam', taken, () => hashes.shift()!)).toBe('Sam-ccc');
     });
 
-    it('produces a hash of the configured length over [a-z0-9] by default', () => {
-        const id: string = getUniqueAgentName('Sam', new Set());
+});
+
+describe('allocateUniqueAgentId (real random hash source)', () => {
+    it('produces a hash of the configured length over [a-z0-9]', () => {
+        const id: string = allocateUniqueAgentId('Sam', new Set());
         const hash: string = id.slice(`Sam${AGENT_ID_SEPARATOR}`.length);
         expect(id.startsWith(`Sam${AGENT_ID_SEPARATOR}`)).toBe(true);
         expect(hash).toMatch(new RegExp(`^[a-z0-9]{${AGENT_ID_HASH_LENGTH}}$`));
     });
 
-    it('the default random source makes repeated draws of one base name distinct', () => {
+    it('makes repeated draws of one base name distinct', () => {
         // 46,656 ids per base name — a handful of draws colliding is astronomically
         // unlikely, which is the whole point of the hash.
         const ids: Set<string> = new Set(
-            Array.from({length: 50}, () => getUniqueAgentName('Sam', new Set())),
+            Array.from({length: 50}, () => allocateUniqueAgentId('Sam', new Set())),
         );
         expect(ids.size).toBe(50);
     });

@@ -62,7 +62,7 @@ export async function listAgentsTool(bridge: GraphBridge): Promise<McpToolRespon
         }
 
         const contextNodeId: string = record.terminalData.attachedToContextNodeId
-        const agentName: string | undefined = record.terminalData.agentName
+        const agentName: string | undefined = record.terminalId
 
         // Find nodes created by this agent via agent_name matching (scoped to spawn time)
         const indexedNodes: readonly {readonly nodeId: string; readonly title: string}[] = getAgentNodes(record.terminalId)

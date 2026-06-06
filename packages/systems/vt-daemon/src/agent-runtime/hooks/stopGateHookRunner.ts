@@ -19,13 +19,11 @@ import type {TerminalRecord} from '@vt/vt-daemon/agent-runtime/terminals/termina
 
 export type StopHookContext = {
     terminalId: string
-    agentName: string
     taskNodePath: string
     projectRoot: string
     parentTerminalId: string | null
     childAgents: Array<{
         terminalId: string
-        agentName: string
         taskNodePath: string
         status: 'running' | 'idle' | 'exited'
     }>
@@ -120,7 +118,6 @@ function buildContext(
         .filter(r => r.terminalData.parentTerminalId === terminalId)
         .map(r => ({
             terminalId: r.terminalId,
-            agentName: r.terminalData.agentName,
             taskNodePath: O.isSome(r.terminalData.anchoredToNodeId)
                 ? r.terminalData.anchoredToNodeId.value
                 : '',
@@ -133,7 +130,6 @@ function buildContext(
 
     return {
         terminalId,
-        agentName: record.terminalData.agentName,
         taskNodePath,
         projectRoot: record.terminalData.initialEnvVars?.VOICETREE_PROJECT_PATH ?? '',
         parentTerminalId: record.terminalData.parentTerminalId,
@@ -165,7 +161,7 @@ export async function runStopHooks(
     if (!context) return { passed: true }
 
     // Gate: skip hooks for agents with no progress nodes (VT internal logic)
-    if (!hasProgressNodes(context.agentName, graph)) {
+    if (!hasProgressNodes(context.terminalId, graph)) {
         return { passed: true }
     }
 

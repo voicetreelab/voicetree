@@ -145,7 +145,7 @@ function recomputeIndicatorEdgeRecency(cy: Core, shadowNodeId: string): void {
 function createTerminalIndicatorEdge(cy: Core, nodeId: string, agentName: string): void {
     const terminals: Map<string, import('@/shell/edge/UI-edge/floating-windows/anchoring/types').TerminalData> = getTerminals()
     for (const terminal of terminals.values()) {
-        if (terminal.agentName !== agentName) continue
+        if (getTerminalId(terminal) !== agentName) continue
         const shadowNodeId: string = getShadowNodeId(getTerminalId(terminal))
         const shadowNode: CollectionReturnValue = cy.getElementById(shadowNodeId)
         if (shadowNode.length === 0) continue
