@@ -245,15 +245,12 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
         ? renderSummaryChip(descendantSummary)
         : null;
 
-    return (
-        <div
-            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}${hasChildren ? ' has-children' : ''}`}
-            data-depth={depth}
-            data-terminal-id={terminalId}
-            onClick={handleClick}
-            onMouseDown={handleMouseDown}
-            aria-expanded={hasChildren ? !isCollapsed : undefined}
-        >
+    // Row content — rendered twice: once in the flex row (collapsed, ellipsised)
+    // and once inside the hover overlay (expanded, text wraps). Keeping it as one
+    // fragment means the two stay in lockstep; the only difference is the CSS the
+    // overlay applies to relax white-space.
+    const inner: JSX.Element = (
+        <>
             {/* Lifecycle indicator. Glyph (if any) supplied via CSS ::after. */}
             <span className={`terminal-tree-status ${statusClass}`} />
 
@@ -305,6 +302,28 @@ function TreeNode({ treeNode, isActive, shortcutHint, onSelect, isCollapsed, onT
             <button className="terminal-tree-close" onClick={handleClose}>
                 &times;
             </button>
+        </>
+    );
+
+    return (
+        <div
+            className={`terminal-tree-node${isActive ? ' active' : ''}${terminal.isHeadless ? ' headless' : ''}${isAwaiting ? ' attn' : ''}${hasChildren ? ' has-children' : ''}`}
+            data-depth={depth}
+            data-terminal-id={terminalId}
+            onClick={handleClick}
+            onMouseDown={handleMouseDown}
+            aria-expanded={hasChildren ? !isCollapsed : undefined}
+        >
+            {inner}
+
+            {/* Hover overlay — absolutely positioned, floats over the cards below.
+                Shown purely via CSS :hover (no JS state / re-render). Re-renders
+                the same row content with relaxed white-space so the full title,
+                worktree and status phrase wrap into view, with zero layout shift
+                on sibling nodes. */}
+            <div className="terminal-tree-hover-overlay">
+                {inner}
+            </div>
         </div>
     );
 }
