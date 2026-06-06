@@ -590,6 +590,112 @@ describe('child_count_limit rule', () => {
 })
 
 // ============================================================================
+// folder_child_count_limit rule (live-gardening prevention)
+// ============================================================================
+
+function folderChildViolations(result: ValidationResult): readonly RuleViolation[] {
+    return result.status === 'violations'
+        ? result.violations.filter((v: RuleViolation) => v.ruleId === 'folder_child_count_limit' && v.severity === 'violation')
+        : []
+}
+
+/** A folder node: its identity note plus `count` direct member leaves. */
+function folderWithMembers(folderPath: string, count: number): Graph {
+    const folderName: string = folderPath.replace(/\/$/, '').split('/').pop() ?? folderPath
+    const identityNote: string = `${folderPath}${folderName}.md`
+    const members: string[] = Array.from({length: count}, (_: unknown, i: number) => `${folderPath}member-${i}.md`)
+    return mockGraph([identityNote, ...members])
+}
+
+describe('folder_child_count_limit rule', () => {
+    it('exempts a directory with no folder identity note (e.g. the graph root)', () => {
+        // /project/ has many members but no /project/project.md → not an established folder node.
+        const graph: Graph = mockGraph(
+            Array.from({length: 12}, (_: unknown, i: number) => `/project/n-${i}.md`),
+        )
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'more', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '/project/n-0.md',
+            destinationFolderPath: '/project/',
+            graph,
+        }))
+        expect(folderChildViolations(result)).toHaveLength(0)
+    })
+
+    it('passes when an established folder stays at or under the cap', () => {
+        const graph: Graph = folderWithMembers('/project/foo/', 3)
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [
+                mockNode({filename: 'a', title: 'T', summary: 'S'}),
+                mockNode({filename: 'b', title: 'T', summary: 'S'}),
+            ],
+            resolvedParentNodeId: '/project/foo/foo.md',
+            destinationFolderPath: '/project/foo/',
+            maxFolderChildren: 5,
+            graph,
+        }))
+        expect(folderChildViolations(result)).toHaveLength(0)
+    })
+
+    it('blocks when existing members plus the batch exceed the cap', () => {
+        const graph: Graph = folderWithMembers('/project/foo/', 5)
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: Array.from({length: 3}, (_: unknown, i: number) =>
+                mockNode({filename: `extra-${i}`, title: 'T', summary: 'S'})),
+            resolvedParentNodeId: '/project/foo/foo.md',
+            destinationFolderPath: '/project/foo/',
+            maxFolderChildren: 7,
+            graph,
+        }))
+        const violations: readonly RuleViolation[] = folderChildViolations(result)
+        expect(violations).toHaveLength(1)
+        expect(violations[0].details).toMatchObject({
+            existingMembers: 5,
+            addedMembers: 3,
+            directMembers: 8,
+            limit: 7,
+        })
+        expect(violations[0].nodeFilename).toBe('__graph_root__')
+    })
+
+    it('excludes the identity note and context nodes from the count (different axis from child_count_limit)', () => {
+        // Folder with identity note + 6 real members + 1 context node. Adding 1 → 7 real members.
+        // If the identity note or context node were counted, this would breach a cap of 7.
+        const graph: Graph = folderWithMembers('/project/foo/', 6)
+        const contextNodeId: NodeIdAndFilePath = '/project/foo/ctx.md'
+        graph.nodes[contextNodeId] = {
+            ...graph.nodes['/project/foo/member-0.md'],
+            absoluteFilePathIsID: contextNodeId,
+            nodeUIMetadata: {...graph.nodes['/project/foo/member-0.md'].nodeUIMetadata, isContextNode: true},
+        }
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'seventh', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '/project/foo/foo.md',
+            destinationFolderPath: '/project/foo/',
+            maxFolderChildren: 7,
+            graph,
+        }))
+        expect(folderChildViolations(result)).toHaveLength(0)
+    })
+
+    it('is overridable with a rationale', () => {
+        const graph: Graph = folderWithMembers('/project/foo/', 8)
+        const result: ValidationResult = runValidations(ALL_RULES, buildCtx({
+            nodes: [mockNode({filename: 'more', title: 'T', summary: 'S'})],
+            resolvedParentNodeId: '/project/foo/foo.md',
+            destinationFolderPath: '/project/foo/',
+            maxFolderChildren: 7,
+            graph,
+        }))
+        const blocking: readonly RuleViolation[] = folderChildViolations(result)
+        expect(blocking).toHaveLength(1)
+        const overrides: readonly OverrideEntry[] = [{ruleId: 'folder_child_count_limit', rationale: 'curated index folder'}]
+        const {unresolved} = resolveOverrides(blocking, overrides)
+        expect(unresolved).toHaveLength(0)
+    })
+})
+
+// ============================================================================
 // graph_complexity_limit rule
 // ============================================================================
 

@@ -10,7 +10,7 @@
 import {describe, it, expect} from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphNode, NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
-import {resolveWorktreeRouting, worktreeFolderNoteInput, type WorktreeRouting} from './createGraphTool'
+import {resolveWorktreeRouting, worktreeFolderNoteInput, existingSiblingFolders, type WorktreeRouting, type SiblingFolderSummary} from './createGraphTool'
 import type {CreateGraphNodeInput} from './createGraphTypes'
 
 function graphWith(nodeIds: readonly string[]): Graph {
@@ -72,5 +72,48 @@ describe('worktreeFolderNoteInput', () => {
     it('creates no folder note when routing is inactive (explicit outputPath / non-worktree)', () => {
         const inactive: WorktreeRouting = {outputPath: 'some/dir', active: false, worktreeName: null}
         expect(worktreeFolderNoteInput(inactive, '/w/some/dir', graphWith([]))).toBeNull()
+    })
+})
+
+describe('existingSiblingFolders (live-gardening "show folders")', () => {
+    it('lists established sub-folders of the destination with their direct member counts', () => {
+        const graph: Graph = graphWith([
+            '/w/dir/dir.md',          // the destination folder's own identity note
+            '/w/dir/flat.md',         // a flat sibling node (not a folder)
+            '/w/dir/auth/auth.md',    // sub-folder identity note
+            '/w/dir/auth/login.md',
+            '/w/dir/auth/signup.md',
+            '/w/dir/db/db.md',        // another sub-folder identity note
+            '/w/dir/db/schema.md',
+        ])
+        const folders: readonly SiblingFolderSummary[] = existingSiblingFolders(graph, '/w/dir/')
+        expect(folders).toEqual([
+            {folder: '/w/dir/auth/', name: 'auth', directMembers: 2},
+            {folder: '/w/dir/db/', name: 'db', directMembers: 1},
+        ])
+    })
+
+    it('omits sub-folder paths that have no identity note (not real folder nodes)', () => {
+        // '/w/dir/loose/' has descendants but no '/w/dir/loose/loose.md' identity note.
+        const graph: Graph = graphWith(['/w/dir/dir.md', '/w/dir/loose/orphan.md'])
+        expect(existingSiblingFolders(graph, '/w/dir/')).toEqual([])
+    })
+
+    it('excludes context nodes from a sub-folder member count', () => {
+        const graph: Graph = graphWith([
+            '/w/dir/auth/auth.md',
+            '/w/dir/auth/login.md',
+            '/w/dir/auth/ctx.md',
+        ])
+        graph.nodes['/w/dir/auth/ctx.md'] = {
+            ...graph.nodes['/w/dir/auth/ctx.md'],
+            nodeUIMetadata: {...graph.nodes['/w/dir/auth/ctx.md'].nodeUIMetadata, isContextNode: true},
+        }
+        const folders: readonly SiblingFolderSummary[] = existingSiblingFolders(graph, '/w/dir/')
+        expect(folders).toEqual([{folder: '/w/dir/auth/', name: 'auth', directMembers: 1}])
+    })
+
+    it('returns empty when the destination has no sub-folders', () => {
+        expect(existingSiblingFolders(graphWith(['/w/dir/dir.md', '/w/dir/a.md']), '/w/dir/')).toEqual([])
     })
 })
