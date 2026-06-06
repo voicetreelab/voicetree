@@ -30,27 +30,26 @@ function shouldSkipPath(fullPath: string): boolean {
 
 function findMdFiles(dir: string): string[] {
     const results: string[] = []
-
-    function walk(currentDir: string): void {
+    const dirsToVisit: string[] = [dir]
+    while (dirsToVisit.length > 0) {
+        const currentDir = dirsToVisit.pop()!
         let entries
         try {
             entries = readdirSync(currentDir, {withFileTypes: true})
         } catch {
-            return
+            continue
         }
 
         for (const entry of entries) {
             const fullPath = join(currentDir, entry.name)
             if (shouldSkipPath(fullPath)) continue
             if (entry.isDirectory()) {
-                walk(fullPath)
+                dirsToVisit.push(fullPath)
                 continue
             }
             if (entry.isFile() && entry.name.endsWith('.md')) results.push(fullPath)
         }
     }
-
-    walk(dir)
     return results.sort()
 }
 
@@ -223,31 +222,32 @@ export function mergeReferenceSummaries(left: ReferenceUpdateSummary, right: Ref
 }
 
 function parseRelinkArgs(args: string[]): {dryRun: boolean; projectRoot: string} {
-    let dryRun = false
-    let projectRoot = BRAIN
+    const parsed = {dryRun: false, projectRoot: BRAIN}
     const positionals: string[] = []
 
-    for (let i = 0; i < args.length; i++) {
-        const arg = args[i]
+    for (let i = 0; i < args.length;) {
+        const arg = args[i]!
         if (arg === '--dry-run') {
-            dryRun = true
+            parsed.dryRun = true
+            i += 1
             continue
         }
         if (arg === '--project') {
             const val = args[i + 1]
             if (!val) error('--project requires a value')
-            projectRoot = resolve(val)
-            i++
+            parsed.projectRoot = resolve(val)
+            i += 2
             continue
         }
         positionals.push(arg)
+        i += 1
     }
 
     if (positionals.length > 0) {
         error('Usage: vt graph relink [--dry-run] [--project PATH]')
     }
 
-    return {dryRun, projectRoot}
+    return parsed
 }
 
 function formatRelinkResult(result: RelinkResult): string {
