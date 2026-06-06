@@ -127,25 +127,27 @@ describe('formatGardenPlan / parseGardenPlan round-trip', () => {
 })
 
 describe('renderFolderNote', () => {
-    it('renders a folder identity note with frontmatter, contents, and an internal parent link', () => {
+    it('parents the folder note at the gardened folder, NOT at a node moved into it', () => {
         const note = renderFolderNote(
             'agent-status-reporting-redesign',
             [
                 {filename: 'nuke-list.md', title: 'Nuke the adapter'},
                 {filename: 'add-status-plan.md', title: 'Add status preset'},
             ],
-            'status-redesign-proposal.md',
+            'status-redesign', // the gardened folder's own identity note (extension-free basename)
         )
         expect(note.startsWith('---\ncolor: green')).toBe(true)
         expect(note).toContain('# agent-status-reporting-redesign')
         expect(note).toContain('- **nuke-list** — Nuke the adapter')
-        expect(note).toContain('- parent [[status-redesign-proposal]]')
+        // The parent is the gardened folder, not one of the members (would invert the edge).
+        expect(note).toContain('- parent [[status-redesign]]')
+        expect(note).not.toContain('- parent [[nuke-list]]')
         expect(note.split('\n').length).toBeLessThanOrEqual(16)
     })
 
     it('summarises overflow beyond 8 members instead of listing all', () => {
         const members = Array.from({length: 12}, (_, i) => ({filename: `n${i}.md`, title: `Title ${i}`}))
-        const note = renderFolderNote('big-cluster', members, 'n0.md')
+        const note = renderFolderNote('big-cluster', members, 'parent-folder')
         expect(note).toContain('- …and 4 more')
     })
 })

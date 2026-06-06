@@ -15,6 +15,7 @@ import {homedir} from 'node:os'
 import {error, output} from '../output'
 import {resolveFilePath} from '../move'
 import {groupNodesIntoFolder, type GraphGroupResult} from '../group'
+import {DEFAULT_SUBGRAPH_ERROR_THRESHOLD} from '@vt/graph-model/settings'
 import {
     basenameNoExt,
     buildGardenPlan,
@@ -28,8 +29,6 @@ import {
 } from './plan'
 
 const BRAIN = resolve(join(homedir(), 'brain'))
-/** Mirrors DEFAULT_SUBGRAPH_ERROR_THRESHOLD: the subgraph gate blocks a connected component at this size. */
-const SUBGRAPH_BLOCK_THRESHOLD = 6
 
 interface GardenArgs {
     readonly apply: boolean
@@ -97,16 +96,15 @@ function readFolderNodes(folderAbsPath: string): readonly GardenFolderNode[] {
 interface ApplyGroup {
     readonly folderName: string
     readonly members: readonly string[]
-    readonly representative: string
 }
 
 function resolveApplyGroups(plan: GardenPlan, planFile: string | null): readonly ApplyGroup[] {
     if (planFile === null) {
-        return plan.clusters.map((c) => ({folderName: c.folderName, members: c.members, representative: c.representative}))
+        return plan.clusters.map((c) => ({folderName: c.folderName, members: c.members}))
     }
     if (!existsSync(planFile)) error(`Plan file does not exist: ${planFile}`)
     const parsed = parseGardenPlan(readFileSync(planFile, 'utf8'))
-    return parsed.map((g) => ({folderName: g.folderName, members: g.members, representative: g.members[0]}))
+    return parsed.map((g) => ({folderName: g.folderName, members: g.members}))
 }
 
 function validateGroups(groups: readonly ApplyGroup[], known: ReadonlySet<string>): void {
@@ -180,7 +178,9 @@ export async function graphGarden(_terminalId: string | undefined, args: string[
         const notePath: string = join(subfolderAbs, `${group.folderName}.md`)
         if (!dryRun) {
             const noteMembers = group.members.map((m) => ({filename: m, title: titleOf.get(m) ?? basenameNoExt(m)}))
-            writeFileSync(notePath, renderFolderNote(group.folderName, noteMembers, group.representative), 'utf8')
+            // The new sub-folder hangs off the gardened folder's own identity note,
+            // NOT off one of the nodes being moved into it (that would invert the edge).
+            writeFileSync(notePath, renderFolderNote(group.folderName, noteMembers, basename(folderAbsPath)), 'utf8')
             folderNoteRel = relative(projectRoot, notePath)
         }
 
@@ -197,7 +197,7 @@ export async function graphGarden(_terminalId: string | undefined, args: string[
         referencesUpdated,
         remainingTopLevel: nodes.length - totalMoved,
         largestNewCluster: Math.max(...groups.map((g) => g.members.length)),
-        blockThreshold: SUBGRAPH_BLOCK_THRESHOLD,
+        blockThreshold: DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
     }
     output(result, formatApplyResult)
 }
