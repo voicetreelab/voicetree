@@ -42,6 +42,11 @@ describe('requireDeclaredStatus', () => {
         expect(result.message).toContain('vt agent status')
     })
 
+    it('keeps the terminal nudge ASCII-only', () => {
+        const result = requireDeclaredStatus(recordWith(null))
+        expect(result.message).toMatch(/^[\x00-\x7F]*$/)
+    })
+
     it('fails when the last declared status is "working" (stopped mid-work)', () => {
         const result = requireDeclaredStatus(recordWith('working'))
         expect(result.passed).toBe(false)
