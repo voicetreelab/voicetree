@@ -1,6 +1,15 @@
-import {flattenAgentTree, resolveDefaultAgent} from '@vt/graph-model/settings'
-import type {AgentConfig, VTSettings} from '@vt/graph-model/settings'
+import {flattenAgentTree} from '@vt/graph-model/settings'
+import type {AgentConfig, ResolvedAgent, VTSettings} from '@vt/graph-model/settings'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
+
+function resolveDefaultLeaf(leaves: readonly ResolvedAgent[], defaultAgentName?: string): ResolvedAgent | undefined {
+    if (defaultAgentName) {
+        return leaves.find(leaf => leaf.label === defaultAgentName)
+            ?? leaves.find(leaf => leaf.name === defaultAgentName)
+            ?? leaves[0]
+    }
+    return leaves[0]
+}
 
 /**
  * Resolve the command to launch. A provided command must be one that some leaf
@@ -19,15 +28,16 @@ export function resolveAgentCommand(
     }
 
     const agents: readonly AgentConfig[] = settings.agents ?? []
+    const leaves: readonly ResolvedAgent[] = flattenAgentTree(agents)
     if (agentCommand !== undefined) {
-        const resolvable: Set<string> = new Set(flattenAgentTree(agents).map(leaf => leaf.command).filter(command => command.length > 0))
+        const resolvable: Set<string> = new Set(leaves.map(leaf => leaf.command).filter(command => command.length > 0))
         if (!resolvable.has(agentCommand)) {
             throw new Error('Invalid agent command - must be a command resolvable from settings.agents')
         }
         return agentCommand
     }
 
-    const command: string = resolveDefaultAgent(agents, settings.defaultAgent)?.command ?? ''
+    const command: string = resolveDefaultLeaf(leaves, settings.defaultAgent)?.command ?? ''
     if (!command) {
         throw new Error('No agent command available - settings.agents is empty or undefined')
     }
