@@ -2,7 +2,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { VTSettings } from '@vt/graph-model/settings';
 
-import {DEFAULT_SETTINGS} from '@vt/graph-model/settings';
+import {DEFAULT_SETTINGS, isReservedAgentPromptEnvKey} from '@vt/graph-model/settings';
+import type {EnvVarValue} from '@vt/graph-model/settings';
 import {getCallbacks} from '@vt/graph-model';
 import {resolveVoicetreeHomePath} from '@vt/paths';
 import {SETTINGS_FILENAME} from '../config-files.ts';
@@ -16,6 +17,24 @@ export function clearSettingsCache(): void {
   // No-op: loadSettings reads from disk on every call so cross-process writes are visible immediately.
 }
 
+function sanitizeInjectEnvVars(envVars: Record<string, EnvVarValue> | undefined): Record<string, EnvVarValue> {
+  const entries: readonly (readonly [string, EnvVarValue])[] = Object
+    .entries(envVars ?? {})
+    .filter(([key]: readonly [string, EnvVarValue]): boolean => !isReservedAgentPromptEnvKey(key));
+  return Object.fromEntries(entries) as Record<string, EnvVarValue>;
+}
+
+function hasReservedAgentPromptEnvKey(envVars: Record<string, EnvVarValue> | undefined): boolean {
+  return Object.keys(envVars ?? {}).some(isReservedAgentPromptEnvKey);
+}
+
+function sanitizeSettingsForPersistence(settings: VTSettings): VTSettings {
+  return {
+    ...settings,
+    INJECT_ENV_VARS: sanitizeInjectEnvVars(settings.INJECT_ENV_VARS),
+  };
+}
+
 export async function loadSettings(): Promise<VTSettings> {
   const voicetreeHomePath: string = resolveVoicetreeHomePath();
   const settingsPath: string = getSettingsPath(voicetreeHomePath);
@@ -23,8 +42,9 @@ export async function loadSettings(): Promise<VTSettings> {
     const data: string = await fs.readFile(settingsPath, 'utf-8');
     const userSettings: Partial<VTSettings> = JSON.parse(data) as Partial<VTSettings>;
     // Shallow merge at top level; deep-merge INJECT_ENV_VARS so new default keys always reach users
-    // without clobbering user-owned overrides such as AGENT_PROMPT_CORE.
-    const settings: VTSettings = {
+    // without clobbering user-owned env vars. Prompt-template bodies are no longer
+    // settings-owned; they live in ~/.voicetree/prompts and are pruned below.
+    const mergedSettings: VTSettings = {
       ...DEFAULT_SETTINGS,
       ...userSettings,
       INJECT_ENV_VARS: {
@@ -32,11 +52,16 @@ export async function loadSettings(): Promise<VTSettings> {
         ...userSettings.INJECT_ENV_VARS,
       },
     };
+    const settings: VTSettings = sanitizeSettingsForPersistence(mergedSettings);
+    if (hasReservedAgentPromptEnvKey(userSettings.INJECT_ENV_VARS)) {
+      await saveSettings(settings);
+    }
     return settings;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      await saveSettings(DEFAULT_SETTINGS);
-      return DEFAULT_SETTINGS;
+      const settings: VTSettings = sanitizeSettingsForPersistence(DEFAULT_SETTINGS);
+      await saveSettings(settings);
+      return settings;
     }
     throw error;
   }
@@ -173,10 +198,10 @@ export async function saveSettings(settings: VTSettings): Promise<boolean> {
   const voicetreeHomePath: string = resolveVoicetreeHomePath();
   const settingsPath: string = getSettingsPath(voicetreeHomePath);
   const settingsDir: string = path.dirname(settingsPath);
+  const settingsToWrite: VTSettings = sanitizeSettingsForPersistence(settings);
 
   await fs.mkdir(settingsDir, { recursive: true });
-  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  await fs.writeFile(settingsPath, JSON.stringify(settingsToWrite, null, 2), 'utf-8');
   getCallbacks().onSettingsChanged?.();
   return true;
 }
-

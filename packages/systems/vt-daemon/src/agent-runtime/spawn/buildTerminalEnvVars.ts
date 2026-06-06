@@ -63,8 +63,8 @@ export async function buildTerminalEnvVars(params: {
     // AGENT_PROMPT_* templates are .md files in the single per-machine prompts
     // location ~/.voicetree/prompts (NO per-project prompts dir) — symlinks to the
     // canonical shipped source, kept in sync at daemon/Electron startup. A file is
-    // authoritative over any settings default of the same name; a settings value
-    // only applies when no file exists (e.g. a test that blanks the prompt).
+    // authoritative over any settings value of the same name; persisted settings
+    // prune these reserved keys so stale UI values cannot shadow the files.
     // --prompt-template selects which one becomes AGENT_PROMPT.
     const voicetreePromptsDir: string = path.join(voicetreeHomePath, 'prompts')
     const promptTemplates: Record<string, string> = await readPromptTemplates(voicetreePromptsDir)
