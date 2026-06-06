@@ -109,6 +109,14 @@ export type TerminalData = {
      */
     readonly statusPhrase: string;
     /**
+     * Epoch-ms timestamp of the most recent `statusPhrase` write, or `0` while
+     * the phrase is still its initial empty string. Used to protect a freshly
+     * authored status from being clobbered by typed terminal input: input only
+     * overrides the phrase once the existing one is older than
+     * `STATUS_PHRASE_OVERRIDE_STALENESS_MS` (see `deriveTerminalInputStarted`).
+     */
+    readonly statusPhraseUpdatedAt: number;
+    /**
      * The last status preset the agent *itself* declared this turn (via
      * `create_graph`'s `agentStatus` or `vt agent status`), or `null` if it has
      * not declared one. Distinct from `lifecycle`, which is lossy: an

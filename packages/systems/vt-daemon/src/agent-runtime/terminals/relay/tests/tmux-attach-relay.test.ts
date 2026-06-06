@@ -285,9 +285,11 @@ describe('tmux attach relay', () => {
             ws.send(JSON.stringify({type: 'input', payload: 'BF312_INPUT_STARTED\r'}))
             await waitForOutput(output, 'ECHO:BF312_INPUT_STARTED')
 
+            // The relay accumulates keystrokes and emits the completed line on
+            // Enter, so the mark carries the submitted text without the CR.
             expect(marks).toEqual([{
                 terminalId: sessionName,
-                inputText: 'BF312_INPUT_STARTED\r',
+                inputText: 'BF312_INPUT_STARTED',
             }])
         } finally {
             ws.close()
