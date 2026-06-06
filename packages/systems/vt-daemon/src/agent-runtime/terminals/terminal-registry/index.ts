@@ -17,6 +17,7 @@ export {recordTerminalSpawn} from './spawn'
 
 export {
     incrementAuditRetryCount,
+    markTerminalInputStarted,
     markTerminalExited,
     markTerminalKillReason,
     resetAuditRetryCount,

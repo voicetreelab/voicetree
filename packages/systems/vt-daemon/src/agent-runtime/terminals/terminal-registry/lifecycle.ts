@@ -1,6 +1,7 @@
 import {classifyExit} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import {recordTierEvent} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import type {TerminalLifecycle, TerminalKillReason} from '@vt/vt-daemon/agent-runtime/lifecycle'
+import {deriveTerminalInputStarted} from '../core/handleTerminalInputStarted.ts'
 import {updateTerminalIsDoneWorkflow} from '../workflows/terminalIsDone.ts'
 import {
     hasActiveChildren,
@@ -43,6 +44,24 @@ export function updateTerminalIsDone(
     runtime?: TerminalRegistryRuntime,
 ): void {
     updateTerminalIsDoneWorkflow(terminalId, isDone, runtime)
+}
+
+export function markTerminalInputStarted(terminalId: string, inputText: string): void {
+    const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
+    if (!record) return
+
+    const result = deriveTerminalInputStarted(record, inputText)
+    if (!result.changed) return
+
+    terminalRecords.set(terminalId, result.record)
+    notifyRegistrySubscribers()
+    for (const patch of result.patches) {
+        publishTerminalRegistryEvent({
+            type: 'terminal-record-changed',
+            terminalId: terminalId as TerminalId,
+            patch,
+        })
+    }
 }
 
 export function markTerminalExited(

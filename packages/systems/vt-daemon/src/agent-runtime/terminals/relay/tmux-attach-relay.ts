@@ -4,6 +4,7 @@ import type {IPty} from 'node-pty'
 import {WebSocket} from 'ws'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
 import {hasSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
+import {markTerminalInputStarted} from '../terminal-registry/lifecycle.ts'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40
@@ -27,6 +28,7 @@ export interface TmuxAttachRelayOptions {
     readonly env?: NodeJS.ProcessEnv
     readonly loadPty?: () => Promise<NodePtyModule>
     readonly logger?: TmuxRelayLogger
+    readonly markInputStarted?: (terminalId: string, inputText: string) => void
     readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
 }
 
@@ -275,7 +277,10 @@ export async function attachTmuxSessionToWebSocket(
         const record: Record<string, unknown> = msg as Record<string, unknown>
 
         if ((record.type === 'input' || record.type === 'data') && typeof record.payload === 'string') {
-            enqueuePacedInput(term, pendingWrites, writeState, record.payload)
+            const payload: string = record.payload
+            const markInputStarted = options.markInputStarted ?? markTerminalInputStarted
+            markInputStarted(parsed.sessionName, payload)
+            enqueuePacedInput(term, pendingWrites, writeState, payload)
             return
         }
 
