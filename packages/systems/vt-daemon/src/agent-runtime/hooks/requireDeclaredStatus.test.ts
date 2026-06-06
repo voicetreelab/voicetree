@@ -40,6 +40,8 @@ describe('requireDeclaredStatus', () => {
         const result = requireDeclaredStatus(recordWith(null))
         expect(result.passed).toBe(false)
         expect(result.message).toContain('vt agent status')
+        expect(result.message).not.toContain('agentStatus')
+        expect(result.message).not.toContain('progress node')
     })
 
     it('keeps the terminal nudge ASCII-only', () => {
