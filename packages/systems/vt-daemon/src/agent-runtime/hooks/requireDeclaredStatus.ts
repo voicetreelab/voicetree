@@ -35,7 +35,7 @@ function isTerminalDeclaredStatus(status: AgentStatus): boolean {
 
 const NUDGE_MESSAGE: string =
     'You have stopped but not declared your status. Run `vt agent status done` '
-    + '(or `failed` / `awaiting_input`) to close yourself out — or include '
+    + '(or `failed` / `awaiting_input`) to close yourself out, or include '
     + '`agentStatus` on your final progress node.'
 
 export function requireDeclaredStatus(record: TerminalRecord): StopHookResult {
