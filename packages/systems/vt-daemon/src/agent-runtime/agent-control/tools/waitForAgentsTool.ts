@@ -12,6 +12,9 @@ import {
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
 import {listTerminalRecords, type TerminalRecord} from '../agentControlRuntime'
 
+const WAIT_FOR_AGENTS_STOP_INSTRUCTION =
+    'Do not poll, inspect output, or take further action on these agents; end your turn now and wait for the automatic completion notification that will be sent back to you.'
+
 export interface WaitForAgentsParams {
     terminalIds: string[]
     callerTerminalId: string
@@ -51,7 +54,7 @@ export function waitForAgentsTool(
         return buildJsonResponse({
             status: 'already_waiting',
             terminalIds,
-            message: `Already waiting on ${alreadyWaitingOn.length} terminal(s): ${alreadyWaitingOn.join(', ')}. No new monitor started.`,
+            message: `Already waiting on ${alreadyWaitingOn.length} terminal(s): ${alreadyWaitingOn.join(', ')}. No new monitor started. ${WAIT_FOR_AGENTS_STOP_INSTRUCTION}`,
         })
     }
 
@@ -67,6 +70,6 @@ export function waitForAgentsTool(
         monitorId,
         status: 'monitoring',
         terminalIds: targetTerminalIds,
-        message: `Background monitor started (${monitorId}). You do NOT need to poll or check on these agents — a completion message will be automatically injected into your terminal when all ${targetTerminalIds.length} agent(s) finish. You are free to continue other work now. When agents complete, you will receive a "[WaitForAgents] Agent(s) completed." message with details about each agent's status and the nodes they created. ${messageSuffix}`,
+        message: `Background monitor started (${monitorId}). ${messageSuffix ? `${messageSuffix} ` : ''}${WAIT_FOR_AGENTS_STOP_INSTRUCTION}`,
     })
 }
