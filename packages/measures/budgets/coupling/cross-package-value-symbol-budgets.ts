@@ -236,7 +236,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // simple-POST CSRF (+1 value symbol).
     'graph-db-server -> graph-db-protocol': 2,
     'graph-db-server -> graph-model': 42,
-    'graph-db-server -> graph-state': 10,
+    // 2026-06-07 [task-folder-live-state]: 10 -> 11 (+1).
+    // `projectGraphDerivedFolderTree` moved into @vt/graph-state so VTD can
+    // bootstrap graph-derived folder roots without importing graph-db-server.
+    // graph-db-server keeps a compatibility shim for existing local callers.
+    'graph-db-server -> graph-state': 11,
     'graph-db-server -> graph-tools': 1,
     'graph-db-server -> observability': 10,
     'graph-db-server -> paths': 2,
@@ -376,7 +380,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
     // in webapp's process).
-    'vt-daemon -> graph-state': 3,
+    // 2026-06-07 [task-folder-live-state]: 3 -> 4 (+1).
+    // VTD now also imports `projectGraphDerivedFolderTree` from graph-state's
+    // explicit subpath to bootstrap live folder roots without depending on
+    // graph-db-server.
+    'vt-daemon -> graph-state': 4,
     // 2026-06-04 [vt graph garden]: 8 -> 9 (+1 buildGardenPlan). The create-graph
     // subgraph_size_limit block now renders a guided garden proposal via
     // gardenProposal.ts, which calls graph-tools' pure `buildGardenPlan` (the

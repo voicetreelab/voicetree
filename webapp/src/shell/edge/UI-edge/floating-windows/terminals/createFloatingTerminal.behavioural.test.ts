@@ -29,6 +29,8 @@ vi.mock('@/shell/UI/floating-windows/terminals/TerminalVanilla', () => ({
 const SOURCE_TASK_NODE_ID: NodeIdAndFilePath = '/project/source-task.md' as NodeIdAndFilePath;
 const CONTEXT_NODE_ID: NodeIdAndFilePath = '/project/ctx-nodes/context_context_123.md' as NodeIdAndFilePath;
 const LATE_TASK_NODE_ID: NodeIdAndFilePath = '/project/late-node.md' as NodeIdAndFilePath;
+const FOLDER_NODE_ID = '/project/task-folder/';
+const FOLDER_NOTE_NODE_ID: NodeIdAndFilePath = '/project/task-folder/task-folder.md' as NodeIdAndFilePath;
 const TERMINAL_ID: TerminalId = 'behavioural-terminal' as TerminalId;
 
 function createTestCy(includeAnchorNode: boolean): Core {
@@ -50,13 +52,13 @@ function createTestCy(includeAnchorNode: boolean): Core {
     return cy;
 }
 
-function makeTerminalData(): TerminalData {
+function makeTerminalData(anchoredToNodeId: NodeIdAndFilePath = LATE_TASK_NODE_ID): TerminalData {
     return createTerminalData({
         terminalId: TERMINAL_ID,
         attachedToNodeId: CONTEXT_NODE_ID,
         terminalCount: 0,
         title: 'Behavioural terminal',
-        anchoredToNodeId: LATE_TASK_NODE_ID,
+        anchoredToNodeId,
         agentName: 'TestAgent',
         shadowNodeDimensions: { width: 395, height: 380 },
     });
@@ -66,7 +68,7 @@ function getShadowId(): ShadowNodeId {
     return getShadowNodeId(TERMINAL_ID);
 }
 
-function getParentToShadowEdge(cy: Core, parentNodeId: NodeIdAndFilePath, shadowNodeId: ShadowNodeId): EdgeSingular | undefined {
+function getParentToShadowEdge(cy: Core, parentNodeId: string, shadowNodeId: ShadowNodeId): EdgeSingular | undefined {
     return cy.edges().find((edge: EdgeSingular) =>
         edge.source().id() === parentNodeId && edge.target().id() === shadowNodeId
     );
@@ -181,5 +183,27 @@ describe('createFloatingTerminal behavioural anchoring', () => {
 
         expect(terminal).toBeDefined();
         await assertTerminalAnchoredToLateNode(cy, terminal as TerminalData);
+    }, 10_000);
+
+    it('anchors folder-note terminal records to the visible folder node', async () => {
+        cy = createTestCy(false);
+        cy.add({
+            group: 'nodes',
+            data: { id: FOLDER_NODE_ID, isFolderNode: true },
+            position: { x: 1000, y: 1000 },
+        });
+        const terminalData: TerminalData = makeTerminalData(FOLDER_NOTE_NODE_ID);
+
+        const terminal: TerminalData | undefined = await createFloatingTerminal(cy, SOURCE_TASK_NODE_ID, terminalData);
+
+        expect(terminal).toBeDefined();
+        expect(terminal?.anchoredToNodeId).toEqual(terminalData.anchoredToNodeId);
+
+        const shadowNodeId: ShadowNodeId = getShadowId();
+        const shadowNode = cy.getElementById(shadowNodeId);
+        expect(shadowNode.length).toBe(1);
+        expect(shadowNode.data('parentNodeId')).toBe(FOLDER_NODE_ID);
+        expect(getParentToShadowEdge(cy, FOLDER_NODE_ID, shadowNodeId)).toBeDefined();
+        expect(cy.getElementById(FOLDER_NODE_ID).data('hasRunningTerminal')).toBe(true);
     }, 10_000);
 });

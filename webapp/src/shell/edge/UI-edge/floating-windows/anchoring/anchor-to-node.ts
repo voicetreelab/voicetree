@@ -25,6 +25,7 @@ import {extractAllObstaclesFromCytoscape} from "@/shell/edge/UI-edge/floating-wi
 import type {SpatialIndex} from "@vt/graph-model/spatial";
 import {extractFromSpatialIndex} from "@vt/graph-model/spatial";
 import { getLayout } from '@vt/graph-state/state/layoutStore';
+import { resolveVisibleAnchorNodeId } from "@/shell/edge/UI-edge/floating-windows/anchoring/resolve-visible-anchor-node-id";
 
 /**
  * Anchor a floating window to a parent node
@@ -47,7 +48,8 @@ export function anchorToNode(
         throw new Error('Cannot anchor a floating window that has no anchoredToNodeId');
     }
 
-    const parentNodeId: NodeIdAndFilePath = fw.anchoredToNodeId.value;
+    const logicalParentNodeId: NodeIdAndFilePath = fw.anchoredToNodeId.value;
+    const parentNodeId: string = resolveVisibleAnchorNodeId(cy, logicalParentNodeId);
     const {windowElement} = fw.ui;
 
     //console.log('[anchorToNode-v2] Anchoring to parentNodeId:', parentNodeId);
@@ -55,7 +57,7 @@ export function anchorToNode(
     // [L2-seam-residual] cy-only: shadow-node parent lookup
     const parentNode: cytoscape.CollectionReturnValue = cy.getElementById(parentNodeId);
     if (parentNode.length === 0) {
-        throw new Error(`Parent node "${parentNodeId}" not found in graph. Cannot anchor floating window.`);
+        throw new Error(`Parent node "${logicalParentNodeId}" not found in graph. Cannot anchor floating window.`);
     }
 
     // Derive shadow node ID from the floating window data
