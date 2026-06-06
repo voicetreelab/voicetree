@@ -3,7 +3,7 @@
  * Electron-main telemetry recorder (consumer).
  *
  * The renderer has no OpenTelemetry SDK, so the probe batches plain JSON
- * telemetry over preload IPC (`window.electronAPI.main.recordRendererTelemetry`)
+ * telemetry over preload IPC (`window.hostAPI.main.recordRendererTelemetry`)
  * to the main process, which owns the OTLP exporter (see
  * `recordRendererTelemetry.ts`). This module is the ONLY thing both sides
  * import — it carries no Electron, no OTel, and no DOM dependency, so it stays

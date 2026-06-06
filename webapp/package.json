@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.0.1",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -48,9 +48,11 @@
     "electron:prod-full": "npm run build:server && npm run electron:prod",
     "electron:persist-state": "VOICETREE_PERSIST_STATE=1 electron-vite build && VOICETREE_PERSIST_STATE=1 electron .",
     "electron:build": "electron-vite build",
-    "electron:pack": "electron-vite build && electron-builder",
-    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && electron-builder --mac --config -c.mac.identity=null --publish=never",
-    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && electron-builder --mac --publish=always",
+    "stage:daemons": "node scripts/stage-daemon-bundles.mjs",
+    "stage:node": "node scripts/stage-node-runtime.mjs",
+    "electron:pack": "electron-vite build && npm run stage:daemons && npm run stage:node && electron-builder",
+    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && npm run stage:daemons && npm run stage:node && electron-builder --mac --config -c.mac.identity=null --publish=never",
+    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && npm run stage:daemons && npm run stage:node && electron-builder --mac --publish=always",
     "setup-cli": "bash scripts/setup-cli.sh"
   },
   "optionalDependencies": {
@@ -142,7 +144,9 @@
     "@vitejs/plugin-react": "^6.0.2",
     "@vitest/ui": "^3.2.4",
     "@vt/app-config": "*",
+    "@vt/daemon-test-harness": "*",
     "@vt/graph-db-client": "*",
+    "@vt/graph-db-server": "*",
     "@vt/graph-model": "*",
     "@vt/graph-state": "*",
     "@vt/graph-tools": "*",
@@ -191,8 +195,10 @@
     },
     "afterPack": "./scripts/after-pack.cjs",
     "asarUnpack": [
-      "node_modules/@vscode/ripgrep/bin/**/*",
-      "node_modules/node-pty/**/*"
+      "node_modules/@vscode/ripgrep/**/*",
+      "node_modules/node-pty/**/*",
+      "dist-electron/main/vtd.mjs",
+      "dist-electron/main/vt-graphd.mjs"
     ],
     "files": [
       "dist/**/*",
@@ -206,6 +212,10 @@
       {
         "from": "../out/resources/server",
         "to": "server"
+      },
+      {
+        "from": "../out/resources/node",
+        "to": "node"
       },
       {
         "from": "../out/resources/tools",

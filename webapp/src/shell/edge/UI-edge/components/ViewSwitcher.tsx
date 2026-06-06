@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { JSX, KeyboardEvent, ChangeEvent } from 'react'
-import type {} from '@/shell/electron'
+import type {} from '@/shell/hostApi'
 
 type ViewRecord = {
   readonly viewId: string
@@ -9,24 +9,24 @@ type ViewRecord = {
 }
 
 async function fetchViews(): Promise<readonly ViewRecord[]> {
-  if (!window.electronAPI) return []
-  return window.electronAPI.main.views.list()
+  if (!window.hostAPI) return []
+  return window.hostAPI.main.views.list()
 }
 
 async function activateView(viewId: string): Promise<void> {
-  if (!window.electronAPI) return
-  await window.electronAPI.main.views.activate(viewId)
+  if (!window.hostAPI) return
+  await window.hostAPI.main.views.activate(viewId)
 }
 
 async function cloneAndActivate(srcViewId: string, name: string): Promise<void> {
-  if (!window.electronAPI) return
-  const cloned = await window.electronAPI.main.views.clone(srcViewId, name)
-  await window.electronAPI.main.views.activate(cloned.viewId)
+  if (!window.hostAPI) return
+  const cloned = await window.hostAPI.main.views.clone(srcViewId, name)
+  await window.hostAPI.main.views.activate(cloned.viewId)
 }
 
 async function deleteView(viewId: string): Promise<void> {
-  if (!window.electronAPI) return
-  await window.electronAPI.main.views.delete(viewId)
+  if (!window.hostAPI) return
+  await window.hostAPI.main.views.delete(viewId)
 }
 
 export function ViewSwitcher(): JSX.Element | null {
@@ -50,8 +50,8 @@ export function ViewSwitcher(): JSX.Element | null {
   }, [refreshViews])
 
   useEffect(() => {
-    if (!window.electronAPI?.onViewSwitched) return
-    return window.electronAPI.onViewSwitched(() => void refreshViews())
+    if (!window.hostAPI?.onViewSwitched) return
+    return window.hostAPI.onViewSwitched(() => void refreshViews())
   }, [refreshViews])
 
   // Close dropdown on outside click
@@ -120,7 +120,7 @@ export function ViewSwitcher(): JSX.Element | null {
     }
   }
 
-  if (!window.electronAPI) return null
+  if (!window.hostAPI) return null
 
   return (
     <div ref={dropdownRef} className="relative font-mono text-xs">

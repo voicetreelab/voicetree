@@ -21,6 +21,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
         isPinned: true,
         isDone: false,
         lifecycle: 'idle',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
@@ -72,7 +73,7 @@ function renderSectionWithTrash(
     );
 }
 
-describe('SurvivingAgentsTrashButton — per-row delete flow (§7.5)', () => {
+describe('SurvivingAgentsTrashButton — per-row clear flow (§7.5)', () => {
     afterEach(() => {
         cleanup();
     });
@@ -128,7 +129,7 @@ describe('SurvivingAgentsTrashButton — per-row delete flow (§7.5)', () => {
         expect(onDelete).not.toHaveBeenCalled();
     });
 
-    it('surfaces a delete failure via the button title tooltip without removing the row', async () => {
+    it('surfaces a clear failure via the button title tooltip without removing the row', async () => {
         const onDelete: Mock = vi.fn(() => Promise.resolve({success: false, error: 'live-registry-entry'}));
         renderSectionWithTrash([makeResumable()], onDelete, () => true);
 

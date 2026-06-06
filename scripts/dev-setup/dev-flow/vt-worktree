@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# vt-worktree — create a writable worktree off origin/<branch> (the ONLY place
-# you edit, since the base is read-only). Branch defaults to $VT_BASE_BRANCH.
-# git-gate owns placement (under this machine's worktree root) and auto-installs
-# deps, so just pass a name.
+# vt-worktree — create a writable worktree, branched off the shared integration
+# branch (origin/dev by default) and placed under this machine's sibling
+# worktree root. Worktrees are OPTIONAL in the per-machine-branch model (you can
+# also just work in your main checkout on $VT_DEV_BRANCH); use them for parallel
+# tasks. This command is the single owner of worktree placement + dependency
+# bootstrap — there is no `git` shim doing it behind your back.
 #
-# The command that takes you INTO a worktree must work from ANY cwd — you do not
-# live in the base — so it resolves the base (VT_BASE_DIR, else this machine's
-# repo) and runs every git against it with `git -C "$base"`, rather than assuming
-# the cwd is a checkout.
+# It works from ANY cwd: it resolves the base checkout (VT_BASE_DIR, else this
+# machine's repo) and runs git with `git -C "$base"`.
 #
 # Usage:
-#   vt-worktree <name> [<branch>]    # branch defaults to dev-manu (VT_BASE_BRANCH)
+#   vt-worktree <name> [<branch>]    # branch defaults to the integration branch (dev)
 set -euo pipefail
 
 _self="${BASH_SOURCE[0]}"
@@ -23,9 +23,9 @@ _DIR="$(cd "$(dirname "$_self")" && pwd)"
 . "$_DIR/_common.sh"
 
 name="${1:-}"
-branch="${2:-${VT_BASE_BRANCH:-dev-manu}}"
+branch="${2:-$(integration_branch)}"
 if [ -z "$name" ] || [ "$name" = "-h" ] || [ "$name" = "--help" ]; then
-  echo "usage: vt-worktree <name> [<branch>]   (branch defaults to ${VT_BASE_BRANCH:-dev-manu})" >&2
+  echo "usage: vt-worktree <name> [<branch>]   (branch defaults to $(integration_branch))" >&2
   [ -z "$name" ] && exit 64 || exit 0
 fi
 
@@ -33,19 +33,48 @@ fi
 base="${VT_BASE_DIR:-$(self_repo)}"
 [ -d "$base/.git" ] || {
   echo "vt-worktree: base '$base' is not a git repository." >&2
-  echo "  Set VT_BASE_DIR to your base checkout (the read-only cache of origin)." >&2
+  echo "  Set VT_BASE_DIR to your machine's checkout." >&2
   exit 1
 }
 
-# Refresh origin so we branch off the latest (the base may be mid-tick).
+# Refresh origin so we branch off the latest.
 git -C "$base" fetch origin "$branch" >/dev/null 2>&1 || git -C "$base" fetch origin >/dev/null 2>&1 || true
 
-# git-gate rewrites the destination into this machine's worktree root and runs
-# the dep bootstrap; we pass a bare name and read the resulting path back.
-git -C "$base" worktree add -b "$name" "$name" "origin/$branch"
+# Place the worktree under the machine's sibling worktree root (<parent>/vt-wts/)
+# with an ABSOLUTE destination — never a bare name (which git resolves against
+# the base and NESTS the worktree inside the main checkout). This mirrors
+# run-remote.mjs's localWtsRoot (= <main>/../vt-wts), so the two agree.
+wts_root="${VT_WORKTREE_ROOT:-$(cd "$base/.." && pwd)/vt-wts}"
+dest="$wts_root/$name"
+case "$dest/" in
+  "$base"/*)
+    echo "vt-worktree: refusing to nest a worktree inside the main checkout ('$base')." >&2
+    exit 1
+    ;;
+esac
 
-path="$(git -C "$base" worktree list --porcelain | awk -v b="refs/heads/$name" '
-  /^worktree /{p=$2} $0=="branch "b{print p; exit}')"
+mkdir -p "$wts_root"
+# Skip the synchronous post-checkout dep prewarm: we own the worktree's
+# dependency bootstrap below (on-created-async), so post-checkout must not also
+# install — that would double-install and race on node_modules. (This is the
+# existing worktree-prewarm-skip contract honored by scripts/hooks/post-checkout.)
+VT_GIT_GATE_SKIP_WORKTREE_PREWARM=1 git -C "$base" worktree add -b "$name" "$dest" "origin/$branch"
+
+# Normalize the worktree's admin pointers to RELATIVE paths so they are
+# host-portable (needed for cross-host mutagen sync of Mac worktrees).
+# --relative-paths needs git >= 2.48; older git falls back to a plain repair
+# (pointers stay absolute — harmless for VM-local trees that never sync).
+git -C "$base" worktree repair --relative-paths "$dest" >/dev/null 2>&1 \
+  || git -C "$base" worktree repair "$dest" >/dev/null 2>&1 || true
+
+# Bootstrap dependencies (the same async router VT-managed worktrees use). Routed
+# by VT_DEV_ROLE inside the hook. Non-fatal: the remote-command boundary retries
+# readiness before tests.
+async_hook="$base/scripts/git/worktree/on-created-async.sh"
+if [ -x "$async_hook" ]; then
+  "$async_hook" "$dest" "$name" || echo "vt-worktree: dependency bootstrap failed (non-fatal; retried before tests)" >&2
+fi
+
 echo ""
 echo "vt-worktree: created '$name' off origin/$branch"
-[ -n "$path" ] && echo "  cd $path     # edit + run there; then: vt-land \"msg\"  (or vt-pr)"
+echo "  cd $dest     # edit + run there; then open a PR with: vt-pr \"msg\""

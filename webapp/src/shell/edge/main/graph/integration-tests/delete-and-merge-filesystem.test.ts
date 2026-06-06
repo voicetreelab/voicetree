@@ -62,7 +62,7 @@ describe('Delete with Edge Preservation - Filesystem Integration', () => {
             ]
         })
 
-        // Setup window.electronAPI
+        // Setup window.hostAPI
         global.window = filesystemTest.createTestWindow(cy, false)
 
         // WHEN: Delete node B

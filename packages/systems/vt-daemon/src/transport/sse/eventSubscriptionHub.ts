@@ -25,11 +25,27 @@ import type {TerminalRegistryTopic} from '@vt/vt-daemon-protocol'
 // drift from the canonical 'terminal-registry' string in the protocol.
 export const TERMINAL_REGISTRY_TOPIC: TerminalRegistryTopic = 'terminal-registry'
 
-export type TopicName = 'agent-events' | TerminalRegistryTopic
+export type TopicName = 'agent-events' | 'graph' | TerminalRegistryTopic
 
-export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-events', TERMINAL_REGISTRY_TOPIC]
+export const ALLOWED_TOPICS: readonly TopicName[] = ['agent-events', 'graph', TERMINAL_REGISTRY_TOPIC]
+
+/**
+ * Topics whose payloads are idempotent full-replace snapshots, delivered with
+ * LATEST-WINS CONFLATION instead of exact replay (RE-PLAN B). The `graph` topic
+ * carries full `ProjectedGraph` snapshots (large + frequent); a slow subscriber
+ * keeps only the newest unsent snapshot rather than queuing every intermediate,
+ * so it is never force-closed for overflow. Exact-replay topics
+ * (`agent-events`, `terminal-registry`) are NOT here — their consumers need
+ * every event in order.
+ */
+const CONFLATING_TOPICS: ReadonlySet<TopicName> = new Set<TopicName>(['graph'])
 
 const RESUME_BUFFER_SIZE: number = 100
+// Conflating topics keep only the latest snapshot for resume: a reconnecting
+// subscriber that is behind gets a gap frame and re-snapshots, which is the
+// idempotent full-replace semantics anyway — buffering 100 large snapshots
+// would waste memory for no gain.
+const CONFLATING_RESUME_BUFFER_SIZE: number = 1
 const PER_SUBSCRIBER_QUEUE_LIMIT: number = 1000
 const PER_SUBSCRIBER_BYTE_LIMIT: number = 1 * 1024 * 1024
 
@@ -54,13 +70,27 @@ interface TopicState {
 }
 
 export interface Subscriber {
-    readonly send: (frame: string) => void
+    /**
+     * Deliver one frame. `onSent` (when provided) MUST be invoked once the
+     * frame has flushed to the underlying transport — it drives latest-wins
+     * conflation for snapshot topics. A subscriber that subscribes to a
+     * conflating topic (see `CONFLATING_TOPICS`) MUST honour `onSent`, else the
+     * conflation pump stalls; exact-replay subscribers may ignore it.
+     */
+    readonly send: (frame: string, onSent?: () => void) => void
     readonly overflow: () => void
+}
+
+/** Per-conflating-topic delivery slot: at most one in-flight send + the newest unsent frame. */
+interface ConflateSlot {
+    pending: string | null
+    inFlight: boolean
 }
 
 interface SubscriberState {
     readonly subscriber: Subscriber
     readonly topics: Set<TopicName>
+    readonly conflate: Map<TopicName, ConflateSlot>
     queuedBytes: number
     queuedFrames: number
     closed: boolean
@@ -92,10 +122,10 @@ function serializeFrame(frame: ServerFrame): string {
     return JSON.stringify(frame)
 }
 
-function appendBuffered(state: TopicState, frame: BufferedEvent): void {
+function appendBuffered(state: TopicState, frame: BufferedEvent, maxSize: number): void {
     state.buffer.push(frame)
-    if (state.buffer.length > RESUME_BUFFER_SIZE) {
-        state.buffer.splice(0, state.buffer.length - RESUME_BUFFER_SIZE)
+    if (state.buffer.length > maxSize) {
+        state.buffer.splice(0, state.buffer.length - maxSize)
     }
 }
 
@@ -129,6 +159,53 @@ function enqueueSubscriber(sub: SubscriberState, frame: string): boolean {
     return true
 }
 
+/**
+ * Deliver a conflating-topic frame with latest-wins semantics. While a send is
+ * in flight (the transport is draining), newer snapshots overwrite the single
+ * `pending` slot rather than queuing — when the in-flight send completes,
+ * only the newest pending frame is sent. No byte/frame accounting, so a slow
+ * subscriber is never force-closed: it simply skips stale intermediate
+ * snapshots, which is sound because each snapshot is a full idempotent replace.
+ */
+function publishConflated(sub: SubscriberState, topic: TopicName, frame: string): void {
+    let slot: ConflateSlot | undefined = sub.conflate.get(topic)
+    if (!slot) {
+        slot = {pending: null, inFlight: false}
+        sub.conflate.set(topic, slot)
+    }
+    if (slot.inFlight) {
+        slot.pending = frame // latest wins — drop the previous unsent snapshot
+        return
+    }
+    slot.inFlight = true
+    drainConflated(sub, slot, frame)
+}
+
+function drainConflated(sub: SubscriberState, slot: ConflateSlot, frame: string): void {
+    if (sub.closed) {
+        slot.inFlight = false
+        return
+    }
+    const onSent = (): void => {
+        if (sub.closed) {
+            slot.inFlight = false
+            return
+        }
+        if (slot.pending !== null) {
+            const next: string = slot.pending
+            slot.pending = null
+            drainConflated(sub, slot, next)
+        } else {
+            slot.inFlight = false
+        }
+    }
+    try {
+        sub.subscriber.send(frame, onSent)
+    } catch {
+        sub.closed = true
+    }
+}
+
 export function createEventSubscriptionHub(): EventSubscriptionHub {
     const topics: Map<TopicName, TopicState> = new Map<TopicName, TopicState>()
     const subscribers: Set<SubscriberState> = new Set<SubscriberState>()
@@ -145,11 +222,17 @@ export function createEventSubscriptionHub(): EventSubscriptionHub {
         const seq: number = state.nextSeq
         state.nextSeq += 1
         const serialized: string = serializeFrame({type: 'event', topic, seq, event, data})
-        appendBuffered(state, {topic, seq, event, data, serialized})
+        const conflating: boolean = CONFLATING_TOPICS.has(topic)
+        appendBuffered(
+            state,
+            {topic, seq, event, data, serialized},
+            conflating ? CONFLATING_RESUME_BUFFER_SIZE : RESUME_BUFFER_SIZE,
+        )
 
         for (const sub of subscribers) {
             if (!sub.topics.has(topic) || sub.closed) continue
-            enqueueSubscriber(sub, serialized)
+            if (conflating) publishConflated(sub, topic, serialized)
+            else enqueueSubscriber(sub, serialized)
         }
     }
 
@@ -179,6 +262,7 @@ export function createEventSubscriptionHub(): EventSubscriptionHub {
         const state: SubscriberState = {
             subscriber,
             topics: new Set<TopicName>(),
+            conflate: new Map<TopicName, ConflateSlot>(),
             queuedBytes: 0,
             queuedFrames: 0,
             closed: false,

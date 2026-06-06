@@ -5,7 +5,7 @@
 // `liveTransport` client can discover it via the standard chain.
 //
 // Why not import `@vt/vt-daemon`'s server here: vt-daemon depends on
-// `@vt/graph-tools/node`, so graph-tools cannot import vt-daemon at the
+// `@vt/graph-tools/node-runtime`, so graph-tools cannot import vt-daemon at the
 // package level without a runtime cycle. The HTTP server primitives needed
 // for this headless data-layer-only daemon are small enough to live here;
 // auth-token write + read share the canonical `@vt/vt-rpc` implementations.

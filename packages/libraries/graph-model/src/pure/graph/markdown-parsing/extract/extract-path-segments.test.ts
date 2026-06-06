@@ -1,48 +1,48 @@
 import { describe, it, expect } from 'vitest'
-import { getPathComponents, linkMatchScore } from '../extract-edges'
+import { getMarkdownLinkTargetSegments, linkMatchScore } from '../extract-edges'
 
-describe('getPathComponents', () => {
+describe('getMarkdownLinkTargetSegments', () => {
   it('should return empty array for empty path', () => {
-    expect(getPathComponents('')).toEqual([])
+    expect(getMarkdownLinkTargetSegments('')).toEqual([])
   })
 
   it('should extract components from path with .md extension', () => {
-    const result: readonly string[] = getPathComponents('ctx-nodes/VT/foo.md')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('ctx-nodes/VT/foo.md')
     expect(result).toEqual(['ctx-nodes', 'VT', 'foo'])
   })
 
   it('should strip ./ prefix', () => {
-    const result: readonly string[] = getPathComponents('./foo.md')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('./foo.md')
     expect(result).toEqual(['foo'])
   })
 
   it('should strip ../ prefix and keep remaining path', () => {
-    const result: readonly string[] = getPathComponents('../bar/foo.md')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('../bar/foo.md')
     expect(result).toEqual(['bar', 'foo'])
   })
 
   it('should handle path without extension', () => {
-    const result: readonly string[] = getPathComponents('folder/file')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('folder/file')
     expect(result).toEqual(['folder', 'file'])
   })
 
   it('should handle simple filename with .md', () => {
-    const result: readonly string[] = getPathComponents('file.md')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('file.md')
     expect(result).toEqual(['file'])
   })
 
   it('should handle simple filename without extension', () => {
-    const result: readonly string[] = getPathComponents('file')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('file')
     expect(result).toEqual(['file'])
   })
 
   it('should preserve .md in middle of filename (context node pattern)', () => {
-    const result: readonly string[] = getPathComponents('Propose_Merge.md_context_123.md')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('Propose_Merge.md_context_123.md')
     expect(result).toEqual(['Propose_Merge.md_context_123'])
   })
 
   it('should handle multiple ../ prefixes', () => {
-    const result: readonly string[] = getPathComponents('../../foo/bar.md')
+    const result: readonly string[] = getMarkdownLinkTargetSegments('../../foo/bar.md')
     expect(result).toEqual(['foo', 'bar'])
   })
 })

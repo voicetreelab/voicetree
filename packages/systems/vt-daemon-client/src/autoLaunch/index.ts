@@ -11,5 +11,7 @@ export type {
 } from './ensureVtDaemonTypes.ts'
 export {
   resolveCommand,
+  resolveDefaultDaemonArgs,
+  type DaemonEntrypointDeps,
   type ResolveVtDaemonCommandDeps,
 } from './runtime.ts'

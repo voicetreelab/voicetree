@@ -48,19 +48,19 @@ describe('installJsonlTelemetrySink', () => {
     it('appends one JSON line per recorded event', () => {
         const fs = makeFs()
         installJsonlTelemetrySink('/test/app/log.jsonl', fs.deps)
-        recordTierEvent(evt({kind: 'awaiting', ts: 1}))
+        recordTierEvent(evt({kind: 'awaiting_input', ts: 1}))
         recordTierEvent(evt({kind: 'working', ts: 2}))
         const contents: string = fs.files.get('/test/app/log.jsonl') ?? ''
         const lines: string[] = contents.split('\n').filter(Boolean)
         expect(lines).toHaveLength(2)
-        expect(JSON.parse(lines[0])).toMatchObject({kind: 'awaiting', ts: 1})
+        expect(JSON.parse(lines[0])).toMatchObject({kind: 'awaiting_input', ts: 1})
         expect(JSON.parse(lines[1])).toMatchObject({kind: 'working', ts: 2})
     })
 
     it('uninstall stops writing further events', () => {
         const fs = makeFs()
         const uninstall = installJsonlTelemetrySink('/test/app/log.jsonl', fs.deps)
-        recordTierEvent(evt({kind: 'awaiting'}))
+        recordTierEvent(evt({kind: 'awaiting_input'}))
         uninstall()
         recordTierEvent(evt({kind: 'working'}))
         const lines: string[] = (fs.files.get('/test/app/log.jsonl') ?? '').split('\n').filter(Boolean)

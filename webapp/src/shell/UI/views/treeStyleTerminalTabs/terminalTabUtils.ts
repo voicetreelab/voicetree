@@ -16,7 +16,7 @@ import {
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import { vanillaFloatingWindowInstances } from '@/shell/edge/UI-edge/state/stores/UIAppState';
 import { buildTerminalTree } from '@vt/graph-model/agent-tabs';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 
 // =============================================================================
 // Display Order for Navigation
@@ -48,7 +48,7 @@ export function minimizeTerminal(terminalId: TerminalId): void {
         `[data-floating-window-id="${terminalId}"]`
     );
     if (windowEl) windowEl.style.display = 'none';
-    void window.electronAPI?.main.updateTerminalMinimized(terminalId, true);
+    void window.hostAPI?.main.updateTerminalMinimized(terminalId, true);
 }
 
 /**
@@ -60,7 +60,7 @@ export function restoreTerminal(terminalId: TerminalId): void {
         `[data-floating-window-id="${terminalId}"]`
     );
     if (windowEl) windowEl.style.display = '';
-    void window.electronAPI?.main.updateTerminalMinimized(terminalId, false);
+    void window.hostAPI?.main.updateTerminalMinimized(terminalId, false);
     const instance: { dispose: () => void; focus?: () => void } | undefined = vanillaFloatingWindowInstances.get(terminalId);
     instance?.focus?.();
 }

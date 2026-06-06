@@ -3,10 +3,13 @@ import * as path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {
     agentClose,
+    agentFork,
     agentList,
     agentOutput,
+    agentResume,
     agentSend,
     agentSpawn,
+    agentSetStatus,
     agentWait,
 } from './commands/runtime/agent.ts'
 import {runDebugCommand} from './commands/runtime/debug.ts'
@@ -14,7 +17,7 @@ import {runManualCommand} from './commands/manual.ts'
 import {findRepoRoot} from './commands/util/findRepoRoot.ts'
 import {runSessionCommand} from './commands/runtime/session.ts'
 import {runProjectCommand} from './commands/runtime/project.ts'
-import {runViewCommand} from './commands/node/view.ts'
+import {runViewCommand} from './commands/graph-node/view.ts'
 import {getErrorMessage} from './commands/graph/core/util.ts'
 import {CliError, error} from './commands/output.ts'
 import {argsShape} from './commands/telemetry/argsShape.ts'
@@ -58,6 +61,9 @@ Subcommands:
   list      List running agents
   wait      Start background monitoring for one or more agents
   close     Close an agent terminal
+  status    Declare your own lifecycle status (working/awaiting_input/done/failed)
+  resume    Resume a closed/exited agent under its original terminalId
+  fork      Fork a live or exited agent into a new branched terminal
   send      Send a message to an agent terminal
   output    Read buffered agent output`
 
@@ -66,9 +72,10 @@ const GRAPH_HELP: string = `Usage: vt graph <subcommand> [args]
 Subcommands:
   live        Live graph operations (view, state dump, apply, CRUD, focus, ...)
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
-  create      Create progress nodes in the graph
+  create      Create progress nodes in the graph (agents must pass --status <working|awaiting_input|done|failed>)
   group       Group files into a new folder and update all references
   lint        Lint graph for complexity violations and warnings
+  complexity  Score graph cognitive complexity (branching, treewidth, crossings, coupling, cycles)
   rename      Rename a file and update all references
   mv          Move a file or folder and update all references
   index       Build a local semantic search index for a project
@@ -131,6 +138,15 @@ async function dispatchAgentCommand(
             return
         case 'close':
             await agentClose(terminalId, args)
+            return
+        case 'status':
+            await agentSetStatus(terminalId, args)
+            return
+        case 'resume':
+            await agentResume(terminalId, args)
+            return
+        case 'fork':
+            await agentFork(terminalId, args)
             return
         case 'send':
             await agentSend(terminalId, args)
@@ -197,18 +213,23 @@ async function dispatchGraphCommand(
             await graphLintCommand(terminalId, args)
             return
         }
+        case 'complexity': {
+            const {graphComplexity} = await import('./commands/graph/core/graph.ts')
+            await graphComplexity(terminalId, args)
+            return
+        }
         case 'rename': {
-            const {graphRename} = await import('./commands/node/rename.ts')
+            const {graphRename} = await import('./commands/graph-node/rename.ts')
             await graphRename(terminalId, args)
             return
         }
         case 'mv': {
-            const {graphMove} = await import('./commands/node/move.ts')
+            const {graphMove} = await import('./commands/graph-node/move.ts')
             await graphMove(terminalId, args)
             return
         }
         case 'group': {
-            const {graphGroup} = await import('./commands/node/group.ts')
+            const {graphGroup} = await import('./commands/graph-node/group.ts')
             await graphGroup(terminalId, args)
             return
         }
@@ -226,7 +247,7 @@ async function dispatchSearchCommand(
     terminalId: string | undefined,
     args: string[]
 ): Promise<void> {
-    const {searchCommand} = await import('./commands/node/search.ts')
+    const {searchCommand} = await import('./commands/graph-node/search.ts')
     await searchCommand(terminalId, args)
 }
 
@@ -243,13 +264,13 @@ function readVtVersion(): string {
 }
 
 const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
-    'spawn', 'list', 'wait', 'close', 'send', 'output',
+    'spawn', 'list', 'wait', 'close', 'resume', 'fork', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
-    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'rename', 'mv', 'group',
+    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
-    'project', 'session', 'view', 'search', 'debug', 'serve', 'manual',
+    'project', 'session', 'view', 'search', 'debug', 'serve', 'webapp', 'manual',
 ])
 
 function computeVerb(commandArgs: readonly string[]): {verb: string; verbTokensInArgv: number} {
@@ -348,6 +369,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
                 const module: {runServeCommand: (argv: string[]) => Promise<void>} =
                     await import('./commands/runtime/serve.ts')
                 await module.runServeCommand(commandArgs.slice(1))
+            }
+            return
+        case 'webapp':
+            {
+                const module: {runWebappCommand: (argv: string[]) => Promise<void>} =
+                    await import('./commands/runtime/webapp.ts')
+                await module.runWebappCommand(commandArgs.slice(1))
             }
             return
         default:

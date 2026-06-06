@@ -18,10 +18,8 @@ import {WebSocket} from 'ws'
 
 import {generateAuthToken} from '@vt/vt-rpc'
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import {buildAccessLogLine, startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
-
-const noopHook: HookHandler = (): unknown => ({ok: true})
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildAccessLogLine, startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
 interface Ctx {
     handle: HttpDaemonServerHandle
@@ -37,11 +35,10 @@ afterEach(async (): Promise<void> => {
     }
 })
 
-async function bring(catalog: ToolCatalog, hookHandler: HookHandler = noopHook): Promise<Ctx> {
+async function bring(catalog: ToolCatalog): Promise<Ctx> {
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog,
-        hookHandler,
         token,
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},
@@ -53,8 +50,8 @@ async function bring(catalog: ToolCatalog, hookHandler: HookHandler = noopHook):
 
 describe('POST /rpc — JSON-RPC dispatch', (): void => {
     it('round-trips a JSON-RPC success', async (): Promise<void> => {
-        const catalog: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<McpToolResponse>>([
-            ['echo', async (args): Promise<McpToolResponse> => buildJsonResponse({echoed: args})],
+        const catalog: ToolCatalog = new Map<string, (a: Record<string, unknown>) => Promise<ToolResponse>>([
+            ['echo', async (args): Promise<ToolResponse> => buildJsonResponse({echoed: args})],
         ])
         const {handle, token} = await bring(catalog)
         const res = await fetch(`${handle.url}/rpc`, {
@@ -122,57 +119,6 @@ describe('POST /rpc — JSON-RPC dispatch', (): void => {
         expect(res.status).toBe(200)
         const body = await res.json() as {error: {code: number}}
         expect(body.error.code).toBe(-32700)
-    })
-})
-
-describe('POST /hook/:source — agent lifecycle ingestion', (): void => {
-    it('routes to the configured handler', async (): Promise<void> => {
-        const seen: Array<{source: string; terminalId: string | undefined; eventName: string | undefined}> = []
-        const hookHandler: HookHandler = (input): unknown => {
-            seen.push({source: input.source, terminalId: input.terminalId, eventName: input.eventName})
-            return {ok: true}
-        }
-        const {handle, token} = await bring(new Map(), hookHandler)
-        const res = await fetch(`${handle.url}/hook/claude-code?terminal=T1&event=Stop`, {
-            method: 'POST',
-            headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
-            body: JSON.stringify({hook_event_name: 'Stop'}),
-        })
-        expect(res.status).toBe(200)
-        const body = await res.json() as {ok: boolean}
-        expect(body.ok).toBe(true)
-        expect(seen).toEqual([{source: 'claude-code', terminalId: 'T1', eventName: 'Stop'}])
-    })
-
-    it('rejects missing bearer with 401 (route is gated)', async (): Promise<void> => {
-        const {handle} = await bring(new Map())
-        const res = await fetch(`${handle.url}/hook/claude-code`, {method: 'POST', body: '{}'})
-        expect(res.status).toBe(401)
-    })
-
-    it('publishes an agent-events event to subscribers', async (): Promise<void> => {
-        const hookHandler: HookHandler = (): unknown => ({ok: true})
-        const {handle, token} = await bring(new Map(), hookHandler)
-        const events: Array<{topic: string; event: string; data: unknown}> = []
-        const sub = handle.hub.addSubscriber({
-            send: (frame: string): void => {
-                const parsed: {topic: string; event: string; data: unknown} = JSON.parse(frame)
-                events.push(parsed)
-            },
-            overflow: (): void => {},
-        })
-        sub.subscribe([{topic: 'agent-events'}])
-
-        await fetch(`${handle.url}/hook/claude-code?terminal=T2&event=Stop`, {
-            method: 'POST',
-            headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
-            body: '{}',
-        })
-        expect(events).toHaveLength(1)
-        expect(events[0]).toMatchObject({topic: 'agent-events', event: 'Stop'})
-        const data = events[0].data as {terminalId: string; source: string}
-        expect(data.terminalId).toBe('T2')
-        expect(data.source).toBe('claude-code')
     })
 })
 

@@ -1,3 +1,4 @@
+import {DAEMON_SHUTDOWN_HEADER, DAEMON_SHUTDOWN_HEADER_VALUE} from '@vt/graph-db-protocol'
 import {
   HealthResponseSchema,
   ShutdownResponseSchema,
@@ -26,6 +27,9 @@ export function createDaemonClient(request: RequestClient) {
     async shutdown(): Promise<ShutdownResponse> {
       return await request('/shutdown', {
         method: 'POST',
+        // Custom header that gates the destructive route against cross-origin
+        // simple-POST CSRF (see DAEMON_SHUTDOWN_HEADER).
+        headers: {[DAEMON_SHUTDOWN_HEADER]: DAEMON_SHUTDOWN_HEADER_VALUE},
         responseSchema: ShutdownResponseSchema,
       })
     },

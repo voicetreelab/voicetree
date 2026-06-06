@@ -1,0 +1,25 @@
+import {describe, it, expect} from 'vitest';
+import {createSettingsSchema, createDefaultSettings} from './settingsSchema';
+
+// The prank's behavioural contract: off by default (persona injection is
+// opt-in, per 5b2249f0d), in the General tab, directly above Vim Mode. These
+// lock the requirements so a later refactor can't silently flip the default or
+// move the toggle.
+describe('siliconValleyMode setting', () => {
+    it('is off by default (opt-in)', () => {
+        expect(createDefaultSettings().siliconValleyMode).toBe(false);
+    });
+
+    it('lives in the General section', () => {
+        expect(createSettingsSchema().siliconValleyMode.section).toBe('general');
+    });
+
+    it('renders directly above Vim Mode (schema declaration order = UI order)', () => {
+        const keys: readonly string[] = Object.keys(createSettingsSchema());
+        const sv: number = keys.indexOf('siliconValleyMode');
+        const vim: number = keys.indexOf('vimMode');
+        expect(sv).toBeGreaterThanOrEqual(0);
+        expect(vim).toBeGreaterThanOrEqual(0);
+        expect(sv).toBeLessThan(vim);
+    });
+});

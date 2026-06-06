@@ -8,16 +8,16 @@ const mocks = vi.hoisted(() => ({
     getGraphFromDaemon: vi.fn(),
     getTerminalRecords: vi.fn(),
     postDeltaThroughDaemon: vi.fn(),
-    writePositionsThroughDaemon: vi.fn(),
+    writeNodeLayoutThroughDaemon: vi.fn(),
 }))
 
 const daemonState = vi.hoisted(() => ({
     postedDeltas: [] as GraphDelta[],
-    writtenPositions: [] as Array<Record<string, { x: number; y: number }>>,
+    writtenLayout: [] as Array<Record<string, { x: number; y: number }>>,
 }))
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/queries/daemon-graph-queries', () => ({
-    writePositionsThroughDaemon: mocks.writePositionsThroughDaemon,
+    writeNodeLayoutThroughDaemon: mocks.writeNodeLayoutThroughDaemon,
 }))
 
 vi.mock('@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy', () => ({
@@ -38,9 +38,9 @@ import { cleanupOrphanedContextNodes, saveNodePositions } from '@/shell/edge/mai
 describe('saveNodePositions', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        daemonState.writtenPositions = []
-        mocks.writePositionsThroughDaemon.mockImplementation(async (positions) => {
-            daemonState.writtenPositions.push(positions)
+        daemonState.writtenLayout = []
+        mocks.writeNodeLayoutThroughDaemon.mockImplementation(async (positions) => {
+            daemonState.writtenLayout.push(positions)
             return { written: Object.keys(positions).length }
         })
         mocks.postDeltaThroughDaemon.mockResolvedValue(undefined)
@@ -55,7 +55,7 @@ describe('saveNodePositions', () => {
 
         await saveNodePositions(cyNodes)
 
-        expect(daemonState.writtenPositions).toEqual([{
+        expect(daemonState.writtenLayout).toEqual([{
             'node1.md': { x: 100.25, y: 200.75 },
             'node2.md': { x: -3, y: 4 },
         }])
@@ -71,7 +71,7 @@ describe('saveNodePositions', () => {
 
         await saveNodePositions(cyNodes)
 
-        expect(daemonState.writtenPositions).toEqual([{
+        expect(daemonState.writtenLayout).toEqual([{
             'valid.md': { x: 1, y: 2 },
         }])
     })
@@ -83,7 +83,7 @@ describe('saveNodePositions', () => {
 
         await saveNodePositions(cyNodes)
 
-        expect(daemonState.writtenPositions).toEqual([])
+        expect(daemonState.writtenLayout).toEqual([])
     })
 })
 

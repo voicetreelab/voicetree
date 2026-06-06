@@ -26,7 +26,7 @@ import type { NodeIdAndFilePath } from './core-types.ts';
 // Moved here from `@vt/agent-runtime/lifecycle` so the protocol can describe
 // the in-flight states a terminal can occupy without taking a runtime
 // dependency on agent-runtime. Helper predicates over these (e.g.
-// `isTerminalLifecycle`) stay in agent-runtime.
+// `isFinishedLifecycle`) stay in agent-runtime.
 // ---------------------------------------------------------------------------
 
 /**
@@ -49,12 +49,23 @@ export type TerminalLifecycle =
 export type TerminalKillReason = 'user' | 'external';
 
 /**
- * Agent lifecycle events emitted by hooks (Claude Code
- * Notification/Stop/UserPromptSubmit, Codex Stop/PermissionRequest/
- * UserPromptSubmit) or the SDK (`markAwaiting` / `markDone`). The sole
- * source of `awaiting_input`.
+ * Agent-authored status preset. An agent picks one of these when it creates a
+ * progress node (`create_graph`'s `agentStatus`); it is the sole driver of the
+ * non-output-derived lifecycle states. Maps to `TerminalLifecycle`:
+ *   working → active · awaiting_input → awaiting_input · done → completed ·
+ *   failed → errored  (an orchestrator with active children downgrades
+ *   awaiting_input/done to idle — it is waiting on its children, not the user).
  */
-export type AgentEventKind = 'awaiting' | 'done' | 'working';
+export const AGENT_STATUSES = ['working', 'awaiting_input', 'done', 'failed'] as const;
+export type AgentStatus = (typeof AGENT_STATUSES)[number];
+
+/**
+ * Max length of the free-text live status phrase an agent attaches to a progress
+ * node (`create_graph`'s `statusPhrase`). Rendered next to the model name in the
+ * terminal tree, so it is clamped to keep the row readable. Over-long phrases
+ * are truncated to this length at the registry boundary.
+ */
+export const MAX_STATUS_PHRASE_LENGTH = 80;
 
 // ---------------------------------------------------------------------------
 // Terminal identity & data
@@ -91,6 +102,25 @@ export type TerminalData = {
     readonly isPinned: boolean;
     readonly isDone: boolean;
     readonly lifecycle: TerminalLifecycle;
+    /**
+     * Agent-authored free-text live status (≤ MAX_STATUS_PHRASE_LENGTH chars),
+     * shown next to the model name in the terminal tree. Empty string until the
+     * agent reports one via `create_graph`'s `statusPhrase`.
+     */
+    readonly statusPhrase: string;
+    /**
+     * The last status preset the agent *itself* declared this turn (via
+     * `create_graph`'s `agentStatus` or `vt agent status`), or `null` if it has
+     * not declared one. Distinct from `lifecycle`, which is lossy: an
+     * orchestrator with active children has its declared `done`/`awaiting_input`
+     * rendered as `idle`, so `lifecycle` alone cannot tell "idle because the
+     * agent reported done" from "idle because output merely stopped". The finish
+     * gate (`requireDeclaredStatus`) reads this to decide whether an idle agent
+     * has actually closed itself out. Reset to `null` when the terminal
+     * re-enters `active` (a new turn), so a prior turn's declaration cannot
+     * satisfy a later finish.
+     */
+    readonly lastReportedStatus: AgentStatus | null;
     readonly lastOutputTime: number;
     readonly activityCount: number;
 
@@ -206,3 +236,7 @@ export type TerminalRecordPatch =
     }
     | { readonly kind: 'done'; readonly value: boolean }
     | { readonly kind: 'lifecycle'; readonly value: TerminalLifecycle }
+    // Outbound-only, like `lifecycle`: the daemon owns the status phrase (set
+    // from an agent's `create_graph` call) and broadcasts it; the renderer
+    // never sends this patch.
+    | { readonly kind: 'statusPhrase'; readonly value: string }

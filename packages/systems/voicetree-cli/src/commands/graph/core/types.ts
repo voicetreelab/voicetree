@@ -3,8 +3,9 @@ import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringValidationError,
     StructureManifest,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import type {OverridableRuleId} from '@vt/graph-validation'
+import type {AgentStatus} from '@vt/vt-daemon-protocol'
 
 export type GraphCreateNode = Record<string, unknown> & {
     filename: string
@@ -98,6 +99,8 @@ export type GraphCreatePayload = {
     parentNodeId?: string
     nodes?: unknown
     override_with_rationale?: unknown
+    agentStatus?: unknown
+    statusPhrase?: unknown
 }
 
 export type OverrideSpec = {
@@ -113,6 +116,8 @@ export type ParsedLiveCreateArgs = {
     color?: string
     validateOnly: boolean
     overrides: readonly OverrideSpec[]
+    agentStatus?: AgentStatus
+    statusPhrase?: string
 }
 
 export type ParsedFilesystemModeArgs = {
@@ -123,6 +128,8 @@ export type ParsedFilesystemModeArgs = {
     manifest?: StructureManifest
     validateOnly: boolean
     overrides: readonly OverrideSpec[]
+    agentStatus?: AgentStatus
+    statusPhrase?: string
 }
 
 export type ParsedGraphCreateArgs = ParsedLiveCreateArgs | ParsedFilesystemModeArgs

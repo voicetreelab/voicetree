@@ -7,7 +7,7 @@ import {createServer, type IncomingMessage, type Server} from 'node:http'
 import type {AddressInfo} from 'node:net'
 import type {Duplex} from 'node:stream'
 import {WebSocket, WebSocketServer} from 'ws'
-import type {RelayConnectionStatus} from './vtTerminalAttachTypes'
+import type {RelayConnectionStatus} from '@/core/terminal/relayConnectionStatus'
 import {attachUrlFromDaemonUrl, createVtTerminalAttachClient, type VtTerminalAttachClient} from './vtTerminalAttachClient'
 
 const TEST_TOKEN: string = 'cafef00d'

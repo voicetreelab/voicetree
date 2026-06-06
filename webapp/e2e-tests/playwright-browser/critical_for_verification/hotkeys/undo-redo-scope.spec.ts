@@ -89,23 +89,23 @@ async function setupMockElectronAPIWithUndoTracking(page: import('@playwright/te
 
   await setupMockElectronAPI(page);
 
-  // Patch performUndo / performRedo onto the mock electronAPI installed by
+  // Patch performUndo / performRedo onto the mock hostAPI installed by
   // setupMockElectronAPI. The shared mock omits these, so graphHotkeyBindings
   // would throw "performUndo is not a function" when fired. Tracking the call
   // count is the observable side-effect this spec asserts on.
   //
   // Playwright runs init scripts in the order they were registered, so by the
-  // time this script executes the mock electronAPI is already on window.
+  // time this script executes the mock hostAPI is already on window.
   await page.addInitScript(() => {
     interface MainWithUndoRedo {
       performUndo?: () => Promise<boolean>;
       performRedo?: () => Promise<boolean>;
     }
     const win = window as unknown as ExtendedWindowWithUndoTracking & {
-      electronAPI?: { main: MainWithUndoRedo };
+      hostAPI?: { main: MainWithUndoRedo };
     };
-    const api = win.electronAPI;
-    if (!api) throw new Error('Expected mock electronAPI to be installed before undo-tracking patch');
+    const api = win.hostAPI;
+    if (!api) throw new Error('Expected mock hostAPI to be installed before undo-tracking patch');
 
     api.main.performUndo = async (): Promise<boolean> => {
       const tracker = win._undoRedoTracker;

@@ -145,7 +145,7 @@ export function createFloatingTerminalWindow(
     if (terminalData.attachedToContextNodeId) {
         // Cast main to typed IPC interface — injectNodesIntoTerminal exists on mainAPI
         // but its type can't resolve in the renderer tsconfig due to Node.js dependencies.
-        const mainIPC: FloatingTerminalMainIPC | undefined = window.electronAPI?.main as unknown as FloatingTerminalMainIPC | undefined;
+        const mainIPC: FloatingTerminalMainIPC | undefined = window.hostAPI?.main as unknown as FloatingTerminalMainIPC | undefined;
         const injectBar: InjectBarHandle = createInjectBar({
             terminalId,
             onInject: async (nodeIds: NodeIdAndFilePath[]): Promise<void> => {

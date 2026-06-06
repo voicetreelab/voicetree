@@ -1,4 +1,4 @@
-Use the `vt graph create` CLI with `$VOICETREE_TERMINAL_ID` exported in your environment to add progress nodes. Write each node as a markdown file under `$VOICETREE_PROJECT_PATH`, then run `vt graph create <path>` (one or more positional `.md` paths per call). The CLI handles frontmatter normalization, parent linking from `[[wikilinks]]` in the body, and graph positioning automatically.
+Use the `vt graph create` CLI with `$VOICETREE_TERMINAL_ID` exported in your environment to add progress nodes. Write each node as a markdown file under `$VOICETREE_PROJECT_PATH`, then run `vt graph create <path> --status <preset>` (one or more positional `.md` paths per call; `--status` is required — see "Report your status" below). The CLI handles frontmatter normalization, parent linking from `[[wikilinks]]` in the body, and graph positioning automatically.
 
 ## Orchestration: Decide Before You Start
 Does this task have 2+ distinct concerns or phases?
@@ -59,27 +59,31 @@ Wire multi-node graphs by including `[[parent-basename]]` wikilinks in each chil
 - **`## Diagram`:** Mermaid diagram when relevant — prefer text when equally clear.
 - **Line limit** per node (default 70). If over, split into a branching tree (see examples above) — not a linear A→B→C chain.
 - **Color convention:** `green` for completed work, `blue` (default) for in-progress or planning. Set via frontmatter `color: green` or the CLI's `--color green` flag.
+- **Report your status (required):** every `vt graph create` from an agent terminal MUST pass `--status <preset>` — it drives your lifecycle icon in the terminal tree. Pick one of `working` (actively progressing), `awaiting_input` (blocked, need the user), `done` (task complete), `failed` (task failed). Optionally add `--phrase "<≤80 chars>"` shown next to your model name, e.g. "wiring the create_graph param". To declare status WITHOUT creating a node, use the standalone verb `vt agent status <preset> [--phrase TEXT]`.
 - **`## NOTES`:** Architecture impact, gotchas, tech debt, difficulties.
 - **Link openspec artifacts** (proposal, design, tasks) in a `## Related` section by basename, e.g. `- [proposal](proposal.md)`.
 
 ## CLI invocation
 
-Write the node markdown to `$VOICETREE_PROJECT_PATH/<title-sluggified>.md`, then:
+Write the node markdown to `$VOICETREE_PROJECT_PATH/<title-sluggified>.md`, then (`--status` is mandatory for one status per call — it is your status, not the node's):
 
 ```bash
-vt graph create "$VOICETREE_PROJECT_PATH/<title-sluggified>.md"
+vt graph create "$VOICETREE_PROJECT_PATH/<title-sluggified>.md" --status working
 ```
 
-For multiple nodes in one tree, write each file with its `[[parent-basename]]` wikilinks, then pass all paths in one call:
+For multiple nodes in one tree, write each file with its `[[parent-basename]]` wikilinks, then pass all paths in one call (still one `--status` for the whole call):
 
 ```bash
 vt graph create \
   "$VOICETREE_PROJECT_PATH/root.md" \
   "$VOICETREE_PROJECT_PATH/child-a.md" \
-  "$VOICETREE_PROJECT_PATH/child-b.md"
+  "$VOICETREE_PROJECT_PATH/child-b.md" \
+  --status working --phrase "decomposing the task"
 ```
 
-Add `--validate-only` to dry-run (parses + schema-gates without writing). Add `--color green` to default unspecified nodes to green.
+Add `--validate-only` to dry-run (parses + schema-gates without writing; `--status` not required for a dry-run). Add `--color green` to default unspecified nodes to green.
+
+When you finish, declare a terminal status — `--status done` on your final node, or `vt agent status done`. If you go idle without one, VoiceTree nudges you once to close yourself out (it never marks you `done` for you — a false green is worse than honest amber).
 
 ### Schema gate (folder-note dispatch)
 
@@ -92,5 +96,6 @@ If you are writing into a subfolder that has a folder note declaring `## Type: <
 4. Diffs included in `## DIFF` for <40 lines changed.
 5. `## Files Changed` populated.
 6. `[[parent-basename]]` wikilinks set on each child node.
+7. `--status <working|awaiting_input|done|failed>` passed on the `vt graph create` call.
 
 ALL `$VARS` (`VOICETREE_TERMINAL_ID`, `AGENT_COLOR`, `AGENT_NAME`, `VOICETREE_PROJECT_PATH`, etc.) are environment variables already set. Check them now.

@@ -1,7 +1,7 @@
 /**
  * Inject selected node title + filepath into an agent terminal PTY and mark them as seen.
  *
- * Renderer calls: window.electronAPI.main.injectNodesIntoTerminal(id, nodeIds)
+ * Renderer calls: window.hostAPI.main.injectNodesIntoTerminal(id, nodeIds)
  * Zero-boilerplate RPC: just add to mainAPI, types flow via Promisify.
  */
 

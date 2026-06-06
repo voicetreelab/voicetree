@@ -26,7 +26,7 @@ export const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixt
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -130,7 +130,7 @@ export function registerStopFileWatchingAfterEach(): void {
   test.afterEach(async ({ appWindow }) => {
     try {
       await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }

@@ -284,7 +284,7 @@ function installMockElectronAPI(): void {
     }
   };
 
-  (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+  (window as unknown as { hostAPI: typeof mockElectronAPI }).hostAPI = mockElectronAPI;
 }
 
 export async function setupMockElectronAPI(page: Page): Promise<void> {

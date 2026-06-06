@@ -62,7 +62,7 @@ export function subscribeToRecoverySessions(callback: RecoveryCallback): () => v
 export async function refreshRecoverySessions(horizonDays?: number | null): Promise<void> {
     try {
         const next: readonly RecoverableAgentSession[] = await (
-            window.electronAPI?.main.refreshRecoverySessions?.(horizonDays)
+            window.hostAPI?.main.refreshRecoverySessions?.(horizonDays)
             ?? Promise.resolve([])
         )
         syncRecoverySessionsFromMain(next)
@@ -89,7 +89,7 @@ export async function attachRecoverySession(
     sessionName: string,
 ): Promise<{readonly success: boolean; readonly error?: string}> {
     const result: {readonly success: boolean; readonly error?: string} = await (
-        window.electronAPI?.main.attachUnclaimedTmuxSession?.(sessionName)
+        window.hostAPI?.main.attachUnclaimedTmuxSession?.(sessionName)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     void refreshRecoverySessions()
@@ -100,7 +100,7 @@ export async function killRecoverySession(
     sessionName: string,
 ): Promise<{readonly success: boolean; readonly error?: string}> {
     const result: {readonly success: boolean; readonly error?: string} = await (
-        window.electronAPI?.main.killUnclaimedTmuxSession?.(sessionName)
+        window.hostAPI?.main.killUnclaimedTmuxSession?.(sessionName)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     void refreshRecoverySessions()
@@ -111,7 +111,7 @@ export async function resumeRecoverySession(
     terminalId: string,
 ): Promise<RecoveryResumeResult> {
     const result: RecoveryResumeResult = await (
-        window.electronAPI?.main.resumeRecoverySession?.(terminalId)
+        window.hostAPI?.main.resumeRecoverySession?.(terminalId)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     void refreshRecoverySessions()
@@ -122,7 +122,7 @@ export async function removeRecoverySession(
     terminalId: string,
 ): Promise<{readonly success: boolean; readonly error?: string}> {
     const result: {readonly success: boolean; readonly error?: string} = await (
-        window.electronAPI?.main.removeRecoverySession?.(terminalId)
+        window.hostAPI?.main.removeRecoverySession?.(terminalId)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     void refreshRecoverySessions()
@@ -133,7 +133,7 @@ export async function forkRecoverySession(
     sourceTerminalId: string,
 ): Promise<{readonly success: boolean; readonly error?: string; readonly terminalId?: string}> {
     const result: {readonly success: boolean; readonly error?: string; readonly terminalId?: string} = await (
-        window.electronAPI?.main.forkRecoverySession?.(sourceTerminalId)
+        window.hostAPI?.main.forkRecoverySession?.(sourceTerminalId)
         ?? Promise.resolve({success: false, error: 'Electron API unavailable'})
     )
     void refreshRecoverySessions()

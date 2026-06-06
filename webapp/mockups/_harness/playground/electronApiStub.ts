@@ -1,4 +1,4 @@
-// Install a minimal `window.electronAPI` that bridges renderer code to the
+// Install a minimal `window.hostAPI` that bridges renderer code to the
 // in-browser daemon. Two pipelines depend on this surface:
 //
 //   1. folderCollapse (chevron tap → setFolderStateThroughDaemon)
@@ -11,7 +11,7 @@
 // handful of fields for layout/UI behaviour). The two `applyGraphDeltaToDB*`
 // write paths are intentionally no-ops in this read-only playground —
 // CodeMirror edits stay in the editor buffer and do NOT round-trip to the
-// graph. The rest of electronAPI is a Proxy returning no-op async functions
+// graph. The rest of hostAPI is a Proxy returning no-op async functions
 // so defensive boot-time probes don't crash.
 
 import type { ProjectedGraph } from '@vt/graph-state/contract'
@@ -64,8 +64,8 @@ export function installElectronApiStub(daemon: InBrowserDaemon): void {
         },
     })
 
-    const electronApi: Window['electronAPI'] = {
-        main: mainProxy as unknown as NonNullable<Window['electronAPI']>['main'],
+    const electronApi: Window['hostAPI'] = {
+        main: mainProxy as unknown as NonNullable<Window['hostAPI']>['main'],
         graph: {
             getCurrentProjectedGraph: async (): Promise<ProjectedGraph> => daemon.getProjection(),
             onProjectedGraphUpdate: (callback: (graph: ProjectedGraph) => void): (() => void) => {
@@ -92,5 +92,5 @@ export function installElectronApiStub(daemon: InBrowserDaemon): void {
         off: (): void => {},
     }
 
-    window.electronAPI = electronApi
+    window.hostAPI = electronApi
 }

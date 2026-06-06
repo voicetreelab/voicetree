@@ -414,6 +414,26 @@ describe('callDaemon — black-box HTTP wire', () => {
             expect(result).toEqual({via: 'env_url'})
         })
 
+        it('stale env URL falls back to the project rpc.port endpoint', async () => {
+            const live = await startStubDaemon('search_nodes', async () => ({
+                type: 'ok',
+                payload: {via: 'project_rpc_port'},
+            }))
+            cleanups.push(live.stop)
+            tempDirs.push(live.projectPath)
+
+            const stale = await startRawServer(() => {})
+            const staleUrl: string = stale.url
+            await stale.close()
+
+            process.chdir(live.projectPath)
+            process.env.VOICETREE_DAEMON_URL = staleUrl
+            process.env.VOICETREE_PROJECT_PATH = live.projectPath
+
+            const result: unknown = await callDaemon('search_nodes', {})
+            expect(result).toEqual({via: 'project_rpc_port'})
+        })
+
         it('cwd up-walk wins when env URL is unset (only port file present)', async () => {
             const daemon = await startStubDaemon('search_nodes', async () => ({
                 type: 'ok',

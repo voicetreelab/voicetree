@@ -44,7 +44,7 @@ export function useAgentMetrics(): UseAgentMetricsReturn {
   const [error, setError] = useState<string | null>(null);
 
   // Check if we're running in Electron
-  const isElectron: boolean = window.electronAPI !== undefined;
+  const isElectron: boolean = window.hostAPI !== undefined;
 
   // Aggregate metrics from sessions
   const aggregateMetrics: (sessions: SessionMetric[]) => void = useCallback((sessions: SessionMetric[]) => {
@@ -83,7 +83,7 @@ export function useAgentMetrics(): UseAgentMetricsReturn {
     setError(null);
 
     try {
-      const data: AgentMetricsData = await window.electronAPI!.main.getMetrics();
+      const data: AgentMetricsData = await window.hostAPI!.main.getMetrics();
       const sessions: SessionMetric[] = Array.isArray(data?.sessions) ? data.sessions : [];
       setSessions(sessions);
       aggregateMetrics(sessions);

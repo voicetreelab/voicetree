@@ -29,7 +29,7 @@
 //   'preserve'}) → ownerHandle.release. Critically, we do NOT stop
 //   vt-graphd: it is a shared cross-process daemon (BF-346 invariant).
 //
-// Headless contract (decided in Phase E; see docs/headless-migration.md):
+// Headless contract (decided in Phase E):
 //   - READ path:  CLI agents call any read tool over the HTTP wire. These
 //                 do not require a terminal record on the daemon side.
 //   - WRITE path: CLI agents write new nodes by raw filesystem Write into
@@ -50,23 +50,25 @@ import {unlink} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForProject, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
-import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
+import {runGracefulShutdown, startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
 import {resolveVoicetreeHomePath} from '@vt/paths'
 import {loadSettings} from '@vt/app-config/settings'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
-import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {ToolBridges} from '@vt/vt-daemon/config/toolBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
-import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
+import {createGatewayLiveUpdates} from '@vt/vt-daemon/transport/gatewayLiveUpdates.ts'
+import {parseDevCorsOrigins} from '@vt/vt-daemon/transport/browser/corsHeaders.ts'
 import {startOtlpReceiver, stopOtlpReceiver} from '@vt/vt-daemon/observability/otlpReceiver.ts'
 import {terminalRuntimeSurface as agentRuntime} from '@vt/vt-daemon/agent-runtime/agent-control/terminalRuntimeSurface.ts'
 import {ensureHomePrompts} from '@vt/vt-daemon/agent-runtime/spawn/ensureHomePrompts.ts'
 import {reconcileTmuxHeadlessAgents} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
+import {buildGraphGatewayRoutes} from '../src/rpc/gateway/graphGatewayRoutes.ts'
+import {buildWorktreeRoutes} from '../src/rpc/gateway/worktreeRoutes.ts'
 import {buildGdbGraphBridge} from '../src/config/gdbGraphBridge.ts'
 import {buildGdbAgentRuntimeGraphBridge} from '../src/config/gdbAgentRuntimeBridge.ts'
 import {
@@ -197,7 +199,8 @@ async function main(): Promise<void> {
             contractVersion: VTD_CONTRACT_VERSION,
             commandFingerprint: {
                 executable: process.execPath,
-                args: process.argv.slice(1),
+                // execArgv carries tsx loader flags `ps` shows but argv omits — see startDaemon.ts.
+                args: [...process.execArgv, ...process.argv.slice(1)],
             },
             clock: Date.now,
         })
@@ -232,15 +235,15 @@ async function main(): Promise<void> {
         die(`failed to ensure vt-graphd sibling: ${(err as Error).message}`)
     }
 
-    // Step 2.5: construct the MCP tool bridges to the sibling vt-graphd over
+    // Step 2.5: construct the RPC tool bridges to the sibling vt-graphd over
     // RPC. Every graph-touching tool in the catalog (`spawn_agent`,
     // `list_agents`, `get_unseen_nodes_nearby`, `create_graph`, live state)
     // resolves through these bridges. They are passed explicitly into
     // `buildDefaultToolCatalog` below — no module-level cell — so the wiring
     // contract is enforced by the type system. The BF-376 regression
     // (missing wire-up) is now a compile-time error rather than a runtime
-    // "MCP graph bridge not configured" throw.
-    const mcpBridges: McpToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.project)}
+    // "graph bridge not configured" throw.
+    const toolBridges: ToolBridges = {graph: buildGdbGraphBridge(gdb.client, args.project)}
 
     // Step 3: bind in-process state to this project, then tmux preflight.
     // setCurrentProject is the single source-of-truth for daemon-internal
@@ -281,18 +284,37 @@ async function main(): Promise<void> {
     const token: string = generateAuthToken()
     await writeAuthTokenFile(args.project, token)
 
-    const hookHandler: HookHandler = (input): unknown =>
-        handleHookEventRequest(
-            {source: input.source, terminalId: input.terminalId, hookEventName: input.eventName},
-            {updateAgentEvent: agentRuntime.updateTerminalAgentEvent},
-        )
-
     const startMs: number = Date.now()
     let httpHandle: HttpDaemonServerHandle
+
+    // Gateway live-update pump + graph.* routes (RE-PLAN B). VTD owns ONE graphd
+    // session; the pump folds graphd's projectedGraph SSE onto the /events hub
+    // `graph` topic so the browser gets live graph updates over the single
+    // connection it already holds — it never reaches graphd. publishGraphSnapshot
+    // reads httpHandle.hub lazily: the pump only starts on the first graph.* RPC,
+    // long after the server (and its hub) is up — the same late-bound-hub pattern
+    // as configureAgentRuntimeForVtd below.
+    const gatewayLiveUpdates = createGatewayLiveUpdates({
+        client: gdb.client,
+        publishGraphSnapshot: (snapshot): void => httpHandle.hub.publish('graph', 'projectedGraph', snapshot),
+        onError: (err): void => {
+            process.stderr.write(`vtd: graph live-update pump error: ${(err as Error).message}\n`)
+        },
+    })
+    const graphGatewayRoutes = buildGraphGatewayRoutes({
+        client: gdb.client,
+        ensureSession: gatewayLiveUpdates.ensureSession,
+    })
+    // Worktree gateway: the browser drives git worktree ops through VTD. The
+    // repo root is read from the daemon's own loaded project (graphd's
+    // authoritative projectRoot), never from the client.
+    const worktreeRoutes = buildWorktreeRoutes({
+        getRepoRoot: async (): Promise<string> => (await gdb.client.getProject()).projectRoot,
+    })
+
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges),
-            hookHandler,
+            catalog: buildDefaultToolCatalog(toolBridges, [...graphGatewayRoutes, ...worktreeRoutes]),
             token,
             // Default bind is loopback. VTD is a per-project per-machine daemon;
             // binding to all interfaces is a security regression. The override
@@ -300,7 +322,7 @@ async function main(): Promise<void> {
             // dev on another machine dials this daemon directly.
             bindHost: process.env.VOICETREE_DAEMON_BIND ?? '127.0.0.1',
             port: args.port,
-            // Stamped into every `agent-events` SSE envelope so consumers
+            // Stamped into every `terminal-registry` SSE envelope so consumers
             // can apply the project-switch fence (BF-376 / main-host-purity
             // spec §"Project-switch fence drops stale events").
             canonicalProject: args.project,
@@ -311,6 +333,7 @@ async function main(): Promise<void> {
             // on/off` after `configureTmuxSession`. Default false keeps
             // browser-style text selection working without holding Shift.
             getTmuxMouseMode: async (): Promise<boolean> => (await loadSettings()).terminalTmuxMouseMode ?? false,
+            getProjectState: async () => gdb.client.getProject(), // allowlist for /clipboard-image + /image FS routes
             // Live owner-projection — must call ownerHandle.health() on EACH
             // request, never cache. Returns null in the window between
             // claimVtDaemonOwner and bindPort; the BF-373 ensure path treats
@@ -324,6 +347,15 @@ async function main(): Promise<void> {
                 owner: ownerHandle.health(),
                 canonicalProject: args.project,
             }),
+            // Browser-mode CORS: only loopback (localhost/127.0.0.1) and private-LAN
+            // IPv4 origins pass validation — anything else is dropped. Set
+            // VOICETREE_CORS_ORIGINS to opt in, e.g.
+            //   VOICETREE_CORS_ORIGINS=http://localhost:3000,http://192.168.1.20:3000
+            allowedOrigins: parseDevCorsOrigins(process.env.VOICETREE_CORS_ORIGINS ?? ''),
+            // No graphdUrl in the browser payload — under the gateway the browser
+            // talks ONLY to VTD; graphd stays loopback-internal (VTD reaches it
+            // via gdb.client, which already holds gdb.port).
+            projectPath: args.project,
         })
         await writeRpcPortFile(args.project, httpHandle.port)
         await ownerHandle.bindPort(httpHandle.port)
@@ -340,7 +372,7 @@ async function main(): Promise<void> {
     //
     // The agent-runtime graph bridge is wired here too: `spawnTerminalWithContextNode`
     // and friends read graph state through the agent-runtime module-level cell, which
-    // is a SEPARATE slot from `mcpBridges.graph` despite the contracts overlapping.
+    // is a SEPARATE slot from `toolBridges.graph` despite the contracts overlapping.
     // Both must be wired or the spawn pipeline throws "graph bridge not configured"
     // on the first Run-Agent click.
     configureAgentRuntimeForVtd(
@@ -389,6 +421,12 @@ async function main(): Promise<void> {
         `vtd: listening on ${httpHandle.url}, project=${args.project}, gdb=${gdb.port}\n`,
     )
 
+    // Per-step ceiling and absolute backstop for the teardown sequence. A
+    // healthy shutdown finishes in single-digit ms; these only bite when a
+    // step hangs. The hard deadline exceeds one step timeout so a normal
+    // timed-out step is never pre-empted by the backstop.
+    const SHUTDOWN_STEP_TIMEOUT_MS = 2_000
+    const SHUTDOWN_HARD_DEADLINE_MS = 8_000
     let shuttingDown: boolean = false
     const shutdown = async (signal: string): Promise<void> => {
         if (shuttingDown) return
@@ -403,26 +441,44 @@ async function main(): Promise<void> {
         // We delete <project>/.voicetree/rpc.port before release so a reader
         // never sees a missing owner record but a stale port — the absence of
         // the port file is the signal that the daemon is gone.
-        try {
-            stopHeartbeat()
-            await stopOtlpReceiver().catch((err: unknown): void => {
-                process.stderr.write(`vtd: OTLP receiver stop error: ${(err as Error).message}\n`)
-            })
-            await httpHandle.stop().catch((err: unknown): void => {
-                process.stderr.write(`vtd: http daemon stop error: ${(err as Error).message}\n`)
-            })
-            agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'})
-            await unlink(rpcPortFilePath(args.project)).catch((err: NodeJS.ErrnoException): void => {
-                if (err.code !== 'ENOENT') {
-                    process.stderr.write(`vtd: rpc.port cleanup error: ${err.message}\n`)
-                }
-            })
-            await ownerHandle.release()
-            process.exit(0)
-        } catch (err) {
-            process.stderr.write(`vtd: shutdown error: ${(err as Error).message}\n`)
-            process.exit(1)
-        }
+        //
+        // Each step is independently time-boxed by runGracefulShutdown: a
+        // step that throws OR hangs (an await that never resolves — e.g. an
+        // OTLP receiver or HTTP listener whose close stalls) is abandoned so
+        // the remaining steps — crucially the rpc.port deletion — still run
+        // and the process always exits. A hung step must never produce an
+        // immortal zombie daemon (the failure that left orphaned VTDs holding
+        // their port + discovery files until SIGKILL).
+        await runGracefulShutdown({
+            stepTimeoutMs: SHUTDOWN_STEP_TIMEOUT_MS,
+            hardDeadlineMs: SHUTDOWN_HARD_DEADLINE_MS,
+            exit: (code: number): void => process.exit(code),
+            onStepIssue: (label: string, error: Error): void => {
+                process.stderr.write(`vtd: shutdown step ${label} failed: ${error.message}\n`)
+            },
+            steps: [
+                {label: 'stopHeartbeat', run: (): void => stopHeartbeat()},
+                // Tear down the graph live-update SSE subscription before closing
+                // the hub it publishes onto. graphd itself is NOT shut down
+                // (shared cross-process sibling, BF-346) — we only drop our own
+                // subscription.
+                {label: 'gatewayLiveUpdates.stop', run: (): void => gatewayLiveUpdates.stop()},
+                {label: 'stopOtlpReceiver', run: (): Promise<void> => stopOtlpReceiver()},
+                {label: 'httpHandle.stop', run: (): Promise<void> => httpHandle.stop()},
+                {
+                    label: 'terminalManager.cleanup',
+                    run: (): void => agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'}),
+                },
+                {
+                    label: 'unlink rpc.port',
+                    run: (): Promise<void> =>
+                        unlink(rpcPortFilePath(args.project)).catch((err: NodeJS.ErrnoException): void => {
+                            if (err.code !== 'ENOENT') throw err
+                        }),
+                },
+                {label: 'ownerHandle.release', run: (): Promise<void> => ownerHandle.release()},
+            ],
+        })
     }
     process.on('SIGINT', (): void => void shutdown('SIGINT'))
     process.on('SIGTERM', (): void => void shutdown('SIGTERM'))

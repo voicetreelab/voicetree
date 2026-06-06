@@ -20,7 +20,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use example_small for faster loading
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -29,7 +29,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Extend test with Electron app
@@ -69,7 +69,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -151,8 +151,8 @@ test.describe('Terminal Graph Dimension Stability', () => {
     // Use API directly with explicit command (empty string triggers agent lookup which fails in tests)
     await appWindow.evaluate(async (nodeId) => {
       const w = window as ExtendedWindow;
-      const api = w.electronAPI;
-      if (!api?.main) throw new Error('electronAPI.main not available');
+      const api = w.hostAPI;
+      if (!api?.main) throw new Error('hostAPI.main not available');
       await api.main.spawnTerminalWithContextNode(nodeId, 'echo "test terminal"', 0);
     }, targetNodeId);
 

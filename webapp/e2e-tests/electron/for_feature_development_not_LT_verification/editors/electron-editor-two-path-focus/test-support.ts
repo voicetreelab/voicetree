@@ -4,11 +4,11 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 export const test = base.extend<{
@@ -54,7 +54,7 @@ export const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }

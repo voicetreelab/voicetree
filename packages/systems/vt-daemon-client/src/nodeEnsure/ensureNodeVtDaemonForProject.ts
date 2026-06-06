@@ -34,24 +34,17 @@ export interface NodeEnsureVtDaemonRuntime {
     readonly newAttemptId: () => string
     readonly now: () => number
     readonly readTextFileSync: (path: string, encoding: BufferEncoding) => string
-    readonly resolveModule: (specifier: string) => string
     readonly resolvePath: (path: string) => string
 }
 
-function resolveVtdBinPath(runtime: NodeEnsureVtDaemonRuntime): string {
-    return runtime.resolveModule('@vt/vt-daemon/bin/vtd.ts')
-}
-
-function resolveTsxLoader(runtime: NodeEnsureVtDaemonRuntime): string {
-    return runtime.resolveModule('tsx')
-}
-
+// The daemon entrypoint (sibling bundle / dist / tsx source) is located inside
+// `resolveCommand` via `import.meta.url`-relative resolution, so the runtime no
+// longer needs to inject a module resolver. It only supplies the spawn env and
+// the Node runtime selector.
 function buildResolveCommandDeps(runtime: NodeEnsureVtDaemonRuntime): ResolveVtDaemonCommandDeps {
     return {
         env: runtime.env,
         runtimeCommand: (): string => resolveDaemonRuntimeCommand({env: runtime.env}),
-        tsxLoaderPath: resolveTsxLoader(runtime),
-        vtdBinPath: resolveVtdBinPath(runtime),
     }
 }
 

@@ -11,7 +11,7 @@ import {showExtractIntoFolderPopup, type ExtractIntoFolderSelectedNode} from "@/
 import type {NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {getExtractIntoFolderSelectionSupport} from "@vt/graph-model/graph";
 import {flushEditorForNode} from "@/shell/edge/UI-edge/floating-windows/editors/flushEditorForNode";
-import '@/shell/electron.d.ts';
+import '@/shell/hostApi.d.ts';
 import { formatShortcut } from '@vt/graph-model/utils';
 import { getShortcutPlatform } from '@/shell/UI/platform/shortcutPlatform';
 
@@ -21,7 +21,7 @@ export interface Position {
 }
 
 export interface VerticalMenuDependencies {
-    handleAddNodeAtPosition: (position: Position) => Promise<void>;
+    handleAddNodeAtPosition: (position: Position, clickedFolderId?: string) => Promise<void>;
 }
 
 export interface MenuItem {
@@ -105,29 +105,32 @@ export class VerticalMenuService {
             return position.x >= bb.x1 && position.x <= bb.x2 && position.y >= bb.y1 && position.y <= bb.y2
         }).sort((a, b) => (b as NodeSingular).ancestors().length - (a as NodeSingular).ancestors().length).first() as NodeSingular
 
-        if (folderAtPosition.length) {
-            const folderId: string = folderAtPosition.id()
-            const folderLabel: string = folderAtPosition.data('folderLabel') as string
+        // The folder under the cursor (if any) drives both folder ops and the directory
+        // a new node is written into.
+        const clickedFolderId: string | undefined = folderAtPosition.length ? folderAtPosition.id() : undefined;
+        const clickedFolderLabel: string | undefined = folderAtPosition.length ? folderAtPosition.data('folderLabel') as string : undefined;
+
+        if (clickedFolderId !== undefined) {
             menuItems.push(
                 {
-                    text: `Expand "${folderLabel}"`,
+                    text: `Expand "${clickedFolderLabel}"`,
                     action: async () => {
                         const { expandFolder } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
-                        void expandFolder(this.cy!, folderId)
+                        void expandFolder(this.cy!, clickedFolderId)
                     },
                 },
                 {
-                    text: `Collapse "${folderLabel}"`,
+                    text: `Collapse "${clickedFolderLabel}"`,
                     action: async () => {
                         const { collapseFolder } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
-                        void collapseFolder(this.cy!, folderId)
+                        void collapseFolder(this.cy!, clickedFolderId)
                     },
                 },
                 {
-                    text: `Hide "${folderLabel}"`,
+                    text: `Hide "${clickedFolderLabel}"`,
                     action: async () => {
                         const { hideFolder } = await import('@/shell/edge/UI-edge/graph/view/folderCollapse')
-                        void hideFolder(this.cy!, folderId)
+                        void hideFolder(this.cy!, clickedFolderId)
                     },
                 },
             )
@@ -136,11 +139,14 @@ export class VerticalMenuService {
         const shortcutPlatform = getShortcutPlatform();
 
         if (this.deps) {
+            const addNodeLabel: string = clickedFolderLabel !== undefined
+                ? `Add Node in "${clickedFolderLabel}"`
+                : 'Add Node Here';
             menuItems.push({
-                html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">Add Node Here <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('N', shortcutPlatform)}</span></span>`,
+                html: `<span style="display: flex; justify-content: space-between; align-items: center; gap: 16px; white-space: nowrap;">${addNodeLabel} <span style="font-size: 10px; color: #888; opacity: 0.7;">${formatShortcut('N', shortcutPlatform)}</span></span>`,
                 action: async () => {
                     //console.log('[VerticalMenuService] Creating node at position:', position);
-                    await this.deps!.handleAddNodeAtPosition(position);
+                    await this.deps!.handleAddNodeAtPosition(position, clickedFolderId);
                 },
             });
         }
@@ -239,10 +245,9 @@ export class VerticalMenuService {
 
                 try {
                     await Promise.all(selectedNodeIds.map(nodeId => flushEditorForNode(nodeId)));
-                    await window.electronAPI?.main.runAgentOnSelectedNodes({
+                    await window.hostAPI?.main.runAgentOnSelectedNodes({
                         selectedNodeIds,
                         taskDescription: result.taskDescription,
-                        position,
                     });
                 } catch (error: unknown) {
                     console.error('[VerticalMenuService] Failed to run agent on selected nodes:', error);
@@ -257,7 +262,7 @@ export class VerticalMenuService {
             action: async () => {
                 const terminalsMap: Map<TerminalId, TerminalData> = getTerminals();
                 const terminalCount: number = getNextTerminalCount(terminalsMap, 'plain-terminal');
-                await window.electronAPI?.main.spawnPlainTerminalWithNode({ position, terminalCount });
+                await window.hostAPI?.main.spawnPlainTerminalWithNode({ position, terminalCount });
             },
         });
 

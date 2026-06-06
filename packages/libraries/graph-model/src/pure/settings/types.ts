@@ -21,24 +21,65 @@ export const AGENT_NAMES: readonly string[] = [
     'Siti', 'Tao', 'Tara', 'Timi', 'Uma', 'Vic', 'Wei', 'Xan', 'Yan', 'Zoe',
 ] as const;
 
-// Round-robin agent name selection (no collisions until all 60 names used)
+// Round-robin agent name selection. The counter rotates over whichever pool is
+// passed (neutral AGENT_NAMES or the Silicon Valley roster); the base name it
+// yields is only the human-friendly half of an id — `getUniqueAgentName` adds the
+// hash that actually makes the id unique.
 // eslint-disable-next-line functional/prefer-readonly-type -- intentionally mutable counter
 const agentNameState: { index: number } = { index: -1 };
 
-export function getNextAgentName(): string {
-    agentNameState.index = (agentNameState.index + 1) % AGENT_NAMES.length;
-    return AGENT_NAMES[agentNameState.index];
+export function getNextAgentName(names: readonly string[] = AGENT_NAMES): string {
+    agentNameState.index = (agentNameState.index + 1) % names.length;
+    return names[agentNameState.index];
 }
 
 /**
- * Get a unique agent name by appending _1 recursively until no collision.
- * Example: Sam → Sam_1 → Sam_1_1 → Sam_1_1_1
+ * Agent ids are `<BaseName><AGENT_ID_SEPARATOR><hash>` — a friendly round-robin
+ * base name plus a short random alphanumeric hash. The hash is what makes an id
+ * unique. Base names come from a tiny pool, drawn round-robin and freed when an
+ * agent exits, so without the hash a base name reused later would collide with a
+ * past agent that the graph still references by id. Three chars over a 36-symbol
+ * alphabet give 46,656 ids per base name; `getUniqueAgentName` still checks the
+ * candidate against live ids and regenerates on the rare clash, so collisions
+ * among concurrent agents are impossible and temporal ones astronomically
+ * unlikely. The hash is stripped for display — see `agentBaseName`.
  */
-export function getUniqueAgentName(baseName: string, existingNames: ReadonlySet<string>): string {
-    if (!existingNames.has(baseName)) {
-        return baseName;
-    }
-    return getUniqueAgentName(`${baseName}_1`, existingNames);
+export const AGENT_ID_SEPARATOR = '-';
+export const AGENT_ID_HASH_LENGTH = 3;
+export const AGENT_ID_HASH_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+/** Compose an agent id from its base name and uniqueness hash. */
+export function formatAgentId(baseName: string, hash: string): string {
+    return `${baseName}${AGENT_ID_SEPARATOR}${hash}`;
+}
+
+const AGENT_ID_HASH_SUFFIX_RE: RegExp =
+    new RegExp(`${AGENT_ID_SEPARATOR}[a-z0-9]{${AGENT_ID_HASH_LENGTH}}$`);
+
+/**
+ * Recover the human-friendly base name from an agent id by stripping the
+ * uniqueness hash: `Ayu-k3f` → `Ayu`. Base names never contain the separator, so
+ * the suffix is unambiguous; an id with no hash suffix is returned unchanged.
+ */
+export function agentBaseName(agentId: string): string {
+    return agentId.replace(AGENT_ID_HASH_SUFFIX_RE, '');
+}
+
+/**
+ * Build a unique agent id by appending a hash to the base name,
+ * regenerating on the rare chance the candidate collides with a live id.
+ * `generateHash` is injectable so callers and tests can supply any source.
+ * For production use with a random source, use `uniqueAgentName` from `../../settings`.
+ */
+export function getUniqueAgentName(
+    baseName: string,
+    existingNames: ReadonlySet<string>,
+    generateHash: () => string,
+): string {
+    const candidate: string = formatAgentId(baseName, generateHash());
+    return existingNames.has(candidate)
+        ? getUniqueAgentName(baseName, existingNames, generateHash)
+        : candidate;
 }
 
 export type EnvVarValue = string | readonly string[];
@@ -89,6 +130,38 @@ export interface HookSettings {
 export const DEFAULT_SUBGRAPH_WARN_THRESHOLD: number = 4;
 export const DEFAULT_SUBGRAPH_ERROR_THRESHOLD: number = 6;
 
+/**
+ * Default fan-out cap for the create_graph `child_count_limit` gate. A node with
+ * more than this many children reads as an unstructured star rather than a tree,
+ * so create_graph blocks (overridable) until the agent nests the children.
+ */
+export const DEFAULT_MAX_CHILDREN_PER_NODE: number = 4;
+
+/**
+ * Default thresholds for the create_graph `graph_complexity_limit` gate, applied
+ * to the L∞ complexity score (see graphComplexity.ts) of the destination-folder
+ * component after the batch lands. `warn` surfaces a non-blocking nudge; `block`
+ * (≈ the 'heavy' rating boundary of 1.0) blocks creation, overridable with a
+ * rationale.
+ */
+export const DEFAULT_COMPLEXITY_WARN_SCORE: number = 0.7;
+export const DEFAULT_COMPLEXITY_BLOCK_SCORE: number = 1.0;
+
+/**
+ * The five create_graph subgraph-gardening defaults as one cohesive record, so a
+ * consumer that needs the whole set (e.g. the create_graph context-config
+ * fallback) imports a single deep constant instead of five loose ones. The
+ * individual constants remain exported for the settings schema and tests that
+ * reference one threshold at a time.
+ */
+export const DEFAULT_SUBGRAPH_LIMITS = {
+    subgraphWarnThreshold: DEFAULT_SUBGRAPH_WARN_THRESHOLD,
+    subgraphErrorThreshold: DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+    maxChildrenPerNode: DEFAULT_MAX_CHILDREN_PER_NODE,
+    complexityWarnScore: DEFAULT_COMPLEXITY_WARN_SCORE,
+    complexityBlockScore: DEFAULT_COMPLEXITY_BLOCK_SCORE,
+} as const;
+
 export interface VTSettings {
     readonly terminalSpawnPathRelativeToWatchedDirectory: string;
     readonly agents: readonly AgentConfig[];
@@ -110,6 +183,8 @@ export interface VTSettings {
     readonly emptyFolderTemplate?: string;
     /** Enable VIM keybindings in markdown editors */
     readonly vimMode?: boolean;
+    /** Silicon Valley mode: name agents after Silicon Valley characters and inject a matching persona into their prompt. Off by default — the user opts in. */
+    readonly siliconValleyMode?: boolean;
     /** Custom hotkey bindings - falls back to DEFAULT_HOTKEYS if not set */
     readonly hotkeys?: HotkeySettings;
     /**
@@ -139,6 +214,25 @@ export interface VTSettings {
      * agent splits the cluster into a sub-folder or justifies the exception (default: 6).
      */
     readonly subgraphErrorThreshold?: number;
+    /**
+     * Max children a single node may have before create_graph blocks (overridable
+     * with a rationale). Keeps the graph a navigable tree instead of a wide star
+     * (default: 4).
+     */
+    readonly maxChildrenPerNode?: number;
+    /**
+     * Graph-complexity warn score: when the destination-folder component's L∞
+     * complexity score reaches this, create_graph returns a non-blocking warning
+     * (default: 0.7).
+     */
+    readonly complexityWarnScore?: number;
+    /**
+     * Graph-complexity block score: when the destination-folder component's L∞
+     * complexity score reaches this, create_graph blocks (overridable with a
+     * rationale) so the agent restructures the cluster (default: 1.0, the 'heavy'
+     * rating boundary).
+     */
+    readonly complexityBlockScore?: number;
     /** Starred folder paths that appear as quick-load recommendations across all projects */
     readonly starredFolders?: readonly string[];
     /** Hook scripts triggered by app events (e.g., worktree creation) */

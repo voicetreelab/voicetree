@@ -97,8 +97,9 @@
 //     for vt graph index/search)
 //   voicetree-cli -> graph-model:          0 -> 1  (fromNodeToMarkdownContent
 //     for vt graph snapshot)
-//   voicetree-cli -> graph-tools:          0 -> 11 (graphGroup/Move/Rename
-//     re-exports + view renderers + filesystem authoring helpers)
+//   voicetree-cli -> graph-tools:          0 -> 12 (graphGroup/Move/Rename
+//     re-exports + view renderers + filesystem authoring helpers +
+//     computeComplexityFromProject for `vt graph complexity`)
 //   voicetree-cli -> voicetree-graph-validation: 0 -> 1 (OVERRIDABLE_RULE_IDS
 //     for --override parser)
 //   voicetree-cli -> vt-daemon:            0 -> 7  (vt serve boots the
@@ -164,8 +165,45 @@
 //   vt-daemon-client -> paths:       0 -> 1 (VTD owner discovery)
 //   vt-rpc -> paths:                 0 -> 1 (auth/port files)
 //   webapp -> paths:                 0 -> 2 (Electron build config + project bootstrap)
+// 2026-06-02 [extract @vt/daemon-test-harness from voicetree-cli e2e — PR #229]:
+// The harness's reason to exist is booting, validating, and tearing down REAL
+// graphd + vtd daemons for the daemon round-trip e2e (no internal mocks — see
+// serveHarness.ts header). It therefore legitimately imports the minimal
+// real-daemon-control surface as VALUE symbols (every type-only import is
+// already `import type` and uncounted):
+//   - graph-db-client: 2 — `ensureGraphDaemonForProject` (prewarmGraphd, the
+//     same graphd ensure `vt serve` uses) + `GraphDbClient` (shutdownGraphd /
+//     ensureCleanProject, which the webapp browser-e2e globalTeardown relies on
+//     to shut graphd down by owner record).
+//   - vt-daemon-client: 1 — `ensureNodeVtDaemonForProject`, the vtd ensure entry
+//     the harness boots the daemon-under-test with.
+//   - vt-rpc: 1 — `readAuthTokenFile`, reads the per-project token the harness
+//     needs to authenticate against the freshly-booted daemon.
+//   - graph-db-protocol: 3 — `HealthResponseSchema` + `VtDaemonHealthResponseSchema`
+//     (assert both daemons are actually healthy before a test proceeds) +
+//     `ownerRecordFile` (locate the owner record for teardown).
+// These symbols previously lived inside voicetree-cli's e2e harness FILE (under
+// the `voicetree-cli -> graph-db-client: 7` budget); the extraction carried them
+// across unchanged — a topology change (the harness moved to its own scanned
+// `src/`), not new coupling. Mirrors the existing sanctioned real-daemon-booting
+// leaves `voicetree-bootcamp -> graph-db-client: 1` and `vt-daemon ->
+// graph-db-client: 1`. Should not grow.
+//
+// 2026-06-03: the create_graph child_count_limit + graph_complexity_limit gates:
+//   vt-daemon -> graph-tools: 7 -> 8 (+1 computeGraphComplexity, the same
+//     measure `vt graph complexity` runs, applied to the destination cluster)
+//   vt-daemon -> graph-model: 24 -> 27 (+3 the gates' tunable settings defaults
+//     DEFAULT_MAX_CHILDREN_PER_NODE / _COMPLEXITY_WARN_SCORE / _COMPLEXITY_BLOCK_SCORE)
+// 2026-06-05 [agent-id-hash PR #235]: 27 -> 28 (+1 agentBaseName).
+//   Fork now strips the hash from the source agent name before generating a fresh
+//   one (forkAgentSession.ts). `getUniqueAgentName` renamed to the impure wrapper
+//   `uniqueAgentName` (net 0), but `agentBaseName` is genuinely new here (+1).
 export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>> = {
     'app-config -> graph-model': 4,
+    'daemon-test-harness -> graph-db-client': 2,
+    'daemon-test-harness -> vt-daemon-client': 1,
+    'daemon-test-harness -> vt-rpc': 1,
+    'daemon-test-harness -> graph-db-protocol': 3,
     'app-config -> paths': 3,
     // 2026-05-28 [PR #139]: @vt/code-graph-cli is a thin agent-facing wrapper
     // around `@vt/measures`' `buildCallGraph` — single value symbol
@@ -177,13 +215,26 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // surface (DaemonKind type now imported alongside the existing 2 symbols).
     'daemon-lifecycle -> graph-db-protocol': 3,
     'daemon-lifecycle -> paths': 1,
-    'graph-db-client -> daemon-lifecycle': 23,
-    'graph-db-client -> graph-db-protocol': 24,
+    // 2026-06-05 [PR #272]: 23 -> 25. The stale-owner reclaim path now uses
+    // the shared `terminateProcess` primitive (SIGTERM -> escalate SIGKILL ->
+    // confirm death) instead of an inline process.kill, and throws the typed
+    // `OwnerReclaimFailedError` when an owner cannot be proven dead — +2 value
+    // symbols. This replaces ad-hoc termination logic with a reused, tested
+    // lifecycle primitive, so the coupling is intentional, not incidental.
+    'graph-db-client -> daemon-lifecycle': 25,
+    // 2026-06-02 [PR #229]: 24 -> 26. graph-db-client now owns the projectedGraph
+    // SSE consumer/parser (relocated here from the webapp) plus the shared
+    // DAEMON_SHUTDOWN_HEADER/_VALUE CSRF constants it sends on /shutdown — +2
+    // value symbols from @vt/graph-db-protocol.
+    'graph-db-client -> graph-db-protocol': 26,
     'graph-db-client -> paths': 1,
     'graph-db-protocol -> paths': 1,
     'graph-db-server -> app-config': 13,
     'graph-db-server -> daemon-lifecycle': 10,
-    'graph-db-server -> graph-db-protocol': 1,
+    // 2026-06-02 [PR #229]: 1 -> 2. The server reads the shared
+    // DAEMON_SHUTDOWN_HEADER constant to gate POST /shutdown against cross-origin
+    // simple-POST CSRF (+1 value symbol).
+    'graph-db-server -> graph-db-protocol': 2,
     'graph-db-server -> graph-model': 42,
     'graph-db-server -> graph-state': 10,
     'graph-db-server -> graph-tools': 1,
@@ -194,6 +245,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'graph-tools -> graph-state': 12,
     'graph-tools -> paths': 1,
     'graph-tools -> vt-rpc': 8,
+    // 2026-06-03: new @vt/layout-quality package — the pure, test-only
+    // layout-quality scorer, relocated out of webapp so a verification tool no
+    // longer drags graph-model coupling into the app. Its geometry module reuses
+    // graph-model's battle-tested `spatial` primitives (segmentsIntersect,
+    // rectIntersectsSegment) instead of duplicating them — 2 value symbols. This
+    // reuse IS the edge's purpose; growing it would mean re-implementing geometry.
+    'layout-quality -> graph-model': 2,
     'perf-fixtures -> paths': 1,
     // 2026-05-29 [B7 bootcamp]: new @vt/voicetree-bootcamp package. Its B5
     // scenario spawns the vt-graphd daemon via graph-db-client's `ensureDaemon`
@@ -204,8 +262,17 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
-    'voicetree-cli -> graph-tools': 11,
-    'voicetree-cli -> paths': 2,
+    'voicetree-cli -> graph-tools': 12,
+    // 2026-06-02 [nested-.voicetree daemon resolution fix]: 2 -> 5. The
+    // project-root up-walk (`detectProjectFromCwd`) was copy-pasted into both
+    // voicetree-cli and vt-rpc with divergent precedence — that drift caused the
+    // wrong-daemon bug when nested `.voicetree/` dirs exist. Consolidated into
+    // @vt/paths as the single shared resolver; the CLI now imports
+    // `detectProjectFromCwd` + `hasVoicetreeMarker` + `resolveProjectRoot`
+    // (the last makes `$VOICETREE_PROJECT_PATH` authoritative over the CWD walk)
+    // instead of carrying a local copy. A dedup, not new behaviour; ratchet down
+    // if the marker check can later be folded into the composed resolver.
+    'voicetree-cli -> paths': 5,
     'voicetree-cli -> voicetree-graph-validation': 1,
     'voicetree-cli -> vt-daemon': 7,
     // 2026-05-27 [Phase 3]: vt-daemon-client is the canonical ensure facade
@@ -219,7 +286,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // tool), `findSpecByCliVerb` (verb resolution). These are the minimum
     // necessary — each verb of `vt manual` calls exactly one of them.
     'voicetree-cli -> vt-daemon-protocol': 4,
-    'voicetree-cli -> vt-rpc': 9,
+    // 2026-06-05 [cross-project agent send]: 9 -> 10. `vt agent send
+    // <project>/<terminalId>` resolves and talks to ANOTHER project's daemon,
+    // so the CLI now imports `discoverDaemonEndpointForProject` (the explicit-
+    // path endpoint resolver) alongside the cwd-relative `discoverDaemonEndpoint`
+    // it already used. The two are genuinely distinct entry points — one
+    // discovers from the ambient project, one from a caller-supplied path.
+    'voicetree-cli -> vt-rpc': 10,
     // 2026-05-27: collapse-paths. `resolveVoicetreeHomePath` is now
     // sourced from @vt/app-config (the canonical single-line resolver), not
     // from a CLI-local mirrored copy. The function body is 1 line — the
@@ -234,13 +307,26 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // daemonTypes module). Prior duplication via the `vt-daemon/src/state/
     // voicetree-home.ts` shim is deleted (the shim's `getVoicetreeHomePath` had
     // a "must stay in sync" comment). +1 symbol, −1 duplicate file.
-    'vt-daemon -> app-config': 2,
+    //
+    // 2026-06-04 [PR #250 folder/settings relocation]: 2 -> 3 (+1).
+    // EXPLICITLY APPROVED by Lochlan (human), eyes-open, after reduction was exhausted
+    // (graph-model genuinely cut 28->27 via the AbsolutePath brand move, 3f92601c9).
+    // Relocation drove this pair 13->3 (net win), leaving it 1 over a budget calibrated
+    // for the pre-relocation distribution. Residual loadSettings/saveSettings/
+    // createDatedSubfolder are each consumed by graph-db-server + vt-daemon + webapp, so
+    // app-config is their true shared home: relocating into vt-daemon inverts the
+    // graph-db-server -> vt-daemon layer; reimplementing = knowledge dup (re-trips the dup
+    // gate). Bundling load/save into one settingsIO object (the only path to 2) is
+    // metric-driven, ~100 sites, and was rejected. Ratchet DOWN if settings IO is ever
+    // fronted by a single daemon-side gateway.
+    'vt-daemon -> app-config': 3,
     'vt-daemon -> daemon-lifecycle': 9,
     // 2026-05-27 [Phase 3]: vt-daemon reads/writes vt-graphd via the HTTP
-    // client (BF-375 standalone-vtd boundary). Single value symbol
-    // (`GraphDbClient`) — the class is constructed once during daemon
-    // bootstrap; further reach into graphd is via that handle.
-    'vt-daemon -> graph-db-client': 1,
+    // client (BF-375 standalone-vtd boundary). `GraphDbClient` is constructed
+    // once during daemon bootstrap; further reach into graphd is via that handle.
+    // 2026-06-02 [PR #229]: 1 -> 2. The graph.* gateway routes ("everything
+    // through VTD") delegate to graph-db-client, adding one more value symbol.
+    'vt-daemon -> graph-db-client': 2,
     'vt-daemon -> graph-db-protocol': 2,
     // 2026-05-27 [Phase 3]: graph-model is a leaf data package; widening
     // 9 -> 10 as the daemon takes over Main's normalization paths under
@@ -262,26 +348,35 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // getFolderIdentityNoteId, findBestMatchingNode, getFolderParent,
     // isFolderIdentityNote (graph queries), DEFAULT_SUBGRAPH_{WARN,ERROR}_THRESHOLD
     // (settings). Observed 23; ratchet DOWN as create-graph is refactored.
-    'vt-daemon -> graph-model': 23,
+    //
+    // 2026-06-02 [agent-name roster + prompt addendum]: 23 -> 24 (+1). The spawn
+    // pipeline gains one graph-model entry point: the naming call site swapped
+    // getNextAgentName for pickAgentName(settings) (net zero) and
+    // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
+    // render internals stay inside graph-model so the daemon depends on one new
+    // symbol, not three.
+    'vt-daemon -> graph-model': 28,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
     // in webapp's process).
     'vt-daemon -> graph-state': 3,
-    'vt-daemon -> graph-tools': 7,
+    'vt-daemon -> graph-tools': 8,
     'vt-daemon -> observability': 10,
     'vt-daemon -> paths': 4,
     'vt-daemon -> voicetree-graph-validation': 1,
     // 2026-05-28 [TOOL-SPEC-SSoT]: 1 -> 4. After the single-source-of-truth
     // refactor (PR #137 + follow-up), vt-daemon-protocol owns TOOL_SPECS plus
-    // the manual renderer + the [From:] wrapper. The daemon now imports four
-    // distinct value symbols and only four: `TOOL_SPECS` (catalog.ts iterates
-    // it to bind handlers; cliManualInjection.ts re-uses it for the spawn
-    // essentials slice), `renderManual` (cliManualInjection.ts), `buildFromPrefixedMessage`
-    // (sendMessageTool.ts), and one terminal-registry constant. The earlier
-    // shape of "14 individual *_SPEC constants" was an over-export of
-    // implementation detail; those are no longer in the protocol barrel.
-    'vt-daemon -> vt-daemon-protocol': 4,
+    // the [From:] wrapper and terminal/graph protocol constants. The daemon
+    // imports `TOOL_SPECS` for catalog binding and concise spawn CLI discovery;
+    // rendered manual sections stay behind `vt manual`.
+    // 2026-06-02 [PR #229]: 4 -> 5. vt-daemon consumes the published graph.*
+    // gateway RPC contract from vt-daemon-protocol (+1 value symbol).
+    // 2026-06-03 [status-presets]: 5 -> 7. create_graph status reporting
+    // consumes the shared status vocabulary and phrase cap (`AGENT_STATUSES`,
+    // `MAX_STATUS_PHRASE_LENGTH`) so daemon validation, lifecycle handling, and
+    // CLI docs use one protocol contract.
+    'vt-daemon -> vt-daemon-protocol': 7,
     // 2026-05-27 [Phase 3]: +1 — `VOICETREE_DIRNAME` currently lives in
     // `@vt/vt-rpc/portFile`; it should move to a leaf paths package
     // (proposed `@vt/project-paths` or `@vt/paths`). See #123 for
@@ -301,7 +396,12 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'vt-daemon-client -> vt-daemon-protocol': 1,
     'vt-daemon-client -> vt-rpc': 1,
     'vt-fake-agent -> vt-rpc': 1,
-    'vt-rpc -> paths': 1,
+    // 2026-06-02 [nested-.voicetree daemon resolution fix]: 1 -> 3. vt-rpc's
+    // `discoverDaemonEndpoint` carried its own copy of the project-root up-walk;
+    // it now imports the shared `detectProjectFromCwd` + `hasVoicetreeMarker`
+    // from @vt/paths (and makes `$VOICETREE_PROJECT_PATH` win over the CWD walk).
+    // Same dedup as the voicetree-cli edge above — removes a duplicated resolver.
+    'vt-rpc -> paths': 3,
     // 2026-05-27: ratcheted 24 -> 22. stripStaleVoicetreeMcpEntries +
     // writeProjectAgentDiscoveryFile were briefly here (ce909fdeb) but only
     // webapp's electron-main calls them; now live colocated in
@@ -326,7 +426,7 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // observability capability owned by a leaf package. Should not grow.
     'webapp -> perf-analysis': 1,
     // 2026-05-27: ratcheted 13 -> 0. Post-BF-376 + the three coupling
-    // cleanups above (drop in-process configureMcpServer +
+    // cleanups above (drop the in-process tool-server configuration +
     // registerChildIfMonitored, move FS helpers to @vt/app-config, fix
     // peekCurrentProject -> getActiveProject in getMetricsViaVtd) webapp has
     // ZERO value imports from `@vt/vt-daemon`. The remaining type-only

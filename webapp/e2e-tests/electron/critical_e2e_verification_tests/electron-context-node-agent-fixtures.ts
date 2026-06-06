@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import { robustElectronTeardown, resolveGraphDaemonNodeBin, safeStopFileWatching, pollForCytoscape } from './electron-smoke-helpers';
 
 export const PROJECT_ROOT = path.resolve(process.cwd());
@@ -12,7 +12,7 @@ const FIXTURE_PROJECT_TEMPLATE_PATH = path.join(PROJECT_ROOT, 'example_folder_fi
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 export const test = base.extend<{

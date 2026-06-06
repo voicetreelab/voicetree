@@ -1,15 +1,6 @@
 import {createSSEConnection} from "@/shell/edge/UI-edge/text_to_tree_server_communication/sse-consumer";
-import type {} from "@/shell/electron"; // Side-effect import for global Window.electronAPI type
-
-/**
- * Escapes HTML special characters to prevent XSS attacks.
- * Use this for any user-controlled content before inserting into DOM.
- */
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+import type {} from "@/shell/hostApi"; // Side-effect import for global Window.hostAPI type
+import {escapeHtml} from "@/utils/escapeHtml";
 
 export interface SSEEvent {
     type: string;
@@ -70,7 +61,7 @@ export class SseStatusPanel {
     }
 
     private initSSEConnection(): void {
-        window.electronAPI?.main.getBackendPort().then((port: number | null) => {
+        window.hostAPI?.main.getBackendPort().then((port: number | null) => {
             if (port) {
                 //console.log('[SseStatusPanel] Creating SSE connection on port', port);
                 this.disconnectSSE = createSSEConnection(port, event => this.addEvent(event));

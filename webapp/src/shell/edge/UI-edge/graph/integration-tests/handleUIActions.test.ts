@@ -5,7 +5,7 @@
  * BEHAVIOR TESTED:
  * - INPUT: Parent node ID, headless cytoscape instance with 2 nodes
  * - OUTPUT: Cytoscape has 3 nodes with correct edges
- * - SIDE EFFECTS: Calls electronAPI to persist the graph delta
+ * - SIDE EFFECTS: Calls hostAPI to persist the graph delta
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -116,7 +116,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             ]
         })
 
-        // Mock window.electronAPI
+        // Mock window.hostAPI
         // Mock applyGraphDeltaToDBThroughMem to also update the cytoscape UI and mockGraph
         const mockApplyDelta: (delta: GraphDelta) => Promise<void> = vi.fn().mockImplementation(async (delta: GraphDelta) => {
             mockGraph = applyGraphDeltaToGraph(mockGraph, delta)
@@ -130,7 +130,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             global.window = {} as Window & typeof globalThis
         }
 
-        (global.window as any).electronAPI = {
+        (global.window as any).hostAPI = {
             main: {
                 getGraph: vi.fn(() => mockGraph),
                 getNode: vi.fn((nodeId: string) => mockGraph.nodes[nodeId]),
@@ -160,7 +160,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(result).toBe('parent_1.md')
 
         // THEN: applyGraphDeltaToDBThroughMem should have been called
-        expect((global.window as any).electronAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
+        expect((global.window as any).hostAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
 
         // THEN: Cytoscape should now have 3 nodes
         expect(cy.nodes()).toHaveLength(3)
@@ -182,9 +182,9 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(newEdge.data('source')).toBe('parent.md')
         expect(newEdge.data('target')).toBe(newNodeId)
 
-        // AND: Should have called electronAPI to persist the change
+        // AND: Should have called hostAPI to persist the change
         // The GraphDelta should contain 2 actions: new child node + updated parent with edge
-        const graphDeltaCall: any[] = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed.mock.calls[0]?.[0] as any[];
+        const graphDeltaCall: any[] = (window as any).hostAPI!.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed.mock.calls[0]?.[0] as any[];
         expect(graphDeltaCall).toHaveLength(2)
 
         // First action: UpsertNode for new child
@@ -231,7 +231,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             'child1.md': mockGraph.nodes['child1.md']
         })
         mockGraph = staleGraph
-        ;(global.window as any).electronAPI.main.getNode = vi.fn((nodeId: string) =>
+        ;(global.window as any).hostAPI.main.getNode = vi.fn((nodeId: string) =>
             nodeId === 'parent.md' ? parentNode : mockGraph.nodes[nodeId]
         )
 
@@ -240,8 +240,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
         // THEN: The UI path should recover instead of passing undefined into child creation
         expect(result).toBe('parent_1.md')
-        expect((global.window as any).electronAPI.main.getNode).toHaveBeenCalledWith('parent.md')
-        expect((global.window as any).electronAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
+        expect((global.window as any).hostAPI.main.getNode).toHaveBeenCalledWith('parent.md')
+        expect((global.window as any).hostAPI.main.applyGraphDeltaToDBThroughMemUIAndEditorExposed).toHaveBeenCalledTimes(1)
     })
 
     it('should extract labels correctly via markdownToTitle for different content types', async () => {
@@ -272,7 +272,7 @@ describe('writeMarkdownFileFromUI - Integration', () => {
         daemonRequests = []
 
         global.window = {
-            electronAPI: {
+            hostAPI: {
                 main: {
                     writeMarkdownFile: async (
                         absolutePath: string,

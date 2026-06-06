@@ -13,10 +13,10 @@ import {
   extractEdges,
   findBestMatchingNode,
   linkMatchScore,
-  getPathComponents
+  getMarkdownLinkTargetSegments
 } from '../extract-edges'
 import {
-  getBaseName,
+  getMarkdownLinkTargetBasename,
   buildNodeByBaseNameIndex
 } from '../../graph-operations/indexes/linkResolutionIndexes'
 import type { NodeByBaseNameIndex } from '../../graph-operations/indexes/linkResolutionIndexes'
@@ -160,16 +160,16 @@ describe('wikilink without .md extension — integration tests', () => {
   })
 
   // ─── Scenario 6: nodeByBaseName index resolves extension-less ──────
-  describe('6. nodeByBaseName index: [[node]] resolves to node.md via getBaseName', () => {
-    it('getBaseName should strip .md and return lowercase basename', () => {
-      expect(getBaseName('folder/MyNode.md')).toBe('mynode')
-      expect(getBaseName('MyNode.md')).toBe('mynode')
+  describe('6. nodeByBaseName index: [[node]] resolves to node.md via getMarkdownLinkTargetBasename', () => {
+    it('getMarkdownLinkTargetBasename should strip .md and return lowercase basename', () => {
+      expect(getMarkdownLinkTargetBasename('folder/MyNode.md')).toBe('mynode')
+      expect(getMarkdownLinkTargetBasename('MyNode.md')).toBe('mynode')
     })
 
-    it('getBaseName should handle input WITHOUT .md extension', () => {
-      expect(getBaseName('node')).toBe('node')
-      expect(getBaseName('folder/node')).toBe('node')
-      expect(getBaseName('Node')).toBe('node')
+    it('getMarkdownLinkTargetBasename should handle input WITHOUT .md extension', () => {
+      expect(getMarkdownLinkTargetBasename('node')).toBe('node')
+      expect(getMarkdownLinkTargetBasename('folder/node')).toBe('node')
+      expect(getMarkdownLinkTargetBasename('Node')).toBe('node')
     })
 
     it('buildNodeByBaseNameIndex should allow lookup from extension-less link', () => {
@@ -179,7 +179,7 @@ describe('wikilink without .md extension — integration tests', () => {
 
       const index: NodeByBaseNameIndex = buildNodeByBaseNameIndex(nodes)
 
-      const basename: string = getBaseName('my-node')
+      const basename: string = getMarkdownLinkTargetBasename('my-node')
       expect(index.get(basename)).toEqual(['folder/my-node.md'])
     })
 
@@ -259,16 +259,16 @@ describe('wikilink without .md extension — integration tests', () => {
     })
   })
 
-  // ─── Cross-cutting: getPathComponents normalizes extension-less ────
-  describe('getPathComponents normalizes extension-less links', () => {
+  // ─── Cross-cutting: getMarkdownLinkTargetSegments normalizes extension-less ────
+  describe('getMarkdownLinkTargetSegments normalizes extension-less links', () => {
     it('should return same components for "node" and "node.md"', () => {
-      expect(getPathComponents('node')).toEqual(['node'])
-      expect(getPathComponents('node.md')).toEqual(['node'])
+      expect(getMarkdownLinkTargetSegments('node')).toEqual(['node'])
+      expect(getMarkdownLinkTargetSegments('node.md')).toEqual(['node'])
     })
 
     it('should return same components for "sub/node" and "sub/node.md"', () => {
-      expect(getPathComponents('sub/node')).toEqual(['sub', 'node'])
-      expect(getPathComponents('sub/node.md')).toEqual(['sub', 'node'])
+      expect(getMarkdownLinkTargetSegments('sub/node')).toEqual(['sub', 'node'])
+      expect(getMarkdownLinkTargetSegments('sub/node.md')).toEqual(['sub', 'node'])
     })
   })
 })

@@ -13,16 +13,16 @@ export type NodeByBaseNameIndex = ReadonlyMap<string, readonly NodeIdAndFilePath
 export type UnresolvedLinksIndex = ReadonlyMap<string, readonly NodeIdAndFilePath[]>
 
 /**
- * Extract the lowercase basename from a path.
+ * Extract the lowercase basename from a markdown link target or node ID.
  * Strips .md extension and normalizes to lowercase for consistent matching.
  *
  * @example
- * getBaseName('/project/a/foo.md') => 'foo'
- * getBaseName('./foo.md') => 'foo'
- * getBaseName('FooBar.md') => 'foobar'
+ * getMarkdownLinkTargetBasename('/project/a/foo.md') => 'foo'
+ * getMarkdownLinkTargetBasename('./foo.md') => 'foo'
+ * getMarkdownLinkTargetBasename('FooBar.md') => 'foobar'
  */
-export function getBaseName(path: string): string {
-  const components: readonly string[] = path
+export function getMarkdownLinkTargetBasename(linkTarget: string): string {
+  const components: readonly string[] = linkTarget
     .split(/[/\\]/)
     .filter(p => p !== '' && p !== '.' && p !== '..')
 
@@ -108,7 +108,7 @@ export function buildNodeByBaseNameIndex(
   const map: Map<string, readonly NodeIdAndFilePath[]> = new Map()
 
   Object.keys(nodes).forEach(nodeId => {
-    addToIndex(map, getBaseName(nodeId), nodeId)
+    addToIndex(map, getMarkdownLinkTargetBasename(nodeId), nodeId)
   })
 
   return map
@@ -131,7 +131,7 @@ export function buildUnresolvedLinksIndex(
     node.outgoingEdges
       .filter(edge => nodes[edge.targetId] === undefined)
       .forEach(edge => {
-        addToIndex(map, getBaseName(edge.targetId), nodeId)
+        addToIndex(map, getMarkdownLinkTargetBasename(edge.targetId), nodeId)
       })
   })
 
@@ -147,13 +147,13 @@ export function updateNodeByBaseNameIndexForUpsert(
   previousNode: O.Option<GraphNode>
 ): NodeByBaseNameIndex {
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
-  const newBasename: string = getBaseName(nodeId)
+  const newBasename: string = getMarkdownLinkTargetBasename(nodeId)
 
   const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
 
   // If update, remove old entry if basename changed
   if (O.isSome(previousNode)) {
-    const oldBasename: string = getBaseName(previousNode.value.absoluteFilePathIsID)
+    const oldBasename: string = getMarkdownLinkTargetBasename(previousNode.value.absoluteFilePathIsID)
     if (oldBasename !== newBasename && oldBasename !== '') {
       removeFromIndex(map, oldBasename, previousNode.value.absoluteFilePathIsID)
     }
@@ -173,7 +173,7 @@ export function updateNodeByBaseNameIndexForDelete(
   deletedNode: GraphNode
 ): NodeByBaseNameIndex {
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
-  const basename: string = getBaseName(deletedNodeId)
+  const basename: string = getMarkdownLinkTargetBasename(deletedNodeId)
 
   if (!index) return new Map()
   if (basename === '') return index
@@ -199,14 +199,14 @@ export function updateUnresolvedLinksIndexForUpsert(
   allNodes: Record<NodeIdAndFilePath, GraphNode>
 ): UnresolvedLinksIndex {
   const nodeId: NodeIdAndFilePath = node.absoluteFilePathIsID
-  const nodeBasename: string = getBaseName(nodeId)
+  const nodeBasename: string = getMarkdownLinkTargetBasename(nodeId)
 
   const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
 
   // Step 1: If this is an update, remove old unresolved links from this node
   if (O.isSome(previousNode)) {
     previousNode.value.outgoingEdges.forEach(edge => {
-      removeFromIndex(map, getBaseName(edge.targetId), previousNode.value.absoluteFilePathIsID)
+      removeFromIndex(map, getMarkdownLinkTargetBasename(edge.targetId), previousNode.value.absoluteFilePathIsID)
     })
   }
 
@@ -217,7 +217,7 @@ export function updateUnresolvedLinksIndexForUpsert(
   node.outgoingEdges
     .filter(edge => allNodes[edge.targetId] === undefined)
     .forEach(edge => {
-      addToIndex(map, getBaseName(edge.targetId), nodeId)
+      addToIndex(map, getMarkdownLinkTargetBasename(edge.targetId), nodeId)
     })
 
   return map
@@ -236,13 +236,13 @@ export function updateUnresolvedLinksIndexForDelete(
   allNodes: Record<NodeIdAndFilePath, GraphNode>
 ): UnresolvedLinksIndex {
   const deletedNodeId: NodeIdAndFilePath = deletedNode.absoluteFilePathIsID
-  const deletedBasename: string = getBaseName(deletedNodeId)
+  const deletedBasename: string = getMarkdownLinkTargetBasename(deletedNodeId)
 
   const map: Map<string, readonly NodeIdAndFilePath[]> = mutableCopy(index)
 
   // Step 1: Remove deleted node from any unresolved link tracking
   deletedNode.outgoingEdges.forEach(edge => {
-    removeFromIndex(map, getBaseName(edge.targetId), deletedNodeId)
+    removeFromIndex(map, getMarkdownLinkTargetBasename(edge.targetId), deletedNodeId)
   })
 
   // Step 2: Find nodes that have edges pointing to the deleted node

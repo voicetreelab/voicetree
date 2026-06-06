@@ -102,14 +102,6 @@ ssh "$VT_REMOTE_HOST" 'grep -q "vt-devbox ssh-mux" ~/.ssh/config && echo OK || e
 Expect `OK`. From then on `ssh mac` works flag-free, and only the first call per
 10-minute window pays the handshake — the rest reuse one connection (~instant).
 
-## Optional: destructive-git prompt
-
-```bash
-bash scripts/dev-setup/git-gate/install.sh
-```
-
-Recommend it but don't push hard — it's a personal-safety preference.
-
 ## Report back to the user
 
 In one short message:
@@ -122,8 +114,8 @@ In one short message:
 ## Gotchas to flag if relevant
 
 - **Worktrees**: if they use VT worktrees later, the per-worktree
-  `.env` symlink must exist for repo env compatibility. The worktree hooks and
-  `scripts/dev-setup/git-gate/git-gate.sh` handle it when they create worktrees.
+  `.env` symlink must exist for repo env compatibility. `vt-worktree` and the
+  worktree hooks (`scripts/hooks/post-checkout`) handle it when they create worktrees.
 - **`VT_REMOTE_HOST` is read from process env, `~/.env`, or repo `.env`** —
   not from `~/.zshrc`. Don't suggest putting it there.
 - **`.env` is gitignored** but **is** synced to the devbox by mutagen.

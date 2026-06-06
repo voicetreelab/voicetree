@@ -240,9 +240,7 @@ export default tseslint.config([
     ],
     ignores: [
       'packages/systems/agent-runtime/src/graph-bridge.ts',
-      'packages/systems/vt-daemon/src/mcp-graph-bridge.ts',
       'packages/systems/agent-runtime/src/runtime-config.ts',
-      'packages/systems/vt-daemon/src/config/mcp-config-public.ts',
     ],
     rules: {
       'no-restricted-imports': ['error', {
@@ -251,7 +249,7 @@ export default tseslint.config([
             '@vt/graph-db-server',
             '@vt/graph-db-server/*',
           ],
-          message: 'Use bridge accessors (graph-bridge.ts / mcp-graph-bridge.ts) instead of direct @vt/graph-db-server imports.',
+          message: 'Use bridge accessors (graph-bridge.ts / config/graphBridge.ts) instead of direct @vt/graph-db-server imports.',
         }],
       }],
     },

@@ -1,7 +1,8 @@
 import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringPlanEntry,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
+import {isAbsolute, relative as relativePath} from 'node:path'
 import type {AppliedNode} from '../io/filesystem'
 import type {GatedInput} from './gateVerdicts'
 import type {
@@ -17,7 +18,7 @@ type PlanErrorLike = {
     readonly ruleId?: OverridableRuleId
 }
 
-export function indexMcpResults(result: GraphCreateSuccess): ReadonlyMap<string, GraphCreateResult> {
+export function indexAuthoredResultsByPath(result: GraphCreateSuccess): ReadonlyMap<string, GraphCreateResult> {
     const indexed: Map<string, GraphCreateResult> = new Map()
     for (const node of result.nodes) {
         indexed.set(node.path, node)
@@ -25,39 +26,48 @@ export function indexMcpResults(result: GraphCreateSuccess): ReadonlyMap<string,
     return indexed
 }
 
-export function mergeMcpResults(
+export function mergeAuthoredResultsIntoVerdicts(
     gateVerdicts: readonly GatedInput[],
-    mcpResultsByAbsolutePath: ReadonlyMap<string, GraphCreateResult>,
+    createGraphResultsByAbsolutePath: ReadonlyMap<string, GraphCreateResult>,
+    createGraphResultsByIndex: readonly GraphCreateResult[],
     overrideRuleIdsByPath: ReadonlyMap<string, readonly string[]>,
 ): readonly NodeVerdict[] {
-    return gateVerdicts.map((gated): NodeVerdict => {
-        const mcpResult: GraphCreateResult | undefined =
+    return gateVerdicts.map((gated, index): NodeVerdict => {
+        const pathMatch: GraphCreateResult | undefined =
             gated.absoluteTargetForMerge !== undefined
-                ? mcpResultsByAbsolutePath.get(gated.absoluteTargetForMerge)
+                ? createGraphResultsByAbsolutePath.get(gated.absoluteTargetForMerge)
                 : undefined
+        const indexMatch: GraphCreateResult | undefined =
+            createGraphResultsByIndex.length === gateVerdicts.length ? createGraphResultsByIndex[index] : undefined
+        const createGraphResult: GraphCreateResult | undefined = pathMatch ?? indexMatch
         const overridden: readonly string[] | undefined = overrideRuleIdsByPath.get(gated.path)
         const overriddenField: Partial<NodeVerdict> =
             overridden && overridden.length > 0 ? {overriddenRuleIds: overridden} : {}
+        const verdictPath: string = createGraphResult ? displayPathFromCreateGraphResult(createGraphResult.path) : gated.path
 
-        if (gated.verdict.status === 'skipped') return gated.verdict
+        if (gated.verdict.status === 'skipped' && createGraphResult === undefined) return gated.verdict
 
-        if (mcpResult !== undefined && mcpResult.status === 'warning') {
+        if (createGraphResult !== undefined && createGraphResult.status === 'warning') {
             return {
-                path: gated.path,
+                path: verdictPath,
                 status: 'warning',
-                ...(mcpResult.warning ? {warning: mcpResult.warning} : {}),
+                ...(createGraphResult.warning ? {warning: createGraphResult.warning} : {}),
                 ...overriddenField,
             }
         }
 
         return {
-            path: gated.path,
+            path: verdictPath,
             status: 'ok',
             ...(gated.verdict.typeName ? {typeName: gated.verdict.typeName} : {}),
             ...(gated.verdict.schemaPath ? {schemaPath: gated.verdict.schemaPath} : {}),
             ...overriddenField,
         }
     })
+}
+
+function displayPathFromCreateGraphResult(resultPath: string): string {
+    return isAbsolute(resultPath) ? relativePath(process.cwd(), resultPath) : resultPath
 }
 
 export function indexPlanErrorsByFilename<T extends PlanErrorLike>(

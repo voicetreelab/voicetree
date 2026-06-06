@@ -292,6 +292,12 @@
     font-family: monospace;
 }
 
+/* Agent-authored live status phrase, shown inline after the model name. */
+.terminal-tree-status-phrase {
+    font-style: italic;
+    opacity: 0.85;
+}
+
 /* Close button */
 .terminal-tree-close {
     opacity: 0;

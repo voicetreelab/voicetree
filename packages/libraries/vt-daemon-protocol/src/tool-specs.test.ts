@@ -15,8 +15,8 @@ import {buildFromPrefixedMessage} from './from-prefix-message'
 import type {ToolSpec} from './tool-spec-types'
 
 describe('TOOL_SPECS structural invariants', () => {
-    it('has the expected 14 catalog entries', () => {
-        expect(TOOL_SPECS.length).toBe(14)
+    it('has the expected 15 catalog entries', () => {
+        expect(TOOL_SPECS.length).toBe(15)
     })
 
     it('has unique rpcName values, all defined', () => {

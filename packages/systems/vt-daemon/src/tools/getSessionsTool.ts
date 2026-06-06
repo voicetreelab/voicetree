@@ -9,13 +9,13 @@ import {getSessions, type SessionMetric} from '../observability/agentMetricsStor
 import {getCurrentProject} from '../state/currentProject.ts'
 
 import {buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface GetSessionsResult {
     readonly sessions: readonly SessionMetric[]
 }
 
-export async function getSessionsTool(): Promise<McpToolResponse> {
+export async function getSessionsTool(): Promise<ToolResponse> {
     try {
         const sessions: readonly SessionMetric[] = await getSessions(getCurrentProject())
         return buildJsonResponse({sessions} satisfies GetSessionsResult)

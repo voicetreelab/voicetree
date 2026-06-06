@@ -16,7 +16,7 @@ import type {
 import type {NodeIdAndFilePath, Position} from '@vt/graph-model/graph'
 
 import {voidRoute, type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const positionShape = z.object({x: z.number(), y: z.number()}).passthrough()
 
@@ -58,7 +58,7 @@ const spawnTerminalWithContextNodeRoute: RpcRoute = {
         inheritTerminalId: z.string().optional(),
         envOverrides: z.record(z.string(), z.string()).optional(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: SpawnWithContext.Request = args as unknown as SpawnWithContext.Request
         const result: SpawnWithContext.Response = await agentRuntime.spawnTerminalWithContextNode(
             req.taskNodeId as NodeIdAndFilePath,

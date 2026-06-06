@@ -1,7 +1,7 @@
 import posthog from "posthog-js";
 import type {VTSettings} from "@vt/graph-model/settings";
-// Import ElectronAPI type for window.electronAPI access
-import type {} from "@/shell/electron";
+// Import HostAPI type for window.hostAPI access
+import type {} from "@/shell/hostApi";
 
 const FEEDBACK_DELTA_THRESHOLD: number = 45;
 const EMAIL_DELTA_THRESHOLD: number = 500;
@@ -306,8 +306,8 @@ async function maybeShowEmailPrompt(): Promise<void> {
     if (cachedUserEmail) return;
 
     // Check settings.json for existing email (only on first check)
-    if (!window.electronAPI?.main?.loadSettings) return;
-    const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
+    if (!window.hostAPI?.main?.loadSettings) return;
+    const settings: VTSettings = await window.hostAPI.main.loadSettings() as VTSettings;
     if (settings.userEmail) {
         cachedUserEmail = settings.userEmail;
         return;
@@ -325,7 +325,7 @@ async function maybeShowEmailPrompt(): Promise<void> {
             });
             // Save to settings.json to persist across app updates/reinstalls
             const updatedSettings: VTSettings = { ...settings, userEmail: email };
-            await window.electronAPI.main.saveSettings(updatedSettings);
+            await window.hostAPI.main.saveSettings(updatedSettings);
             cachedUserEmail = email;
         }
     }
@@ -345,13 +345,13 @@ async function maybeShowFeedbackAlert(): Promise<void> {
         feedbackAlertShown = true;
 
         // Check if feedback dialog has already been shown in a previous session
-        if (!window.electronAPI?.main?.loadSettings) return;
-        const settings: VTSettings = await window.electronAPI.main.loadSettings() as VTSettings;
+        if (!window.hostAPI?.main?.loadSettings) return;
+        const settings: VTSettings = await window.hostAPI.main.loadSettings() as VTSettings;
         if (settings.feedbackDialogShown) return;
 
         // Mark as shown in settings before showing dialog
         const updatedSettings: VTSettings = { ...settings, feedbackDialogShown: true };
-        await window.electronAPI.main.saveSettings(updatedSettings);
+        await window.hostAPI.main.saveSettings(updatedSettings);
 
         const feedback: string | null = await showFeedbackDialog();
         if (feedback) {

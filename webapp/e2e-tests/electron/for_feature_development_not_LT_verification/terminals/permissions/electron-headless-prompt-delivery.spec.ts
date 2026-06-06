@@ -30,7 +30,7 @@ interface ExtendedWindow {
     cytoscapeInstance?: {
         nodes: () => { length: number; map: (fn: (n: { id: () => string }) => string) => string[] };
     };
-    electronAPI?: {
+    hostAPI?: {
         main: {
             stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
@@ -99,7 +99,7 @@ const test = base.extend<{
         try {
             const window = await electronApp.firstWindow();
             await window.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 if (api) await api.main.stopFileWatching();
             });
             await window.waitForTimeout(300);
@@ -188,8 +188,8 @@ test.describe('Headless Agent Prompt Delivery', () => {
         // ═══════════════════════════════════════════════════════════════════
         console.log('=== STEP 4: Find anchor node ===');
         const nodeIds: string[] = await appWindow.evaluate(async () => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api) throw new Error('electronAPI not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api) throw new Error('hostAPI not available');
             const graph = await api.main.getGraph();
             return Object.keys(graph.nodes);
         });
@@ -204,8 +204,8 @@ test.describe('Headless Agent Prompt Delivery', () => {
         console.log('=== STEP 5: Bootstrap caller terminal ===');
         const callerTerminalId = 'e2e-prompt-delivery-caller';
         const spawnResult = await appWindow.evaluate(async ({ parentNodeId: nodeId, callerId }) => {
-            const api = (window as unknown as ExtendedWindow).electronAPI;
-            if (!api?.terminal) throw new Error('electronAPI.terminal not available');
+            const api = (window as unknown as ExtendedWindow).hostAPI;
+            if (!api?.terminal) throw new Error('hostAPI.terminal not available');
 
             return await api.terminal.spawn({
                 type: 'Terminal',

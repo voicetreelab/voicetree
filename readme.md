@@ -77,6 +77,8 @@ docker run -d --rm -p 6080:6080 \
 ```
 See [`docker/README.md`](docker/README.md) for details. amd64 only for now.
 
+**Run VoiceTree in the browser (no Electron):** a monorepo-only dev command (`@voicetree/cli` isn't published yet) — see [docs/browser-mode.md](docs/browser-mode.md).
+
 ---
 
 ## How It Works
@@ -121,11 +123,33 @@ Capture ideas hands-free with speech-to-graph.
 
 ## Development
 
-**Prerequisites:** Node.js 18+, pnpm 10 (`corepack enable`), Python 3.13, uv
+A **pnpm monorepo** (app in `webapp/`) with a **Python** backend.
 
+**Prereqs:** Node 22+, pnpm 10 (`corepack enable`); Python 3.13 + uv for python backend only. Run `pnpm install` once (and after deps change).
+
+### Run the app
 ```bash
-pnpm install && pnpm --filter voicetree-webapp run electron  # App (run from repo root)
-uv sync && uv run pytest                                     # Backend
+pnpm --filter voicetree-webapp run electron                   # Electron desktop app (the packaged build)
+vt webapp --project <path> [--port <n>] [--lan] [--no-open]   # Browser webapp; <> required, [] optional
+```
+`--port` default 3000
+
+`--lan` expose to phone/tablet on your network
+
+`--no-open` don't auto-open browser.
+
+**Perf stack:** Electron auto-attaches local profiling (Grafana/Tempo/Loki/Pyroscope, Go binaries) at the `lite` tier. Skip it with `PERF_STACK=0`. `vt webapp` never attaches it.
+
+### **Python** Backend
+```bash
+uv sync && uv run pytest
+```
+
+### Workflow
+```bash
+vt-sync                 # catch up (use instead of git pull)
+git commit -am "..."    # commit as you go
+vt-pr "feat: ..."       # push + open PR into dev
 ```
 
 ## License

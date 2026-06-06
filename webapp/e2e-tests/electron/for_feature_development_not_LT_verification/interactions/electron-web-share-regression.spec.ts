@@ -9,7 +9,7 @@
  * Asserts:
  * 1. App starts without crash (no import errors from new modules)
  * 2. Graph loads with nodes (pure/graph/ still works)
- * 3. electronAPI is available (IPC bridge intact)
+ * 3. hostAPI is available (IPC bridge intact)
  * 4. No console errors mentioning web-share or shell/web
  */
 
@@ -19,14 +19,14 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 interface CollectedError {
@@ -77,7 +77,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -134,12 +134,12 @@ test.describe('Web Share Regression', () => {
     // 1. App started without crash — if we got here, startup succeeded
     console.log('✓ App started without crash');
 
-    // 2. electronAPI is available (IPC bridge intact)
+    // 2. hostAPI is available (IPC bridge intact)
     const hasElectronAPI = await appWindow.evaluate(() => {
-      return !!(window as ExtendedWindow).electronAPI;
+      return !!(window as ExtendedWindow).hostAPI;
     });
     expect(hasElectronAPI).toBe(true);
-    console.log('✓ electronAPI is available');
+    console.log('✓ hostAPI is available');
 
     // 3. Graph loads with nodes
     await appWindow.waitForFunction(() => {
@@ -148,8 +148,8 @@ test.describe('Web Share Regression', () => {
     }, { timeout: 8000 });
 
     const graph = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
 

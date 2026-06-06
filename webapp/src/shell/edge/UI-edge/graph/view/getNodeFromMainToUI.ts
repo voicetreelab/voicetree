@@ -1,10 +1,10 @@
 import type {GraphNode, NodeIdAndFilePath} from "@vt/graph-model/graph";
 import {nodeIdToFilePathWithExtension} from "@vt/graph-model/markdown";
-// Import to make Window.electronAPI type available
-import type {} from '@/shell/electron';
+// Import to make Window.hostAPI type available
+import type {} from '@/shell/hostApi';
 
 export async function getNodeFromMainToUI(nodeId: string): Promise<GraphNode> {
-    const node: GraphNode | undefined = await window.electronAPI?.main.getNode(nodeId);
+    const node: GraphNode | undefined = await window.hostAPI?.main.getNode(nodeId);
     if (!node) {
         console.error("NODE NOT FOUND IN GRAPH:", nodeId);
         throw Error(`NODE NOT FOUND IN GRAPH: ${nodeId}`);
@@ -13,7 +13,7 @@ export async function getNodeFromMainToUI(nodeId: string): Promise<GraphNode> {
 }
 
 export async function getNodeFromMainToUIOrNull(nodeId: string): Promise<GraphNode | null> {
-    const node: GraphNode | undefined = await window.electronAPI?.main.getNode(nodeId);
+    const node: GraphNode | undefined = await window.hostAPI?.main.getNode(nodeId);
     return node ?? null;
 }
 

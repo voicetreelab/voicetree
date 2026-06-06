@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractEdges, findBestMatchingNode, getPathComponents } from '../extract-edges'
+import { extractEdges, findBestMatchingNode, getMarkdownLinkTargetSegments } from '../extract-edges'
 import type { GraphNode, Edge } from '../..'
 
 describe('findBestMatchingNode - case insensitive matching (Bug 1 regression)', () => {
@@ -97,12 +97,12 @@ describe('findBestMatchingNode - full path match requirement', () => {
   })
 })
 
-describe('getPathComponents', () => {
+describe('getMarkdownLinkTargetSegments', () => {
   it('should extract components correctly', () => {
-    expect(getPathComponents('a/b/c/tasks.md')).toEqual(['a', 'b', 'c', 'tasks'])
-    expect(getPathComponents('tasks.md')).toEqual(['tasks'])
-    expect(getPathComponents('./tasks.md')).toEqual(['tasks'])
-    expect(getPathComponents('../b/tasks.md')).toEqual(['b', 'tasks'])
+    expect(getMarkdownLinkTargetSegments('a/b/c/tasks.md')).toEqual(['a', 'b', 'c', 'tasks'])
+    expect(getMarkdownLinkTargetSegments('tasks.md')).toEqual(['tasks'])
+    expect(getMarkdownLinkTargetSegments('./tasks.md')).toEqual(['tasks'])
+    expect(getMarkdownLinkTargetSegments('../b/tasks.md')).toEqual(['b', 'tasks'])
   })
 })
 

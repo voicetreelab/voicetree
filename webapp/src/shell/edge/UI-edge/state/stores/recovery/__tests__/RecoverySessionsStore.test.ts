@@ -35,6 +35,7 @@ function makeResumable(): RecoverableAgentSession {
         isPinned: true,
         isDone: false,
         lifecycle: 'idle',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
@@ -65,7 +66,7 @@ function installElectronApi(): MockMainApi {
         killUnclaimedTmuxSession: vi.fn().mockResolvedValue({success: true}),
         resumeRecoverySession: vi.fn().mockResolvedValue({success: true, terminalId: 'Bob'}),
     }
-    Object.defineProperty(window, 'electronAPI', {
+    Object.defineProperty(window, 'hostAPI', {
         configurable: true,
         value: {main},
     })

@@ -123,14 +123,14 @@ export const SURFACE_ENTRY_DEFINITIONS: readonly SurfaceEntryDefinition[] = [
                 description: 'drag release saves current Cytoscape positions',
                 ref: {
                     relativePath: 'webapp/src/shell/UI/views/VoiceTreeGraphViewHelpers/setupBasicCytoscapeEventListeners.ts',
-                    contains: 'void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);',
+                    contains: 'void window.hostAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);',
                 },
             },
             {
                 description: 'auto-layout writes back the post-layout positions',
                 ref: {
                     relativePath: 'webapp/src/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout.ts',
-                    contains: 'void window.electronAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);',
+                    contains: 'void window.hostAPI?.main.saveNodePositions(cy.nodes().jsons() as NodeDefinition[]);',
                 },
             },
             {

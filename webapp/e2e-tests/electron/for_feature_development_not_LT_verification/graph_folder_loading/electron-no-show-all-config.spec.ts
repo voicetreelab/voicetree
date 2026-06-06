@@ -11,13 +11,13 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 const test = base.extend<{
@@ -74,7 +74,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -110,8 +110,8 @@ test.describe('No showAllPaths Configuration', () => {
     // Verify app loaded with no showAllPaths in config
     // getShowAllPaths should not exist as a function
     const configState = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       // Check if the function exists on the API
       const hasFunction = typeof (api.main as Record<string, unknown>).getShowAllPaths === 'function';
@@ -127,8 +127,8 @@ test.describe('No showAllPaths Configuration', () => {
     // Add a readPath and verify it uses lazy loading by default
     // No "show all" toggle should be available
     const result = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       // toggleShowAll should not exist as a function
       const hasToggle = typeof (api.main as Record<string, unknown>).toggleShowAll === 'function';

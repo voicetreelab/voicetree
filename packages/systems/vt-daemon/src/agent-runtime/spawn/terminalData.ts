@@ -2,16 +2,12 @@ import path from 'path'
 import type {Graph, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getNodeTitle} from '@vt/graph-model/markdown'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {getNextAgentName, getUniqueAgentName} from '@vt/graph-model/settings'
+import {uniqueAgentName, pickAgentName} from '@vt/graph-model/settings'
 import {createTerminalData, type TerminalData, type TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {getExistingAgentNames} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/index.ts'
 import {buildTerminalEnvVars} from './buildTerminalEnvVars'
-import {injectClaudeSettingsFlag, injectCodexHookFlags} from './injection/agentHookInjection'
-import {ensureClaudeHookSettingsFile} from './claudeHookSettingsBootstrap'
-import {readDaemonPortFromProject} from './daemonUrlFile'
-import {getRuntimeEnv} from '../runtime/runtime-config'
-import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
-import {getRuntimeGraph, getRuntimeProjectRoot, getRuntimeWatchStatus} from '../runtime/graph-bridge'
+import {injectCodexProjectDocDisableFlag} from './injection/codexProjectDocInjection'
+import {getRuntimeGraph, getRuntimeWatchStatus} from '../runtime/graph-bridge'
 
 /**
  * Extract worktree directory name from a spawn path, if it sits under a
@@ -86,9 +82,9 @@ export async function prepareTerminalDataInMain(
             : 'Terminal'
 
     const agentName: string = precomputedAgentName ?? inheritTerminalId ?? (() => {
-        const baseAgentName: string = getNextAgentName()
+        const baseAgentName: string = pickAgentName(settings)
         const existingNames: Set<string> = getExistingAgentNames()
-        return getUniqueAgentName(baseAgentName, existingNames)
+        return uniqueAgentName(baseAgentName, existingNames)
     })()
 
     const watchStatus: {
@@ -116,28 +112,10 @@ export async function prepareTerminalDataInMain(
     const worktreeName: string | undefined = extractWorktreeNameFromPath(initialSpawnDirectory)
     const agentTypeName: string = settings.agents.find(a => a.command === command)?.name ?? ''
 
-    // Auto-install lifecycle hooks per agent type. Each pure injector is a
-    // no-op for non-matching commands, so the same pipeline handles every
-    // agent. Claude: settings JSON in VOICETREE_HOME (uses $VOICETREE_DAEMON_URL
-    // + $VOICETREE_PROJECT_PATH shell-var expansion at fire time). Codex: TOML
-    // inline `-c` flags with the daemon URL + terminalId baked in at spawn
-    // time. Both target the unified HTTP daemon (Step 9b) published per-project
-    // at `<project>/.voicetree/rpc.port`. The bearer token is NEVER passed via
-    // env / CLI args (design doc §3.3) — hook curls read it via `cat` from
-    // `$VOICETREE_PROJECT_PATH/.voicetree/auth-token` at fire time.
-    const env = getRuntimeEnv()
-    const voicetreeHomePath: string = resolveVoicetreeHomePath()
-    const projectRoot: string | null = env.getProjectRoot
-        ? await env.getProjectRoot()
-        : await getRuntimeProjectRoot()
-    const voicetreeProjectDir: string = projectRoot ? getProjectDotVoicetreePath(projectRoot) : ''
-    const daemonPort: number | null = await readDaemonPortFromProject(voicetreeProjectDir)
-    const daemonUrl: string | null = daemonPort !== null ? `http://127.0.0.1:${daemonPort}` : null
-    const claudeHookSettingsPath: string = await ensureClaudeHookSettingsFile(voicetreeHomePath)
-    const claudeInjected: string = injectClaudeSettingsFlag(command, claudeHookSettingsPath)
-    const finalCommand: string = daemonUrl !== null
-        ? injectCodexHookFlags(claudeInjected, daemonUrl, terminalId)
-        : claudeInjected
+    // VoiceTree already supplies the task/context prompt for spawned Codex
+    // sessions, so suppress Codex's native AGENTS.md project-doc injection to
+    // avoid surfacing the same repo instructions twice. No-op for other agents.
+    const finalCommand: string = injectCodexProjectDocDisableFlag(command)
 
     return createTerminalData({
         terminalId,

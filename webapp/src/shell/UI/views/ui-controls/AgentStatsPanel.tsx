@@ -6,6 +6,7 @@ import { SessionDurationChart } from '@/shell/UI/views/components/SessionDuratio
 import { AvgTokensChart } from '@/shell/UI/views/components/AvgTokensChart';
 import { TotalTokensChart } from '@/shell/UI/views/components/TotalTokensChart';
 import { UsageSection } from '@/shell/UI/views/components/UsageSection';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 
 type TimeFilter = 'today' | 'week' | 'all';
 
@@ -327,8 +328,10 @@ export function AgentStatsPanel(): JSX.Element {
         )}
       </div>
 
-      {/* Usage Section (Claude Code + Codex) */}
-      <UsageSection />
+      {/* Usage Section (Claude Code + Codex) — desktop-only observability;
+          gated off in browser mode so the panel (and its headless `claude`
+          PTY refresh) never mounts. */}
+      {hostCapabilities().usageObservability && <UsageSection />}
     </div>
   );
 }

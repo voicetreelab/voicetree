@@ -18,13 +18,13 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Pre-defined positions spread across the canvas (not stacked)
@@ -117,7 +117,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -243,8 +243,8 @@ test.describe('Node Position Persistence', () => {
       node.position(pos);
 
       // Trigger position save to main process (simulates what happens on drag end)
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       // @types/cytoscape types jsons() as Record<string, any>[] but it actually returns NodeDefinition[]
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       void api.main.saveNodePositions(cy.nodes().jsons() as any);
@@ -255,8 +255,8 @@ test.describe('Node Position Persistence', () => {
 
     // Verify the in-memory graph state has the updated position
     const graphPosition = await appWindow.evaluate(async (nodeId: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const graph = await api.main.getGraph();
       const node = graph.nodes[nodeId];

@@ -1,6 +1,6 @@
 import {classifyExit} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import {recordTierEvent} from '@vt/vt-daemon/agent-runtime/lifecycle'
-import type {AgentEventKind, TerminalLifecycle, TerminalKillReason} from '@vt/vt-daemon/agent-runtime/lifecycle'
+import type {TerminalLifecycle, TerminalKillReason} from '@vt/vt-daemon/agent-runtime/lifecycle'
 import {updateTerminalIsDoneWorkflow} from '../workflows/terminalIsDone.ts'
 import {
     hasActiveChildren,
@@ -12,7 +12,7 @@ import {
 } from '../terminal-registry-state'
 import {notifyRegistrySubscribers} from './subscribers'
 import {publishTerminalRegistryEvent} from './terminal-registry-publisher'
-import type {TerminalId} from '@vt/vt-daemon-protocol'
+import {type AgentStatus, MAX_STATUS_PHRASE_LENGTH, type TerminalId} from '@vt/vt-daemon-protocol'
 
 export function incrementAuditRetryCount(terminalId: string): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
@@ -87,62 +87,101 @@ export function markTerminalKillReason(terminalId: string, reason: TerminalKillR
     // No subscriber notify — this is a transient flag, not visible state.
 }
 
-function lifecycleFromAgentEvent(
+function lifecycleFromAgentStatus(
     record: TerminalRecord,
-    kind: AgentEventKind,
+    preset: AgentStatus,
 ): TerminalLifecycle {
+    // An orchestrator with active children is waiting on those children, not on
+    // the user — its awaiting_input/done preset surfaces as orange 'idle'
+    // standby rather than blue 'awaiting_input' or sticky 'completed'.
     const orchestratorWithChildren: boolean = hasActiveChildren(terminalRecords.values(), record.terminalId)
-    switch (kind) {
-        case 'awaiting':
-            return orchestratorWithChildren ? 'idle' : 'awaiting_input'
+    switch (preset) {
         case 'working':
             return 'active'
-        case 'done':
-            // Tier-1 done = agent self-reported task complete (for example,
-            // Claude Code Stop fires at turn end). Treat it as awaiting user
-            // input unless this terminal is currently orchestrating children.
+        case 'awaiting_input':
             return orchestratorWithChildren ? 'idle' : 'awaiting_input'
+        case 'done':
+            return orchestratorWithChildren ? 'idle' : 'completed'
+        case 'failed':
+            return 'errored'
     }
 }
 
+export type AgentStatusUpdate = {
+    readonly preset?: AgentStatus
+    readonly phrase?: string
+}
+
 /**
- * Apply a lifecycle event from an agent hook (Claude Code, Codex) or SDK.
- * This is the sole driver of `awaiting_input`; sticky terminal states are
- * preserved because exit always wins.
+ * Apply an agent-authored status to a terminal. An agent reports this when it
+ * creates a progress node (`create_graph`): a typed `preset` driving the
+ * lifecycle icon, and/or a free-text `phrase` shown next to the model name in
+ * the terminal tree. This is now the SOLE driver of `awaiting_input` (the CLI
+ * hook adapter is gone). Sticky terminal states (completed/errored) are never
+ * overridden by a preset — process exit always wins.
+ *
+ * Both fields are optional and independent; a single mutation + at most one
+ * notify is performed, with a patch broadcast per field that actually changed.
  */
-export function updateTerminalAgentEvent(terminalId: string, kind: AgentEventKind): void {
+export function applyAgentStatus(terminalId: string, update: AgentStatusUpdate): void {
     const record: TerminalRecord | undefined = terminalRecords.get(terminalId)
     if (!record) return
 
-    recordTierEvent({
-        ts: Date.now(),
-        terminalId,
-        agentTypeName: record.terminalData.agentTypeName ?? '',
-        kind,
-    })
-
     const currentLifecycle: TerminalLifecycle = record.terminalData.lifecycle
-    if (currentLifecycle === 'completed' || currentLifecycle === 'errored') {
-        return
+    const isSticky: boolean = currentLifecycle === 'completed' || currentLifecycle === 'errored'
+
+    let nextLifecycle: TerminalLifecycle = currentLifecycle
+    let nextReportedStatus: AgentStatus | null = record.terminalData.lastReportedStatus
+    if (update.preset !== undefined && !isSticky) {
+        recordTierEvent({
+            ts: Date.now(),
+            terminalId,
+            agentTypeName: record.terminalData.agentTypeName ?? '',
+            kind: update.preset,
+        })
+        nextLifecycle = lifecycleFromAgentStatus(record, update.preset)
+        // Record what the agent *declared*, independent of the orchestrator
+        // downgrade that may render done/awaiting as idle. The finish gate reads
+        // this — so e.g. an orchestrator that reported `done` (lifecycle stays
+        // `idle`) must still persist `done` here even though no lifecycle change
+        // would otherwise be written below.
+        nextReportedStatus = update.preset
     }
 
-    const nextLifecycle: TerminalLifecycle = lifecycleFromAgentEvent(record, kind)
-    if (nextLifecycle === currentLifecycle) {
-        return
-    }
+    const nextPhrase: string | undefined = update.phrase === undefined
+        ? undefined
+        : update.phrase.slice(0, MAX_STATUS_PHRASE_LENGTH)
+
+    const lifecycleChanged: boolean = nextLifecycle !== currentLifecycle
+    const phraseChanged: boolean = nextPhrase !== undefined && nextPhrase !== record.terminalData.statusPhrase
+    const reportedStatusChanged: boolean = nextReportedStatus !== record.terminalData.lastReportedStatus
+    if (!lifecycleChanged && !phraseChanged && !reportedStatusChanged) return
 
     terminalRecords.set(terminalId, {
         ...record,
-        terminalData: { ...record.terminalData, lifecycle: nextLifecycle },
+        terminalData: {
+            ...record.terminalData,
+            ...(lifecycleChanged ? {lifecycle: nextLifecycle} : {}),
+            ...(phraseChanged ? {statusPhrase: nextPhrase} : {}),
+            ...(reportedStatusChanged ? {lastReportedStatus: nextReportedStatus} : {}),
+        },
     })
     notifyRegistrySubscribers()
-    // Agent-hook transitions (awaiting_input / idle / active / completed) are
-    // the sole driver of `awaiting_input` and never flow through the renderer
-    // poller, so they must be broadcast explicitly — without this the sidebar
-    // icon stays frozen at its last output-driven value.
-    publishTerminalRegistryEvent({
-        type: 'terminal-record-changed',
-        terminalId: terminalId as TerminalId,
-        patch: {kind: 'lifecycle', value: nextLifecycle},
-    })
+    // Status transitions never flow through the renderer poller, so they must be
+    // broadcast explicitly — otherwise the sidebar freezes at its last
+    // output-driven value.
+    if (lifecycleChanged) {
+        publishTerminalRegistryEvent({
+            type: 'terminal-record-changed',
+            terminalId: terminalId as TerminalId,
+            patch: {kind: 'lifecycle', value: nextLifecycle},
+        })
+    }
+    if (phraseChanged) {
+        publishTerminalRegistryEvent({
+            type: 'terminal-record-changed',
+            terminalId: terminalId as TerminalId,
+            patch: {kind: 'statusPhrase', value: nextPhrase as string},
+        })
+    }
 }

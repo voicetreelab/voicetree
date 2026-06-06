@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import { robustElectronTeardown, safeStopFileWatching, pollForCytoscape, pollForCytoscapeNodes, pollForCondition } from './electron-smoke-helpers';
 import {
   focusEditorInstance,
@@ -45,7 +45,7 @@ function seededDelay(seed: number, minMs = 5, maxMs = 500): number {
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 async function seedProject(projectPath: string): Promise<string> {
@@ -161,8 +161,8 @@ const test = base.extend<{
     // voicetree-config.json has lastDirectory set, so the app may auto-load the project
     // before the project selection screen is fully visible. Try detecting auto-load first.
     const openResult = await window.evaluate(async (dir) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const response = await api.main.openProject(dir);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
@@ -285,7 +285,7 @@ test('preserves character-by-character editor typing after autosave and file wat
 
 test('merges external daemon SSE append while the editor is focused and typing', async ({ appWindow, writeFolderPath }) => {
   await appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     await api?.main.syncRendererSessionStateWithDaemon();
   });
 
@@ -357,7 +357,7 @@ test('merges external daemon SSE append while the editor is focused and typing',
 
 test('applies non-append external filesystem replacements while the editor is focused', async ({ appWindow, writeFolderPath }) => {
   await appWindow.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     await api?.main.syncRendererSessionStateWithDaemon();
   });
 

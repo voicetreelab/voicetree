@@ -6,7 +6,8 @@
  */
 
 import { EditorView } from '@codemirror/view';
-import type { ElectronAPI } from '@/shell/electron';
+import {escapeHtml} from '@/utils/escapeHtml';
+import type { HostAPI } from '@/shell/hostApi';
 
 type FocusedWindow = {
   type: 'editor' | 'terminal';
@@ -115,15 +116,6 @@ function insertTextAtCursor(view: EditorView, text: string): void {
 }
 
 /**
- * Escape HTML special characters to prevent XSS
- */
-function escapeHtml(text: string): string {
-  const div: HTMLDivElement = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-/**
  * Get cursor position coordinates for editor or terminal
  */
 function getCursorPosition(target: { type: 'editor'; view: EditorView } | { type: 'terminal'; id: string }): { x: number; y: number } | null {
@@ -205,9 +197,9 @@ export function confirmTranscriptionPreview(): boolean {
   if (preview.target.type === 'editor') {
     insertTextAtCursor(preview.target.view, preview.currentText);
   } else {
-    const electronAPI: ElectronAPI | undefined = window.electronAPI;
-    if (electronAPI) {
-      void electronAPI.main.sendTextToTerminal({ terminalId: preview.target.id, text: preview.currentText });
+    const hostAPI: HostAPI | undefined = window.hostAPI;
+    if (hostAPI) {
+      void hostAPI.main.sendTextToTerminal({ terminalId: preview.target.id, text: preview.currentText });
     }
   }
 

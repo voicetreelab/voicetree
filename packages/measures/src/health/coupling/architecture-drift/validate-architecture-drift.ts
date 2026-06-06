@@ -1,8 +1,8 @@
-import {execFileSync} from 'node:child_process'
 import {basename, isAbsolute, join, relative, resolve, sep} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {type PackageInfo} from '../../../_shared/discovery/discover-packages'
 import {buildImportGraph} from '../../../_shared/graph/import-graph'
+import {runGitWorktreeCommand} from '../../../_shared/discovery/run-git.ts'
 import {statOrNull} from '../../../_shared/stat-or-null'
 import {type DiagramSpec, parseArchitectureMd} from './architecture-contract'
 
@@ -82,10 +82,9 @@ function isExcludedRelPath(rel: string): boolean {
 // whose Tempo WAL dirs churn and vanish mid-scan): git prunes ignored directories
 // before it ever stats their contents, so the discovery cannot ENOENT on them.
 function listNonIgnoredArchitectureFiles(repoRoot: string): readonly string[] {
-    const stdout = execFileSync(
-        'git',
+    const stdout = runGitWorktreeCommand(
         ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', `*${ARCHITECTURE_FILE_NAME}`],
-        {cwd: repoRoot, encoding: 'utf8'},
+        repoRoot,
     )
     return stdout.split('\0').filter(rel => rel !== '')
 }

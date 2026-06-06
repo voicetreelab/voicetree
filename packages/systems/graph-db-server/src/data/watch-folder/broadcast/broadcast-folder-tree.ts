@@ -19,6 +19,7 @@ import type { FilePath } from '@vt/graph-model/graph';
 import {getCallbacks} from '@vt/graph-model';
 
 const STARRED_AND_EXTERNAL_MAX_DEPTH: number = 3;
+const ROOT_TREE_MAX_DEPTH: number = 3;
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_MS: number = 300;
@@ -43,6 +44,7 @@ async function doBroadcast(): Promise<void> {
 
     const entry: DirectoryEntry | null = await readModel.readRootTree({
         root: toAbsolutePath(projectRoot),
+        maxDepth: ROOT_TREE_MAX_DEPTH,
     });
     if (entry) {
         const tree: FolderTreeNode = buildFolderTree(entry, loadedPaths, writeFolderPath, graphFilePaths);

@@ -6,11 +6,12 @@ import {attachDotGridBackground} from "@/shell/edge/UI-edge/graph/view/dotGridBa
 import {AgentStatsPanel} from "@/shell/UI/views/ui-controls/AgentStatsPanel";
 import {ProjectPathSelector} from "@/shell/UI/views/components/ProjectPathSelector";
 import {ProjectSelectionScreen} from "@/shell/UI/ProjectSelectionScreen";
+import {hostCapabilities} from "@/shell/runtimeCapabilities";
 import {ViewSwitcher} from "@/shell/edge/UI-edge/components/ViewSwitcher";
 import {useEffect, useRef, useState, useCallback} from "react";
 import type { JSX } from "react/jsx-runtime";
 import type { RefObject } from "react";
-import type {} from "@/shell/electron";
+import type {} from "@/shell/hostApi";
 import type { SavedProject } from "@vt/graph-model/project";
 import type { VTSettings } from "@vt/graph-model/settings";
 import type { ProjectedGraph } from "@vt/graph-state/contract";
@@ -45,7 +46,7 @@ function isProjectedGraph(value: unknown): value is ProjectedGraph {
 }
 
 function App(): JSX.Element {
-    const [electronReady, setElectronReady] = useState<boolean>(() => window.electronAPI !== undefined);
+    const [electronReady, setElectronReady] = useState<boolean>(() => window.hostAPI !== undefined);
     // App navigation state
     const [currentView, setCurrentView] = useState<AppView>('project-selection');
     const [currentProject, setCurrentProject] = useState<SavedProject | null>(null);
@@ -79,9 +80,9 @@ function App(): JSX.Element {
     const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(false);
 
     const loadProjectForDirectory: (directory: string) => Promise<SavedProject> = useCallback(async (directory: string): Promise<SavedProject> => {
-        if (!window.electronAPI) throw new Error('Electron API unavailable');
+        if (!window.hostAPI) throw new Error('Electron API unavailable');
 
-        const projects: SavedProject[] = await window.electronAPI.main.loadProjects();
+        const projects: SavedProject[] = await window.hostAPI.main.loadProjects();
         const matchingProject: SavedProject | undefined = projects.find((project) => project.path === directory);
 
         return matchingProject ?? createFallbackProject(directory);
@@ -100,9 +101,9 @@ function App(): JSX.Element {
     }, [loadProjectForDirectory]);
 
     const openProjectForProject: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
-        const response = await window.electronAPI.main.openProject(project.path);
+        const response = await window.hostAPI.main.openProject(project.path);
         const projectRoot: string = response.projectState.projectRoot;
         const openedProject: SavedProject = {
             ...project,
@@ -111,7 +112,7 @@ function App(): JSX.Element {
         };
 
         try {
-            await window.electronAPI.main.saveProject(openedProject);
+            await window.hostAPI.main.saveProject(openedProject);
         } catch (err) {
             console.error('[App] Failed to save opened project metadata:', err);
         }
@@ -131,7 +132,7 @@ function App(): JSX.Element {
 
     // Handle project selection
     const handleProjectSelected: (project: SavedProject) => Promise<void> = useCallback(async (project: SavedProject): Promise<void> => {
-        if (!window.electronAPI) return;
+        if (!window.hostAPI) return;
 
         try {
             await openProjectForProject(project);
@@ -166,13 +167,13 @@ function App(): JSX.Element {
     useEffect(() => {
         if (electronReady) return;
 
-        if (window.electronAPI !== undefined) {
+        if (window.hostAPI !== undefined) {
             setElectronReady(true);
             return;
         }
 
         const intervalId: number = window.setInterval(() => {
-            if (window.electronAPI !== undefined) {
+            if (window.hostAPI !== undefined) {
                 setElectronReady(true);
                 window.clearInterval(intervalId);
             }
@@ -197,8 +198,8 @@ function App(): JSX.Element {
 
     // Recover programmatic loads even if they happened before React attached IPC listeners.
     useEffect(() => {
-        if (!electronReady || !window.electronAPI || hasBootstrappedStartupProjectRef.current) return;
-        const getStartupProjectHint = window.electronAPI.main.getStartupProjectHint;
+        if (!electronReady || !window.hostAPI || hasBootstrappedStartupProjectRef.current) return;
+        const getStartupProjectHint = window.hostAPI.main.getStartupProjectHint;
         if (typeof getStartupProjectHint !== 'function') return;
 
         hasBootstrappedStartupProjectRef.current = true;
@@ -225,14 +226,14 @@ function App(): JSX.Element {
     }, [electronReady, loadProjectForDirectory, openProjectForProject]);
 
     useEffect(() => {
-        if (!electronReady || !window.electronAPI) return;
+        if (!electronReady || !window.hostAPI) return;
 
-        const cleanupSwitching = window.electronAPI.onProjectSwitching?.((data: { path: string }) => {
+        const cleanupSwitching = window.hostAPI.onProjectSwitching?.((data: { path: string }) => {
             lastKnownProjectPathRef.current = data.path;
             setProjectSwitching(true);
             setProjectError(null);
         }) ?? (() => {});
-        const cleanupReady = window.electronAPI.onProjectReady?.((data: { path: string; sessionId: string }) => {
+        const cleanupReady = window.hostAPI.onProjectReady?.((data: { path: string; sessionId: string }) => {
             lastKnownProjectPathRef.current = data.path;
             setProjectSwitching(false);
             setProjectError(null);
@@ -240,9 +241,9 @@ function App(): JSX.Element {
             // Reopen / project-switch re-primes the registry but never replays
             // the spawn-time launch events; rehydrate so panels for already-
             // running agents reappear. Idempotent with the mount-time trigger.
-            void window.electronAPI?.terminal?.rehydrate?.();
+            void window.hostAPI?.terminal?.rehydrate?.();
         }) ?? (() => {});
-        const cleanupLost = window.electronAPI.onProjectLost?.((data: { path?: string; error?: string }) => {
+        const cleanupLost = window.hostAPI.onProjectLost?.((data: { path?: string; error?: string }) => {
             if (data.path) lastKnownProjectPathRef.current = data.path;
             setProjectSwitching(false);
             setProjectError(data.error ?? 'Project unavailable');
@@ -261,14 +262,17 @@ function App(): JSX.Element {
 
         return (
             <div className="flex items-center gap-1 font-mono text-xs shrink-0">
-                {/* Back button */}
-                <button
-                    onClick={() => void handleBackToProjects()}
-                    className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
-                    title="Back to project selection"
-                >
-                    ←
-                </button>
+                {/* Back button — hidden when the runtime can't switch projects
+                    (browser-mode is pinned to its launched --project daemon). */}
+                {hostCapabilities().projectSwitching && (
+                    <button
+                        onClick={() => void handleBackToProjects()}
+                        className="text-muted-foreground px-1.5 py-1 rounded bg-muted hover:bg-accent transition-colors"
+                        title="Back to project selection"
+                    >
+                        ←
+                    </button>
+                )}
                 {displayedDirectory && (
                     <>
                         <button
@@ -289,9 +293,9 @@ function App(): JSX.Element {
 
     // Listen for backend logs and display in dev console
     useEffect(() => {
-        if (!window.electronAPI?.onBackendLog) return;
+        if (!window.hostAPI?.onBackendLog) return;
 
-        window.electronAPI.onBackendLog((_log: string) => {
+        window.hostAPI.onBackendLog((_log: string) => {
             //console.log('[Backend]', _log);
         });
     }, []);
@@ -316,7 +320,7 @@ function App(): JSX.Element {
         pendingInitialProjectedGraphRef.current = null;
 
         void (async () => {
-            const settings: VTSettings | null = await window.electronAPI?.main?.loadSettings() ?? null;
+            const settings: VTSettings | null = await window.hostAPI?.main?.loadSettings() ?? null;
             if (disposed) return; // View changed before settings loaded
 
             graphView = new VoiceTreeGraphView(
@@ -338,7 +342,7 @@ function App(): JSX.Element {
             // still-running agents reappear instead of vanishing. Idempotent; the
             // project:ready handler triggers the same path for reopen and the
             // cold-boot race where the registry is primed after this point.
-            void window.electronAPI?.terminal?.rehydrate?.();
+            void window.hostAPI?.terminal?.rehydrate?.();
         })();
 
         // Cleanup on unmount or view change

@@ -37,8 +37,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Get the current paths to confirm root path exists
     const initialPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
     console.log('Initial project paths:', initialPaths);
@@ -66,8 +66,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     console.log('=== STEP 5: Assert paths updated ===');
     const finalPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 
@@ -88,8 +88,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Get initial write path
     const initialWriteFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
@@ -121,8 +121,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     console.log('=== STEP 4: Assert getWriteFolderPath() returns write-project ===');
     const finalWriteFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
@@ -157,8 +157,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Get initial paths
     const initialPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
     console.log('Initial paths:', initialPaths);
@@ -182,8 +182,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     console.log('=== STEP 4: Assert path unchanged ===');
     const finalPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 
@@ -208,8 +208,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     // Get initial paths to know what we're editing
     const initialPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
     console.log('Initial paths:', initialPaths);
@@ -232,8 +232,8 @@ test.describe('Edit Path (Inline Rename) E2E', () => {
 
     console.log('=== STEP 4: Assert path resolved to absolute location ===');
     const finalPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 

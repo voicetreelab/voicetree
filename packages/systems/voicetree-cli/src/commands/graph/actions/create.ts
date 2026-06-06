@@ -1,7 +1,8 @@
 import {
     buildFilesystemAuthoringPlan,
     type FilesystemAuthoringInput,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
+import type {AgentStatus} from '@vt/vt-daemon-protocol'
 import {callDaemon, error} from '../cliDeps'
 import {
     getErrorMessage,
@@ -33,7 +34,7 @@ import {
     collectLiveGateVerdicts,
     type GatedInput,
 } from './gateVerdicts'
-import {emitBatchReport, emitMcpFailureAndExit} from './batchEmit'
+import {emitBatchReport, emitToolFailureAndExit} from './batchEmit'
 import {
     filesystemViolationsToPlanErrors,
     findNodeMustHaveEdgeViolations,
@@ -42,10 +43,10 @@ import {
     type FilesystemRuleViolation,
 } from './orphanCheck'
 import {
-    indexMcpResults,
+    indexAuthoredResultsByPath,
     indexPlanErrorsByFilename,
     mergeAppliedNodes,
-    mergeMcpResults,
+    mergeAuthoredResultsIntoVerdicts,
     mergePlanIntoGateVerdicts,
 } from './mergeVerdicts'
 
@@ -57,6 +58,55 @@ function overrideRuleIdMap(
     return new Map(gateVerdicts.map((g) => [g.path, ruleIds]))
 }
 
+/**
+ * An agent creating progress nodes must declare its lifecycle status alongside
+ * them — that is what keeps the terminal-tree icon honest instead of leaving
+ * the agent stuck amber. The presence of a terminal is what marks an agent
+ * (vs. offline/human authoring, which has no lifecycle to report), so `--status`
+ * is required exactly when a caller terminal is present. Called only once the
+ * create is actually going to proceed (gates passed, nodes valid), so gate
+ * rejections still surface their own errors first.
+ */
+function requireDeclaredStatusForTerminal(
+    terminalId: string | undefined,
+    agentStatus: AgentStatus | undefined,
+): void {
+    if (terminalId === undefined) return
+    if (agentStatus !== undefined) return
+    error(
+        '`vt graph create` requires `--status <working|awaiting_input|done|failed>` when run from an '
+        + 'agent terminal: declare your lifecycle status alongside the nodes you are creating '
+        + '(e.g. `--status working`, optionally `--phrase "what you are doing"`).',
+    )
+}
+
+/**
+ * Filesystem authoring writes nodes directly to disk without touching the
+ * daemon, so it must report the agent's declared status through a dedicated
+ * `apply_agent_status` call after a successful write (the live RPC path carries
+ * `agentStatus` in its own payload instead). A failure here is non-fatal: the
+ * nodes are already on disk and the finish gate is the backstop, so we warn
+ * rather than abort and leave the agent unsure whether its nodes were created.
+ */
+async function reportAgentStatusToDaemon(
+    terminalId: string,
+    agentStatus: AgentStatus,
+    statusPhrase: string | undefined,
+): Promise<void> {
+    try {
+        await callDaemon('apply_agent_status', {
+            callerTerminalId: terminalId,
+            preset: agentStatus,
+            ...(statusPhrase !== undefined ? {statusPhrase} : {}),
+        })
+    } catch (statusError: unknown) {
+        process.stderr.write(
+            `warning: nodes were created but reporting status "${agentStatus}" to the daemon failed `
+            + `(${getErrorMessage(statusError)}). Run \`vt agent status ${agentStatus}\` to update it.\n`,
+        )
+    }
+}
+
 async function runLiveDaemon(
     payload: Record<string, unknown>,
     gateVerdicts: readonly GatedInput[],
@@ -66,12 +116,13 @@ async function runLiveDaemon(
         const response: unknown = await callDaemon('create_graph', payload)
         const result: GraphCreateSuccess | ToolFailure = response as GraphCreateSuccess | ToolFailure
         if (!result.success) {
-            emitMcpFailureAndExit(result.error)
+            emitToolFailureAndExit(result.error)
         }
 
-        const merged: readonly NodeVerdict[] = mergeMcpResults(
+        const merged: readonly NodeVerdict[] = mergeAuthoredResultsIntoVerdicts(
             gateVerdicts,
-            indexMcpResults(result),
+            indexAuthoredResultsByPath(result),
+            result.nodes,
             overrideRuleIdMap(gateVerdicts, overrides),
         )
         emitBatchReport(buildBatchReport(merged))
@@ -84,13 +135,18 @@ async function runStdinLive(
     terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'live'}>,
 ): Promise<void> {
-    const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides} =
+    const {callerTerminalId, parentNodeId, nodes, overrides: stdinOverrides, agentStatus: stdinStatus, statusPhrase: stdinPhrase} =
         await readCreateGraphPayloadFromStdin(terminalId)
     const overrides: readonly OverrideSpec[] = mergeOverrideSpecs(stdinOverrides, parsedArgs.overrides)
+    const effectiveParentNodeId: string | undefined = parentNodeId ?? parsedArgs.parentNodeId
+    // The `--status` flag is the canonical carrier; a status in the stdin JSON
+    // payload is a programmatic fallback, so the flag wins when both are given.
+    const agentStatus: AgentStatus | undefined = parsedArgs.agentStatus ?? (stdinStatus as AgentStatus | undefined)
+    const statusPhrase: string | undefined = parsedArgs.statusPhrase ?? stdinPhrase
 
     const gateVerdicts: readonly GatedInput[] = await collectLiveGateVerdicts(
         nodes,
-        parentNodeId,
+        effectiveParentNodeId,
         parsedArgs.color,
     )
 
@@ -99,16 +155,21 @@ async function runStdinLive(
         return
     }
 
+    requireDeclaredStatusForTerminal(callerTerminalId, agentStatus)
+
     const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
-        ...(parentNodeId !== undefined ? {parentNodeId} : {}),
+        ...(effectiveParentNodeId !== undefined ? {parentNodeId: effectiveParentNodeId} : {}),
         nodes,
         ...(overrides.length > 0 ? {override_with_rationale: overrides} : {}),
+        ...(agentStatus !== undefined ? {agentStatus} : {}),
+        ...(statusPhrase !== undefined ? {statusPhrase} : {}),
     }
     await runLiveDaemon(daemonPayload, gateVerdicts, overrides)
 }
 
 async function runFilesystem(
+    terminalId: string | undefined,
     parsedArgs: Extract<ParsedGraphCreateArgs, {mode: 'filesystem'}>,
 ): Promise<void> {
     const filesystemInputs: FilesystemAuthoringInput[] = loadFilesystemInputs(parsedArgs.inputFilePaths)
@@ -166,11 +227,20 @@ async function runFilesystem(
         return
     }
 
+    requireDeclaredStatusForTerminal(terminalId, parsedArgs.agentStatus)
+
     let applied: readonly AppliedNode[]
     try {
         applied = applyFilesystemPlan(planResult.writePlan, externalParentRef)
     } catch (writeError: unknown) {
         error(getErrorMessage(writeError))
+    }
+
+    // Filesystem authoring never reaches the daemon on its own, so report the
+    // declared status out-of-band once the nodes are on disk. `agentStatus` is
+    // guaranteed present here whenever a terminal is (enforced just above).
+    if (terminalId !== undefined && parsedArgs.agentStatus !== undefined) {
+        await reportAgentStatusToDaemon(terminalId, parsedArgs.agentStatus, parsedArgs.statusPhrase)
     }
 
     emitBatchReport(buildBatchReport(mergeAppliedNodes(verdictsAfterPlan, applied)))
@@ -209,11 +279,15 @@ async function runFlagLive(
         return
     }
 
+    requireDeclaredStatusForTerminal(callerTerminalId, parsedArgs.agentStatus)
+
     const daemonPayload: Record<string, unknown> = {
         callerTerminalId,
         ...(parsedArgs.parentNodeId ? {parentNodeId: parsedArgs.parentNodeId} : {}),
         nodes,
         ...(parsedArgs.overrides.length > 0 ? {override_with_rationale: parsedArgs.overrides} : {}),
+        ...(parsedArgs.agentStatus !== undefined ? {agentStatus: parsedArgs.agentStatus} : {}),
+        ...(parsedArgs.statusPhrase !== undefined ? {statusPhrase: parsedArgs.statusPhrase} : {}),
     }
     await runLiveDaemon(daemonPayload, gateVerdicts, parsedArgs.overrides)
 }
@@ -236,7 +310,7 @@ export async function graphCreate(terminalId: string | undefined, args: string[]
     }
 
     if (parsedArgs.mode === 'filesystem') {
-        await runFilesystem(parsedArgs)
+        await runFilesystem(terminalId, parsedArgs)
         return
     }
 

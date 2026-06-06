@@ -30,7 +30,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -39,7 +39,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Extend test with Electron app
@@ -71,7 +71,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -117,8 +117,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     const agentCommand = 'claude --dangerously-skip-permissions -p --append-system-prompt-file "$CONTEXT_NODE_PATH" "Search your context for \'SECRET_E2E_NEEDLE:\'. Return ONLY the value after the colon, nothing else."';
 
     await appWindow.evaluate(async (cmd) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       // Save settings (for completeness, though we pass command directly to spawn)
       const settings = {
@@ -133,8 +133,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 2: Load the test project (example_small) ===');
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_PROJECT_PATH);
 
@@ -146,8 +146,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 3: Get watch status to determine context node path ===');
     const watchStatus = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getWatchStatus();
     });
 
@@ -164,8 +164,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`Parent node: ${parentNodeId}`);
 
     const contextNodeId = await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.createContextNode(nodeId);
     }, parentNodeId);
 
@@ -194,10 +194,10 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // Set up promise to collect output - must be done BEFORE spawning terminal
     const terminalOutputPromise = appWindow.evaluate(async ({ ctxNodeId, ctxNodePath, spawnDir, command }) => {
       const w = (window as ExtendedWindow);
-      const api = w.electronAPI;
+      const api = w.hostAPI;
 
       if (!api?.terminal) {
-        throw new Error('electronAPI.terminal not available');
+        throw new Error('hostAPI.terminal not available');
       }
 
       return new Promise<{ terminalId: string; output: string }>((resolve, reject) => {

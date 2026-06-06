@@ -35,8 +35,8 @@ export type RpcToolResult = {
 export async function getDaemonRpcUrl(appWindow: Page): Promise<string> {
   const daemonUrl: string = await appWindow.evaluate(
     async (): Promise<string> => {
-      const api = (window as unknown as { electronAPI?: DaemonAccess }).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as { hostAPI?: DaemonAccess }).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return api.main.getDaemonUrl();
     }
   );
@@ -50,8 +50,8 @@ export async function getBearerToken(appWindow: Page): Promise<string> {
   // consumers — CLI, hooks, spawned agents — read it the same way).
   const projectRoot: string = await appWindow.evaluate(
     async (): Promise<string> => {
-      const api = (window as unknown as { electronAPI?: DaemonAccess }).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as { hostAPI?: DaemonAccess }).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const status = await api.main.getWatchStatus();
       if (!status.directory) throw new Error('e2e: no active project — call startFileWatching before getBearerToken');
       return status.directory;

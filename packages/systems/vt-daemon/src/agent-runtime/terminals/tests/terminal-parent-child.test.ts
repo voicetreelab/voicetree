@@ -2,7 +2,7 @@
  * Tests for terminal parent-child relationship tracking
  *
  * BEHAVIOR TESTED:
- * - MCP spawn records parent relationship (parentTerminalId set to caller's terminal ID)
+ * - RPC spawn records parent relationship (parentTerminalId set to caller's terminal ID)
  * - Manual spawn has no parent (parentTerminalId is null/undefined)
  * - Parent lookup returns correct value
  *
@@ -25,8 +25,8 @@ describe('Terminal Parent-Child Relationship Tracking', () => {
         clearTerminalRecords()
     })
 
-    describe('Scenario: MCP spawn records parent relationship', () => {
-        it('WHEN spawn_agent is called via MCP with a valid callerTerminalId THEN the spawned terminal parentTerminalId is set to the caller terminal ID', () => {
+    describe('Scenario: RPC spawn records parent relationship', () => {
+        it('WHEN spawn_agent is called via RPC with a valid callerTerminalId THEN the spawned terminal parentTerminalId is set to the caller terminal ID', () => {
             // GIVEN: A parent terminal exists
             const parentTerminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'parent-node.md',
@@ -79,7 +79,7 @@ describe('Terminal Parent-Child Relationship Tracking', () => {
     })
 
     describe('Scenario: Manual spawn has no parent', () => {
-        it('WHEN a terminal is spawned via UI action (not via MCP) THEN the terminal parentTerminalId is null (root terminal)', () => {
+        it('WHEN a terminal is spawned via UI action (not via RPC) THEN the terminal parentTerminalId is null (root terminal)', () => {
             // WHEN: A terminal is spawned without specifying parentTerminalId
             const terminalData: TerminalData = createTerminalData({
                 attachedToNodeId: 'manual-spawn-node.md',

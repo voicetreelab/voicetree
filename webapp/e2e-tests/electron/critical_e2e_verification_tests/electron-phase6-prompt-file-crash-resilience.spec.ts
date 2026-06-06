@@ -6,7 +6,7 @@
  *   1. Headless agent spawn under ptyBackend='tmux' writes the prompt to
  *      `{project}/.voicetree/terminals/{name}-prompt.txt` (mode 0600) and the
  *      prompt is actually visible to the agent process — proved by fake-agent
- *      reading AGENT_PROMPT_FILE and executing a create_node action whose
+ *      reading AGENT_PROMPT_FILE and executing a create_nodes action whose
  *      title carries a sentinel derived from the prompt.
  *   2. The tmux session survives `kill -9` of the Electron main process.
  *   3. The prompt file persists across the crash.
@@ -133,8 +133,8 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
       // ── STEP 2: project graph loaded — `--open-folder` doesn't reliably attach
       //           the watcher in the test harness, so trigger explicitly. ──
       const openResult = await appWindow.evaluate(async (vp) => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as unknown as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         const response = await (
           api.main as unknown as {
             openProject: (p: string) => Promise<{ writeFolderPath: string }>;
@@ -148,7 +148,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
         .poll(
           async () =>
             appWindow.evaluate(async () => {
-              const api = (window as unknown as ExtendedWindow).electronAPI;
+              const api = (window as unknown as ExtendedWindow).hostAPI;
               const g = await (
                 api?.main as unknown as {
                   getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
@@ -160,7 +160,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
         )
         .toBeGreaterThan(0);
       const nodeIds: string[] = await appWindow.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         const g = await (
           api?.main as unknown as {
             getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
@@ -225,7 +225,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
         .poll(
           async () => {
             const graph = await appWindow.evaluate(async () => {
-              const api = (window as unknown as ExtendedWindow).electronAPI;
+              const api = (window as unknown as ExtendedWindow).hostAPI;
               return await (
                 api?.main as unknown as {
                   getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;
@@ -291,8 +291,8 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
           async () => {
             try {
               const wr = await win2.evaluate(async (vp) => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
-                if (!api) throw new Error("electronAPI not available");
+                const api = (window as unknown as ExtendedWindow).hostAPI;
+                if (!api) throw new Error("hostAPI not available");
                 const response = await (
                   api.main as unknown as {
                     openProject: (p: string) => Promise<{ writeFolderPath: string }>;
@@ -318,7 +318,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
           async () => {
             try {
               return await win2.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 const g = await (
                   api?.main as unknown as {
                     getGraph: () => Promise<{ nodes: Record<string, unknown> }>;
@@ -343,7 +343,7 @@ test.describe("Phase 6 prompt-file + crash resilience (M1-rerun-6)", () => {
           async () => {
             try {
               const graph = await win2.evaluate(async () => {
-                const api = (window as unknown as ExtendedWindow).electronAPI;
+                const api = (window as unknown as ExtendedWindow).hostAPI;
                 return await (
                   api?.main as unknown as {
                     getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;

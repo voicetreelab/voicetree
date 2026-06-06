@@ -65,8 +65,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
     // Setup vertical menu (right-click on canvas)
     const verticalMenuService: VerticalMenuService = new VerticalMenuService();
     verticalMenuService.initialize(cy, {
-        handleAddNodeAtPosition: (position) =>
-            handleAddNodeAtPosition(position)
+        handleAddNodeAtPosition: (position, clickedFolderId) =>
+            handleAddNodeAtPosition(position, clickedFolderId)
     });
 
     return { verticalMenuService };

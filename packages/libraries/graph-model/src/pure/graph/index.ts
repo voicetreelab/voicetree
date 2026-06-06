@@ -61,16 +61,23 @@ export interface NodeUIMetadata {
     // NOTE: title is NOT stored here - it's derived via getNodeTitle(node) from Markdown content
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
+    // Drag-driven spatial layout, exactly like `position`: persisted in the
+    // node-layout sidecar (.voicetree/node-layout.json), NEVER in YAML
+    // frontmatter, and excluded from content. Today only folder nodes carry a
+    // size (their folder-note node holds it) — the renderer applies it as the
+    // compound's cytoscape min-width/min-height. Leaf nodes derive size from
+    // degree and leave this None.
+    readonly size?: O.Option<Size>
     readonly additionalYAMLProps: Record<string, string>
     readonly isContextNode?: boolean // undefined means false
     readonly containedNodeIds?: readonly NodeIdAndFilePath[] // Node IDs whose content is contained in this context node
-    // width/height is derived from node degree
 }
 
 // Example object used to derive YAML keys at runtime (types are erased, but object keys remain)
 const _exampleNodeUIMetadata: NodeUIMetadata = {
     color: O.some('purple'),
     position: O.some({ x: 100, y: 200 }),
+    size: O.some({ width: 320, height: 240 }),
     additionalYAMLProps: { agent_name: 'Wendy' },
     isContextNode: false
 }
@@ -120,6 +127,22 @@ export type NodeIdAndFilePath = FilePath
 export interface Position {
     readonly x: number // from top left of canvas origin?
     readonly y: number
+}
+
+export interface Size {
+    readonly width: number
+    readonly height: number
+}
+
+/**
+ * One node's spatial layout as persisted in the node-layout sidecar. Both
+ * fields are optional: a dragged leaf has only a position, a resized folder
+ * may carry both. This is the single shape that flows position + size together
+ * through load / merge / save (one source of truth for all spatial layout).
+ */
+export interface NodeLayout {
+    readonly position?: Position
+    readonly size?: Size
 }
 
 export type FSEvent = FSUpdate | FSDelete
@@ -218,7 +241,7 @@ export { deleteNodeSimple } from './graph-operations/transforms/removeNodeMainta
 export { removeContextNodes } from './graph-operations/transforms/removeContextNodes'
 
 // === GRAPH CREATION UTILITIES ===
-export { createGraph, createEmptyGraph } from './construction/createGraph'
+export { createGraph, createEmptyGraph, rehydrateSerializedGraph } from './construction/createGraph'
 
 // === GRAPH BUILDING FROM FILES ===
 export type BuildGraphFromFiles = (files: readonly { readonly absolutePath: string; readonly content: string }[]) => Graph
@@ -240,9 +263,11 @@ export { isImageNode, IMAGE_EXTENSIONS } from './nodes/isImageNode'
 // === AGENT NODE QUERIES ===
 export { getNodesByAgentName } from './nodes/getNodesByAgentName'
 
-// === POSITIONING ===
-export type MergePositionsIntoGraph = (graph: Graph, positions: ReadonlyMap<NodeIdAndFilePath, Position>) => Graph
+// === POSITIONING / SPATIAL LAYOUT ===
+// Single merge for ALL spatial layout (position + size). The node-layout
+// sidecar loads into one Map of NodeLayout entries, merged here into the graph.
+export type MergeNodeLayoutIntoGraph = (graph: Graph, layout: ReadonlyMap<NodeIdAndFilePath, NodeLayout>) => Graph
 
-export { mergePositionsIntoGraph } from './positioning/layout/mergePositionsIntoGraph'
-import { mergePositionsIntoGraph } from './positioning/layout/mergePositionsIntoGraph'
-void (mergePositionsIntoGraph satisfies MergePositionsIntoGraph)
+export { mergeNodeLayoutIntoGraph } from './positioning/layout/mergeNodeLayoutIntoGraph'
+import { mergeNodeLayoutIntoGraph } from './positioning/layout/mergeNodeLayoutIntoGraph'
+void (mergeNodeLayoutIntoGraph satisfies MergeNodeLayoutIntoGraph)

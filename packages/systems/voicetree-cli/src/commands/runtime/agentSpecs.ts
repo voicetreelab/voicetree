@@ -89,11 +89,38 @@ export const AGENT_CLOSE_SPEC: SubcommandSpec = {
     ],
 }
 
+export const AGENT_RESUME_SPEC: SubcommandSpec = {
+    verb: 'vt agent resume',
+    rpcTool: 'resumePersistedAgentSession',
+    usageTail: '<terminalId>',
+    summary: 'Resume a closed/exited agent under its original terminalId.',
+    flags: [],
+}
+
+export const AGENT_FORK_SPEC: SubcommandSpec = {
+    verb: 'vt agent fork',
+    rpcTool: 'forkAgentSession',
+    usageTail: '[terminalId]',
+    summary: 'Fork a live (or exited) agent into a new branched terminal. Defaults to the caller.',
+    flags: [],
+}
+
+export const AGENT_STATUS_SPEC: SubcommandSpec = {
+    verb: 'vt agent status',
+    rpcTool: 'apply_agent_status',
+    usageTail: '<working|awaiting_input|done|failed> [--phrase TEXT]',
+    summary: 'Declare your own lifecycle status without creating a node.',
+    flags: [
+        {flag: '--phrase', kind: 'value', rpcParam: 'statusPhrase',
+            description: 'Optional short free-text status (≤80 chars) shown next to your model name.'},
+    ],
+}
+
 export const AGENT_SEND_SPEC: SubcommandSpec = {
     verb: 'vt agent send',
     rpcTool: 'send_message',
-    usageTail: '<terminalId> <message>...',
-    summary: 'Send a message into an agent terminal (carriage return appended).',
+    usageTail: '<terminalId|project/terminalId> <message>...',
+    summary: 'Send a message into an agent terminal. Use project/terminalId for cross-project sends.',
     flags: [],
 }
 

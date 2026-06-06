@@ -25,17 +25,12 @@
  * single source of truth for the daemon's catalog descriptions.
  */
 
-import {
-    MANUAL_SPECS,
-    findSpecByCliVerb,
-    renderManual,
-    renderManualSection,
-    type ToolSpec,
-} from '@vt/vt-daemon-protocol'
+import * as daemonProtocol from '@vt/vt-daemon-protocol'
+import type {ToolSpec} from '@vt/vt-daemon-protocol'
 import {error} from './output.ts'
 
 export function runManualCommand(args: readonly string[]): void {
-    process.stdout.write(resolveManualCommand(MANUAL_SPECS, args))
+    process.stdout.write(resolveManualCommand(daemonProtocol.MANUAL_SPECS, args))
 }
 
 /**
@@ -46,16 +41,16 @@ export function runManualCommand(args: readonly string[]): void {
  */
 export function resolveManualCommand(specs: readonly ToolSpec[], args: readonly string[]): string {
     if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] === 'help') {
-        return renderManual(specs)
+        return daemonProtocol.renderManual(specs)
     }
 
     const selector: string = normalizeSelector(args)
-    const match: ToolSpec | undefined = findSpecByCliVerb(specs, selector)
+    const match: ToolSpec | undefined = daemonProtocol.findSpecByCliVerb(specs, selector)
     if (!match) {
         error(buildNotFoundMessage(specs, selector))
     }
 
-    return ensureTrailingNewline(renderManualSection(match))
+    return ensureTrailingNewline(daemonProtocol.renderManualSection(match))
 }
 
 /**

@@ -30,7 +30,7 @@ const PROJECT_PATH = path.join(EXAMPLE_FIXTURES_BASE, PROJECT_SUFFIX);
 
 // Type definitions
 interface ExtendedWindow {
-  electronAPI?: {
+  hostAPI?: {
     main: {
       getBackendPort: () => Promise<number>;
       stopFileWatching: () => Promise<{ success: boolean }>;
@@ -101,7 +101,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -147,8 +147,8 @@ test.describe('Ask Mode End-to-End Integration', () => {
     console.log('=== STEP 1: Get backend port from Electron main process ===');
 
     const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getBackendPort();
     });
 
@@ -352,8 +352,8 @@ test.describe('Ask Mode End-to-End Integration', () => {
 
     // Get backend port
     const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getBackendPort();
     });
 

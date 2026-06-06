@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
 import type { FolderTreeNode } from '@vt/graph-model/folders';
 import { FolderTreeNodeComponent } from './FolderTreeNode';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 
 interface StarredSectionProps {
     readonly starredFolders: readonly string[];
@@ -35,7 +35,7 @@ export function StarredSection({ starredFolders, starredFolderTrees, readPaths, 
     const handleUnstar: (e: React.MouseEvent, folder: string) => void = useCallback(
         (e: React.MouseEvent, folder: string): void => {
             e.stopPropagation();
-            void window.electronAPI?.main.removeStarredFolder(folder);
+            void window.hostAPI?.main.removeStarredFolder(folder);
         }, []
     );
 

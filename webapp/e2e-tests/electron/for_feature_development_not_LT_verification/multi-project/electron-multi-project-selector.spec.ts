@@ -23,7 +23,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 // Use absolute paths for test fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -31,13 +31,13 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 async function getWriteFolderPath(page: Page): Promise<string | null> {
   return await page.evaluate(async () => {
-    const api = (window as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     const result = await api.main.getWriteFolderPath();
     if (result && typeof result === 'object' && '_tag' in result) {
       return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -113,7 +113,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -164,8 +164,8 @@ test.describe('Multi-Project ProjectPathSelector E2E', () => {
     await appWindow.waitForTimeout(500);
 
     const projectPaths = await appWindow.evaluate(async (pathToAdd) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const currentPaths = await api.main.getProjectPaths();
       if (!currentPaths.includes(pathToAdd)) {
         await api.main.addReadPath(pathToAdd);
@@ -218,8 +218,8 @@ test.describe('Multi-Project ProjectPathSelector E2E', () => {
     let initialDefaultPath = await getWriteFolderPath(appWindow);
     if (initialDefaultPath?.includes('openspec')) {
       await appWindow.evaluate(async (fallbackPath) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         await api.main.setWriteFolderPath(fallbackPath);
       }, testProjectPath);
       await expect.poll(() => getWriteFolderPath(appWindow), { timeout: 5000 }).toBe(testProjectPath);
@@ -303,8 +303,8 @@ test.describe('Multi-Project ProjectPathSelector E2E', () => {
 
       // Check project paths
       const projectPaths = await window.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error('electronAPI not available');
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error('hostAPI not available');
         return await api.main.getProjectPaths();
       });
 
@@ -325,7 +325,7 @@ test.describe('Multi-Project ProjectPathSelector E2E', () => {
       try {
         const window = await singleProjectApp.firstWindow();
         await window.evaluate(async () => {
-          const api = (window as unknown as ExtendedWindow).electronAPI;
+          const api = (window as unknown as ExtendedWindow).hostAPI;
           if (api) await api.main.stopFileWatching();
         });
       } catch { /* ignore */ }

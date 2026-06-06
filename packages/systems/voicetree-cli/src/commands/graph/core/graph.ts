@@ -1,3 +1,4 @@
+export {graphComplexity} from '../actions/complexityReport.ts'
 export {graphCreate} from '../actions/create.ts'
 export {graphIndex, graphSearch} from '../actions/index-cmds.ts'
 export {graphLintCommand} from '../actions/lint.ts'

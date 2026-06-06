@@ -5,7 +5,7 @@ import * as os from "os";
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import type { Core as CytoscapeCore } from "cytoscape";
-import type { ElectronAPI } from "@/shell/electron";
+import type { HostAPI } from "@/shell/hostApi";
 
 import { electronTeardown } from "./helpers/electron-teardown";
 
@@ -30,7 +30,7 @@ export type ElectronDiagnostics = {
   rendererErrors: string[];
 };
 
-export type SmokeElectronAPI = Omit<ElectronAPI, "terminal"> & {
+export type SmokeElectronAPI = Omit<HostAPI, "terminal"> & {
   terminal: {
     spawn: (
       data: Record<string, unknown>,
@@ -40,7 +40,7 @@ export type SmokeElectronAPI = Omit<ElectronAPI, "terminal"> & {
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: SmokeElectronAPI;
+  hostAPI?: SmokeElectronAPI;
 }
 
 export function tmuxCommandArgsForTest(

@@ -112,6 +112,24 @@ describe('tmux-session-manager', () => {
         await waitFor(async () => (await readIfExists(envPath)) === 'BF310_TEST_VAL')
     })
 
+    it('strips $TMUX/$TMUX_PANE inside the pane so an in-pane tmux cannot kill the control server', async () => {
+        const name: string = sessionName()
+        const dir: string = await makeTempDir()
+        const outPath: string = join(dir, 'tmux-handle.out')
+        sessions.add(name)
+
+        await createSession(
+            name,
+            `sh -c 'printf "[%s][%s]" "$TMUX" "$TMUX_PANE" > ${outPath}; sleep 5'`,
+        )
+
+        // tmux sets both vars to the control-server handle in every pane; the
+        // guard must strip them so the pane sees them empty. Otherwise a bare
+        // `tmux kill-server` in the pane would nuke the whole fleet.
+        await waitFor(async () => (await readIfExists(outPath)).startsWith('['))
+        expect(await readIfExists(outPath)).toBe('[][]')
+    })
+
     it('lists tmux sessions and reads session-scoped environment variables', async () => {
         const name: string = sessionName()
         sessions.add(name)

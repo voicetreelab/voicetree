@@ -29,6 +29,7 @@ function makeTerminalData(): TerminalData {
         isPinned: true,
         isDone: false,
         lifecycle: 'idle',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
@@ -106,7 +107,7 @@ const REASON_CASES: readonly ReasonCase[] = [
     {
         reason: 'marker-mismatch',
         cliType: 'codex',
-        expectedMessage: 'No matching session — likely the project was moved or the task node renamed since spawn',
+        expectedMessage: 'No saved transcript matched this session — its conversation log may have been deleted or never recorded',
     },
     {
         reason: 'no-rows',
@@ -159,7 +160,7 @@ describe('SurvivingAgentsSection — structured resume-failure reason rendering 
         });
         fireEvent.click(screen.getByRole('button', {name: /resume claude session/i}));
         const failureBlock: HTMLElement = await findByTestId('surviving-agents-resume-failure');
-        expect(failureBlock.textContent).toContain('No matching session');
+        expect(failureBlock.textContent).toContain('No saved transcript matched this session');
         expect(screen.queryByText('this generic string must not be shown')).toBeNull();
     });
 });

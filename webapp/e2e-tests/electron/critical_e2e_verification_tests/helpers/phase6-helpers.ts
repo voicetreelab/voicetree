@@ -135,7 +135,12 @@ export async function resolveProjectWriteFolderPath(parentDir: string): Promise<
 export function buildFakeAgentPromptWithSentinel(sentinelTitle: string): string {
   const script = {
     actions: [
-      { type: "create_node", title: sentinelTitle, summary: "Phase-6 prompt delivery sentinel" },
+      // `create_nodes` (with a `nodes[]`) is the fake-agent executor's actual
+      // Action contract; the older singular `create_node` was silently
+      // rejected as "Unknown action type", so the sentinel node was never
+      // created and STEP 6's "sentinel node created" assertion could not have
+      // verified prompt delivery as intended.
+      { type: "create_nodes", nodes: [{ title: sentinelTitle, summary: "Phase-6 prompt delivery sentinel" }] },
       { type: "delay", ms: 120_000 },
     ],
   };
@@ -255,8 +260,8 @@ export async function bootstrapPhase6CallerTerminal(
 ): Promise<{ success: boolean; terminalId?: string; error?: string }> {
   return window.evaluate(
     async ({ parentNodeId: nodeId, callerId: id }) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api?.terminal) throw new Error("electronAPI.terminal not available");
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api?.terminal) throw new Error("hostAPI.terminal not available");
       return api.terminal.spawn({
         type: "Terminal",
         terminalId: id,

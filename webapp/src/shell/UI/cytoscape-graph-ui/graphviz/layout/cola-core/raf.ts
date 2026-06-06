@@ -4,20 +4,21 @@ interface WindowWithPrefixes extends Window {
   msRequestAnimationFrame?: (callback: FrameRequestCallback) => number;
 }
 
-let raf: (callback: FrameRequestCallback) => number | void;
-
-if( typeof window !== typeof undefined ){
+function resolveRaf(): (callback: FrameRequestCallback) => number | void {
+  if( typeof window === typeof undefined ){ // if not available, all you get is immediate calls
+    return function( cb: FrameRequestCallback ){
+      cb(0);
+    };
+  }
   const win: WindowWithPrefixes = window as unknown as WindowWithPrefixes;
-  raf = ( window.requestAnimationFrame ||
+  return ( window.requestAnimationFrame ||
     win.webkitRequestAnimationFrame ||
     win.mozRequestAnimationFrame ||
     win.msRequestAnimationFrame ||
     ((fn: FrameRequestCallback) => setTimeout(fn, 16))
   );
-} else { // if not available, all you get is immediate calls
-  raf = function( cb: FrameRequestCallback ){
-    cb(0);
-  };
 }
+
+const raf: (callback: FrameRequestCallback) => number | void = resolveRaf();
 
 export default raf;

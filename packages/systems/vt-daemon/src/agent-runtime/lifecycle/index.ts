@@ -9,7 +9,7 @@
 export type {
     TerminalLifecycle,
     TerminalKillReason,
-    AgentEventKind,
+    AgentStatus,
     TerminalEvent,
     TerminalSignalState,
     DeriveConfig,
@@ -18,7 +18,7 @@ export type {
 export {
     DEFAULT_DERIVE_CONFIG,
     initialSignalState,
-    isTerminalLifecycle,
+    isFinishedLifecycle,
 } from './types';
 
 export { derive, deriveAll, withKillReason } from './derive';

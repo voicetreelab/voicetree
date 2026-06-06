@@ -1,4 +1,4 @@
-import type {FilesystemAuthoringValidationError} from '@vt/graph-tools/node'
+import type {FilesystemAuthoringValidationError} from '@vt/graph-tools/node-runtime'
 import {resolveTypeForTarget, type ResolvedFolderType} from './folderNoteType'
 import {loadSchemaPlugin} from './loadSchemaPlugin'
 import type {

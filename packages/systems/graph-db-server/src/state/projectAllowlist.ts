@@ -29,9 +29,8 @@ import {
 import { traceGraphdSpan } from "../data/watch-folder/paths/traceGraphdSpan";
 import type { FSWatcher } from "chokidar";
 import * as O from "fp-ts/lib/Option.js";
-import type { FilePath, Graph, GraphDelta, DeleteNode, Position } from '@vt/graph-model/graph';
+import type { FilePath, Graph, GraphDelta, DeleteNode, NodeLayout } from '@vt/graph-model/graph';
 import type { ProjectConfig } from '@vt/graph-model/settings';
-import { createDatedSubfolder } from "@vt/app-config/project";
 import { getGraph } from "./graph-store";
 import {
     getProjectRoot,
@@ -43,7 +42,7 @@ import {
     applyGraphDeltaToMemState,
     refreshGraphChangeSideEffects
 } from "../data/graph/mutations/applyGraphDelta";
-import { positionsIO } from "@vt/app-config/positions-io";
+import { nodeLayoutIO } from "@vt/app-config/node-layout-io";
 import {
     getProjectConfigForDirectory,
     saveProjectConfigForDirectory,
@@ -115,19 +114,19 @@ export async function getWriteFolderPath(): Promise<O.Option<FilePath>> {
  */
 export async function setWriteFolderPath(
     projectPath: FilePath,
-    options: { createStarterIfEmpty?: boolean } = {},
+    options: { createStarterIfEmpty?: boolean; awaitProjectStateBroadcast?: boolean } = {},
 ): Promise<{ success: boolean; error?: string }> {
     const watchedDir: FilePath | null = getProjectRoot();
     if (!watchedDir) {
         return { success: false, error: 'No directory is being watched' };
     }
 
-    const [config, positions]: [ProjectConfig | undefined, ReadonlyMap<string, Position>] = await Promise.all([
+    const [config, nodeLayout]: [ProjectConfig | undefined, ReadonlyMap<string, NodeLayout>] = await Promise.all([
         traceGraphdSpan('daemon.set-write-folder-path.get-project-config', async () => await getProjectConfigForDirectory(watchedDir)),
-        traceGraphdSpan('daemon.set-write-folder-path.load-positions', async (span) => {
-            const loadedPositions: ReadonlyMap<string, Position> = await positionsIO.load(watchedDir);
-            span.setAttribute('positions.count', loadedPositions.size);
-            return loadedPositions;
+        traceGraphdSpan('daemon.set-write-folder-path.load-node-layout', async (span) => {
+            const loadedLayout: ReadonlyMap<string, NodeLayout> = await nodeLayoutIO.load(watchedDir);
+            span.setAttribute('nodeLayout.count', loadedLayout.size);
+            return loadedLayout;
         }),
     ]);
 
@@ -135,7 +134,7 @@ export async function setWriteFolderPath(
     const outcome: ProjectLoadOutcome = await traceGraphdSpan('daemon.set-write-folder-path.load-and-merge-project-path', async () => await loadAndMergeProjectPath(
         projectPath,
         { isWriteFolderPath: true, createStarterIfEmpty: options.createStarterIfEmpty },
-        positions,
+        nodeLayout,
     ));
     if (outcome.kind !== 'ok') {
         return { success: false, error: describeProjectLoadFailure(outcome) };
@@ -172,9 +171,18 @@ export async function setWriteFolderPath(
     // Note: Clearing the old write path is handled by the caller (ProjectPathSelector)
     // which calls removeReadPath() after setWriteFolderPath()
 
-    await traceGraphdSpan('daemon.set-write-folder-path.broadcast-project-state', async () => {
-        await broadcastProjectState();
-    });
+    const broadcast = async (): Promise<void> => {
+        await traceGraphdSpan('daemon.set-write-folder-path.broadcast-project-state', async () => {
+            await broadcastProjectState();
+        });
+    };
+    if (options.awaitProjectStateBroadcast === false) {
+        void broadcast().catch((error: unknown) => {
+            console.error('project state broadcast failed:', error);
+        });
+    } else {
+        await broadcast();
+    }
     return { success: true };
 }
 
@@ -215,11 +223,11 @@ export async function addReadPath(projectPath: FilePath): Promise<{ success: boo
         return { success: false, error: `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}` };
     }
 
-    const positions: ReadonlyMap<string, Position> = await positionsIO.load(watchedDir);
+    const nodeLayout: ReadonlyMap<string, NodeLayout> = await nodeLayoutIO.load(watchedDir);
 
     // Load and merge handles everything: graph state, UI broadcast
     // Note: isWriteFolderPath: false means no starter node and no backend notification
-    const outcome: ProjectLoadOutcome = await loadAndMergeProjectPath(projectPath, { isWriteFolderPath: false }, positions);
+    const outcome: ProjectLoadOutcome = await loadAndMergeProjectPath(projectPath, { isWriteFolderPath: false }, nodeLayout);
     if (outcome.kind === 'fileLimit') {
         // File limit exceeded: still save to config and broadcast so sidebar shows the folder
         await setActiveViewFolderState(watchedDir, projectPath, 'expanded');
@@ -398,36 +406,6 @@ export async function reconcileHiddenFolders(): Promise<{ removedNodeCount: numb
 
     const removedNodeCount: number = await purgeNodesFromGraph(nodesToRemove);
     return { removedNodeCount };
-}
-
-/**
- * Create a new dated voicetree folder and set it as the write path.
- * Replaces the current write folder path: unwatches it completely (neither read nor write).
- * Also loads all starred folders as read paths.
- */
-export async function createDatedVoiceTreeFolder(): Promise<{
-    success: boolean; path?: string; error?: string;
-}> {
-    const watchedDir: string | null = getProjectRoot();
-    if (!watchedDir) return { success: false, error: 'No project open' };
-
-    // Capture old write path before switching, so we can unwatch it afterward
-    const config: ProjectConfig | undefined = await getProjectConfigForDirectory(watchedDir);
-    const oldWriteFolderPath: string | null = config?.writeFolderPath
-        ? resolveWriteFolderPath(watchedDir, config.writeFolderPath)
-        : null;
-
-    const newPath: string = await createDatedSubfolder(watchedDir);
-    await addReadPath(newPath);
-    const result: { success: boolean; error?: string } = await setWriteFolderPath(newPath);
-    if (!result.success) return { ...result, path: newPath };
-
-    // Unwatch old write folder path completely - neither read nor write
-    if (oldWriteFolderPath && oldWriteFolderPath !== normalizePath(watchedDir)) {
-        await removeReadPath(oldWriteFolderPath);
-    }
-
-    return { success: true, path: newPath };
 }
 
 /**

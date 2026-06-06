@@ -46,8 +46,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     // Get initial write path
     const initialWriteFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -65,8 +65,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 3: Set write path to empty second-project ===');
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.setWriteFolderPath(secondPath);
     }, secondProjectPath);
 
@@ -143,8 +143,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 3: Add second-project as read path ===');
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.addReadPath(secondPath);
     }, secondProjectPath);
 
@@ -163,8 +163,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 5: Verify read path was added to config ===');
     const projectPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 
@@ -316,8 +316,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 4: Change write path to empty second-project ===');
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.setWriteFolderPath(secondPath);
     }, secondProjectPath);
 
@@ -337,8 +337,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 6: Verify write path was updated ===');
     const newWriteFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -399,8 +399,8 @@ test.describe('Unified Folder Loading E2E Tests', () => {
 
     console.log('=== STEP 3: Add empty read path ===');
     const addResult = await appWindow.evaluate(async (path: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.addReadPath(path);
     }, secondProjectPath);
 

@@ -132,7 +132,7 @@ async function setupMockWithWatchedDirectory(page: import('@playwright/test').Pa
       }
     };
 
-    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+    (window as unknown as { hostAPI: typeof mockElectronAPI }).hostAPI = mockElectronAPI;
   });
 }
 

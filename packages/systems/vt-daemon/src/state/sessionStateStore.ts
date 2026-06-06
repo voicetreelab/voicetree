@@ -26,12 +26,8 @@ import {
     type State,
 } from '@vt/graph-state'
 import {
-    applyGraphDeltaToGraph,
-    createEmptyGraph,
-    mapNewGraphToDelta,
+    rehydrateSerializedGraph,
     type Graph,
-    type GraphNode,
-    type NodeIdAndFilePath,
     type Position,
 } from '@vt/graph-model'
 import { GraphDbClient } from '@vt/graph-db-client'
@@ -158,7 +154,7 @@ async function getOrCreateClient(project: AbsolutePath): Promise<GraphDbClient> 
 async function readGraphFromGraphd(project: AbsolutePath): Promise<Graph> {
     const client: GraphDbClient = await getOrCreateClient(project)
     const raw: { readonly nodes: Record<string, unknown> } = await client.getGraph()
-    return normalizeGraph(raw.nodes)
+    return rehydrateSerializedGraph(raw)
 }
 
 async function readProjectStateFromGraphd(project: AbsolutePath): Promise<ProjectState> {
@@ -172,16 +168,6 @@ export async function persistPositionsToGraphd(
 ): Promise<void> {
     if (Object.keys(positions).length === 0) return
     const client: GraphDbClient = await getOrCreateClient(project)
-    await client.writePositions(positions)
+    await client.writeNodeLayout(positions)
 }
 
-function normalizeGraph(rawNodes: Record<string, unknown>): Graph {
-    const empty: Graph = createEmptyGraph()
-    return applyGraphDeltaToGraph(
-        empty,
-        mapNewGraphToDelta({
-            ...empty,
-            nodes: rawNodes as Record<NodeIdAndFilePath, GraphNode>,
-        }),
-    )
-}

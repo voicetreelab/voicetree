@@ -1,7 +1,6 @@
 // Unified HTTP daemon server. Single http.createServer bound to 0.0.0.0 (or
-// $VOICETREE_DAEMON_BIND). Five routes per design doc §2.5 / §4:
+// $VOICETREE_DAEMON_BIND). Routes per design doc §2.5 / §4:
 //   POST /rpc                        — JSON-RPC tool dispatch (catalog)
-//   POST /hook/:source               — agent lifecycle ingestion
 //   GET  /events                     — WebSocket subscription channel
 //   GET  /terminals/:id/attach       — tmux relay (wired in Step 9f)
 //   GET  /health                     — owner-identity probe (BF-372,
@@ -17,7 +16,7 @@
 // The same gate covers the WS upgrade — bad tokens are rejected BEFORE the
 // WS handshake completes.
 //
-// Body caps: 64 KiB on /rpc and /hook (§4.1). WS inbound frame cap 256 KiB
+// Body caps: 64 KiB on /rpc (§4.1). WS inbound frame cap 256 KiB
 // (close 1009, §8.6). Per-subscriber outbound buffer cap 1 MiB / 1000 frames
 // (close 1011, §2.6 — enforced in eventSubscriptionHub).
 //
@@ -30,13 +29,9 @@ import {WebSocket, WebSocketServer} from 'ws'
 
 import type {VtDaemonHealthResponse} from '../contract.ts'
 import {
-    handleAgentEventsSse,
-    matchAgentEventsPath,
-    parseSinceQuery,
-} from './sse/agentEventsSse.ts'
-import {
     handleTerminalRegistrySse,
     matchTerminalRegistryPath,
+    parseSinceQuery,
 } from './sse/terminalRegistrySse.ts'
 import {createEventSubscriptionHub, type EventSubscriptionHub} from './sse/eventSubscriptionHub.ts'
 import {
@@ -48,11 +43,14 @@ import {
 import {wireWebSocketSubscriber} from './wsSubscriberWiring.ts'
 import {createTmuxAttachWiring, type TmuxAttachWiring} from './tmuxAttachWiring.ts'
 import {buildAccessLogLine} from './accessLog.ts'
-import {readBodyWithCap} from './bodyReader.ts'
 import {handleRpc} from './rpcDispatch.ts'
+import {applyCorsHeaders, applyPreflightCorsHeaders} from './browser/corsHeaders.ts'
+import {handleBrowserToken} from './browser/browserTokenHandler.ts'
+import {handleHealth} from './browser/healthHandler.ts'
+import {handleSettings, handleSettingsWrite} from './browser/settingsHandler.ts'
+import {handleReadImage, handleSaveClipboardImage, type ProjectStateProvider} from './browser/clipboardImageHandler.ts'
 import type {
     AccessLogger,
-    HookHandler,
     HttpDaemonServerHandle,
     ToolCatalog,
 } from './httpServerTypes.ts'
@@ -62,8 +60,6 @@ import type {
 // httpServerTypes.ts; the re-export is the stable public surface.
 export type {
     AccessLogger,
-    HookHandler,
-    HookHandlerInvocation,
     HttpDaemonServerHandle,
     ToolCatalog,
     ToolHandler,
@@ -73,11 +69,24 @@ export {isAuthorized} from './wsUpgradeAuth.ts'
 
 export interface StartHttpDaemonOptions {
     readonly catalog: ToolCatalog
-    readonly hookHandler: HookHandler
     readonly token: string
     readonly bindHost?: string
     readonly port?: number
     readonly logger?: AccessLogger
+    /**
+     * Origins allowed for cross-origin browser requests (Vite dev server,
+     * Chrome browser mode). Only exact localhost origins are accepted —
+     * wildcard CORS is never set. When absent/empty, no CORS headers are
+     * added and the /browser-token endpoint returns 403.
+     *
+     * Example: `['http://localhost:3000', 'http://127.0.0.1:3000']`
+     */
+    readonly allowedOrigins?: readonly string[]
+    /**
+     * Canonical project path forwarded through /browser-token.
+     * Falls back to canonicalProject when unset.
+     */
+    readonly projectPath?: string
     /**
      * Owner-identity projector consulted on every GET /health request
      * (BF-372). Optional during the Phase-1 decomposition: callers that
@@ -90,13 +99,13 @@ export interface StartHttpDaemonOptions {
      */
     readonly readHealth?: () => VtDaemonHealthResponse
     /**
-     * Canonical project path. Stamped into every `agent-events` SSE envelope
-     * so consumers can apply the project-switch fence
+     * Canonical project path. Stamped into every `terminal-registry` SSE
+     * envelope so consumers can apply the project-switch fence
      * (`specs/main-host-purity/spec.md` §"Project-switch fence drops stale
-     * events"). Optional during decomposition: when absent, the agent-events
-     * SSE route returns 503 with an explanatory body so the unwired state
-     * is observable rather than silently emitting envelopes with an empty
-     * project.
+     * events"). Optional during decomposition: when absent, the
+     * terminal-registry SSE route returns 503 with an explanatory body so the
+     * unwired state is observable rather than silently emitting envelopes with
+     * an empty project.
      */
     readonly canonicalProject?: string
     /**
@@ -108,13 +117,26 @@ export interface StartHttpDaemonOptions {
      * just after `configureTmuxSession`.
      */
     readonly getTmuxMouseMode?: () => boolean | Promise<boolean>
+    /**
+     * Resolves the live project allowlist (project root + read paths) the
+     * filesystem-touching browser routes (`/clipboard-image`, `/image`) scope
+     * every disk touch to. The vtd binary wires this to
+     * `gdb.client.getProject()`. When absent (fixtures / embeddings that don't
+     * serve those routes) the FS routes fail CLOSED — every path 404s — so a
+     * missing project scope can never silently widen to "any file the daemon
+     * can read".
+     */
+    readonly getProjectState?: ProjectStateProvider
 }
 
 const WS_INBOUND_FRAME_LIMIT_BYTES: number = 256 * 1024
 const RPC_PATH: string = '/rpc'
-const HOOK_PATH_PREFIX: string = '/hook/'
 const EVENTS_PATH: string = '/events'
 const HEALTH_PATH: string = '/health'
+const BROWSER_TOKEN_PATH: string = '/browser-token'
+const SETTINGS_PATH: string = '/settings'
+const CLIPBOARD_IMAGE_PATH: string = '/clipboard-image'
+const IMAGE_PATH: string = '/image'
 
 function defaultLogger(): AccessLogger {
     return {
@@ -123,10 +145,6 @@ function defaultLogger(): AccessLogger {
             process.stderr.write(`${line}${err ? `: ${err instanceof Error ? err.message : String(err)}` : ''}\n`)
         },
     }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function unauthorized(req: IncomingMessage, res: ServerResponse, logger: AccessLogger): void {
@@ -147,64 +165,6 @@ function methodNotAllowed(req: IncomingMessage, res: ServerResponse, logger: Acc
     logger.logRequest(buildAccessLogLine(req, 405))
 }
 
-async function handleHook(
-    req: IncomingMessage,
-    res: ServerResponse,
-    hookHandler: HookHandler,
-    hub: EventSubscriptionHub,
-    logger: AccessLogger,
-): Promise<void> {
-    const url: URL = new URL(req.url ?? '/', 'http://127.0.0.1')
-    const source: string = url.pathname.slice(HOOK_PATH_PREFIX.length)
-    const terminalId: string | undefined = url.searchParams.get('terminal') ?? undefined
-    const queryEvent: string | undefined = url.searchParams.get('event') ?? undefined
-
-    const body: string | {tooLarge: true} = await readBodyWithCap(req)
-    if (typeof body !== 'string') {
-        res.statusCode = 413
-        res.end()
-        logger.logRequest(buildAccessLogLine(req, 413))
-        return
-    }
-
-    let parsedBody: Record<string, unknown> | undefined
-    if (body.length > 0) {
-        try {
-            const raw: unknown = JSON.parse(body)
-            parsedBody = isRecord(raw) ? raw : undefined
-        } catch {
-            parsedBody = undefined
-        }
-    }
-    const bodyEvent: string | undefined = parsedBody && typeof parsedBody.hook_event_name === 'string'
-        ? parsedBody.hook_event_name
-        : undefined
-    const eventName: string | undefined = bodyEvent ?? queryEvent
-
-    const result: unknown = hookHandler({source, terminalId, eventName})
-    res.statusCode = 200
-    res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify(result))
-    logger.logRequest(buildAccessLogLine(req, 200))
-
-    // The body is parsed only to extract `hook_event_name` (already done
-    // above); we don't forward `parsedBody` to the handler because the
-    // handler contract takes the resolved event name.
-    void parsedBody
-
-    // Publish agent-events event regardless of whether the hook handler
-    // ignored or mapped it — subscribers learn about every hook ingestion.
-    // Source typing kept loose intentionally; subscriber decides what to do.
-    if (terminalId && eventName) {
-        hub.publish('agent-events', eventName, {
-            terminalId,
-            source,
-            at: Date.now(),
-            handlerResult: result,
-        })
-    }
-}
-
 function isWebsocketUpgrade(req: IncomingMessage): boolean {
     return req.headers.upgrade?.toLowerCase() === 'websocket'
 }
@@ -219,40 +179,38 @@ function rejectUpgradeNotFound(socket: Duplex): void {
     socket.destroy()
 }
 
-function handleHealth(
-    req: IncomingMessage,
-    res: ServerResponse,
-    readHealth: (() => VtDaemonHealthResponse) | undefined,
-    logger: AccessLogger,
-): void {
-    res.setHeader('Content-Type', 'application/json')
-    if (readHealth === undefined) {
-        // Optional during Phase-1 decomposition (see StartHttpDaemonOptions).
-        // 503 is the correct signal: the daemon is up but cannot answer the
-        // identity question, so a probe should treat the daemon as not yet
-        // claimable rather than fall through to a generic 404.
-        res.statusCode = 503
-        res.end(JSON.stringify({error: 'health probe not wired'}))
-        logger.logRequest(buildAccessLogLine(req, 503))
-        return
-    }
-    res.statusCode = 200
-    res.end(JSON.stringify(readHealth()))
-    logger.logRequest(buildAccessLogLine(req, 200))
+interface RequestHandlerDeps {
+    readonly catalog: ToolCatalog
+    readonly hub: EventSubscriptionHub
+    readonly token: string
+    readonly logger: AccessLogger
+    readonly readHealth: (() => VtDaemonHealthResponse) | undefined
+    readonly canonicalProject: string | undefined
+    readonly allowedOrigins: readonly string[]
+    readonly projectPath: string | undefined
+    readonly getProjectState: ProjectStateProvider | undefined
 }
 
 function buildRequestHandler(
-    catalog: ToolCatalog,
-    hookHandler: HookHandler,
-    hub: EventSubscriptionHub,
-    token: string,
-    logger: AccessLogger,
-    readHealth: (() => VtDaemonHealthResponse) | undefined,
-    canonicalProject: string | undefined,
+    deps: RequestHandlerDeps,
 ): (req: IncomingMessage, res: ServerResponse) => void {
+    const {
+        catalog, hub, token, logger, readHealth, canonicalProject,
+        allowedOrigins, projectPath, getProjectState,
+    } = deps
     return (req: IncomingMessage, res: ServerResponse): void => {
         const method: string = req.method ?? 'GET'
         const url: string = req.url ?? '/'
+
+        // Apply CORS headers early — safe to call before any res.end().
+        // For preflight (OPTIONS) we also set the method/header allow lists.
+        if (allowedOrigins.length > 0) {
+            if (method === 'OPTIONS') {
+                applyPreflightCorsHeaders(req, res, allowedOrigins)
+            } else {
+                applyCorsHeaders(req, res, allowedOrigins)
+            }
+        }
 
         if (method === 'OPTIONS') {
             res.statusCode = 204
@@ -260,19 +218,57 @@ function buildRequestHandler(
             logger.logRequest(buildAccessLogLine(req, 204))
             return
         }
-        // /health is the ONLY unauthenticated route. Placement BEFORE the
-        // isAuthorized gate is intentional and load-bearing: BF-373's
-        // ensure path invokes probeOwnerHealth BEFORE it has read
-        // <project>/.voicetree/auth-token — that probe IS the gate that
-        // decides whether to read the token. Gating /health on auth would
-        // chicken-and-egg the discovery path. Mirrors graphd's
+        // /health is the ONLY unauthenticated route (aside from /browser-token
+        // below). Placement BEFORE the isAuthorized gate is intentional and
+        // load-bearing: BF-373's ensure path invokes probeOwnerHealth BEFORE
+        // it has read <project>/.voicetree/auth-token. Gating /health on auth
+        // would chicken-and-egg the discovery path. Mirrors graphd's
         // unauthenticated /health.
         if (method === 'GET' && url === HEALTH_PATH) {
             handleHealth(req, res, readHealth, logger)
             return
         }
+        // /browser-token is unauthenticated but origin-gated (see browserTokenHandler.ts).
+        if (method === 'GET' && url === BROWSER_TOKEN_PATH && allowedOrigins.length > 0) {
+            handleBrowserToken(req, res, {
+                token,
+                projectPath: projectPath ?? canonicalProject ?? null,
+            }, allowedOrigins, logger)
+            return
+        }
         if (!isAuthorized(req, token)) {
             unauthorized(req, res, logger)
+            return
+        }
+
+        // /settings serves the browser-safe VTSettings projection to the
+        // browser-mode adapter (Electron parity). GET reads; POST persists an
+        // edited patch through the same allowlist (settingsHandler.ts).
+        if (url === SETTINGS_PATH && (method === 'GET' || method === 'POST')) {
+            const handle = method === 'GET' ? handleSettings : handleSettingsWrite
+            void handle(req, res, logger).catch((err: unknown): void => {
+                logger.logError('settings handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+
+        // Clipboard image I/O — browser-mode parity for Electron's native
+        // clipboard image save/read. Bearer-gated (handled above). Both carry a
+        // query string, so match on the parsed pathname, not the raw url.
+        const requestPathname: string = new URL(url, 'http://127.0.0.1').pathname
+        if (method === 'POST' && requestPathname === CLIPBOARD_IMAGE_PATH) {
+            void handleSaveClipboardImage(req, res, Date.now(), logger, getProjectState).catch((err: unknown): void => {
+                logger.logError('clipboard-image handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
+            return
+        }
+        if (method === 'GET' && requestPathname === IMAGE_PATH) {
+            void handleReadImage(req, res, logger, getProjectState).catch((err: unknown): void => {
+                logger.logError('image handler error', err)
+                if (!res.headersSent) { res.statusCode = 500; res.end() }
+            })
             return
         }
 
@@ -283,35 +279,8 @@ function buildRequestHandler(
             })
             return
         }
-        if (method === 'POST' && url.startsWith(HOOK_PATH_PREFIX)) {
-            void handleHook(req, res, hookHandler, hub, logger).catch((err: unknown): void => {
-                logger.logError('hook handler error', err)
-                if (!res.headersSent) { res.statusCode = 500; res.end() }
-            })
-            return
-        }
         if (method === 'GET') {
             const pathname: string = new URL(url, 'http://127.0.0.1').pathname
-            const agentEventsSessionId: string | null = matchAgentEventsPath(pathname)
-            if (agentEventsSessionId !== null) {
-                if (canonicalProject === undefined) {
-                    res.statusCode = 503
-                    res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({error: 'agent-events sse not wired (canonicalProject unset)'}))
-                    logger.logRequest(buildAccessLogLine(req, 503))
-                    return
-                }
-                handleAgentEventsSse(req, res, {
-                    hub,
-                    canonicalProject,
-                    resumeSeq: parseSinceQuery(url),
-                })
-                // SSE is long-lived; log the open here so we still see the
-                // request in the access log. Close is observed at the
-                // socket layer (logged by node's keep-alive close handler).
-                logger.logRequest(buildAccessLogLine(req, 200))
-                return
-            }
             const terminalRegistrySessionId: string | null = matchTerminalRegistryPath(pathname)
             if (terminalRegistrySessionId !== null) {
                 if (canonicalProject === undefined) {
@@ -326,14 +295,14 @@ function buildRequestHandler(
                     canonicalProject,
                     resumeSeq: parseSinceQuery(url),
                 })
+                // SSE is long-lived; log the open here so we still see the
+                // request in the access log. Close is observed at the
+                // socket layer (logged by node's keep-alive close handler).
                 logger.logRequest(buildAccessLogLine(req, 200))
                 return
             }
         }
-        if (
-            method !== 'POST'
-            && (url === RPC_PATH || url.startsWith(HOOK_PATH_PREFIX))
-        ) {
+        if (method !== 'POST' && url === RPC_PATH) {
             methodNotAllowed(req, res, logger)
             return
         }
@@ -409,9 +378,18 @@ export async function startHttpDaemonServer(options: StartHttpDaemonOptions): Pr
 
     const tmuxAttach: TmuxAttachWiring = createTmuxAttachWiring({getTmuxMouseMode: options.getTmuxMouseMode})
 
-    const server: Server = http.createServer(buildRequestHandler(
-        options.catalog, options.hookHandler, hub, options.token, logger, options.readHealth, options.canonicalProject,
-    ))
+    const allowedOrigins: readonly string[] = options.allowedOrigins ?? []
+    const server: Server = http.createServer(buildRequestHandler({
+        catalog: options.catalog,
+        hub,
+        token: options.token,
+        logger,
+        readHealth: options.readHealth,
+        canonicalProject: options.canonicalProject,
+        allowedOrigins,
+        projectPath: options.projectPath,
+        getProjectState: options.getProjectState,
+    }))
     server.on('upgrade', buildUpgradeHandler(wss, tmuxAttach, hub, options.token, logger))
 
     const bindHost: string = options.bindHost ?? '0.0.0.0'

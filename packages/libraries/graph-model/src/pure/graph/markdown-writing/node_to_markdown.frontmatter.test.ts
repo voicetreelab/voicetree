@@ -188,6 +188,34 @@ describe('fromNodeToMarkdownContent', () => {
       expect(result).toContain('# Test Content')
     })
 
+    it('should NOT generate size in frontmatter (stored in node-layout.json)', () => {
+      const node: GraphNode = {
+        kind: 'folder',
+        absoluteFilePathIsID: 'folder/folder.md',
+        contentWithoutYamlOrLinks: '# Folder note',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+          color: O.some('#123456'),
+          position: O.some({ x: 1, y: 2 }),
+          size: O.some({ width: 420, height: 360 }),
+          additionalYAMLProps: {},
+          isContextNode: false
+        }
+      }
+
+      const result: string = fromNodeToMarkdownContent(node)
+
+      // Size is spatial layout — sidecar only, never YAML.
+      expect(result).not.toContain('size:')
+      expect(result).not.toContain('width:')
+      expect(result).not.toContain('height:')
+      expect(result).not.toContain('420')
+      expect(result).not.toContain('360')
+      // Semantic metadata still flows to frontmatter.
+      expect(result).toContain('color: #123456')
+      expect(result).toContain('# Folder note')
+    })
+
     it('should restore wikilinks from [link]* notation', () => {
       const node: GraphNode = {
         kind: 'leaf',

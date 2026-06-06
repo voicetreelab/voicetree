@@ -45,13 +45,13 @@ export function describeImagePasteHandlerTests(): void {
       container = document.createElement("div");
       document.body.appendChild(container);
 
-      // Setup mock for electronAPI.main.saveClipboardImage
+      // Setup mock for hostAPI.main.saveClipboardImage
       mockSaveClipboardImage = vi.fn();
-      window.electronAPI = {
+      window.hostAPI = {
         main: {
           saveClipboardImage: mockSaveClipboardImage,
         },
-      } as unknown as typeof window.electronAPI;
+      } as unknown as typeof window.hostAPI;
     });
 
     afterEach(() => {
@@ -62,7 +62,7 @@ export function describeImagePasteHandlerTests(): void {
         document.body.removeChild(container);
       }
       // Cleanup mock
-      window.electronAPI = undefined;
+      window.hostAPI = undefined;
     });
 
     /**

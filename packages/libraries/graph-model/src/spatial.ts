@@ -6,5 +6,5 @@ export { buildSpatialIndexFromGraph, nodeEntryToObstacle, obstacleToRect, edgeEn
 export { type ObstacleBBox, type TargetDimensions, type DirectionalDistanceConfig, type Obstacle, boxObstacle, segmentObstacle, findBestPosition } from './pure/graph/positioning/placement/findBestPosition'
 export { type ComponentSubgraph, type PackResult, componentsOverlap, computeComponentBBox, packComponents, separateOverlappingComponents } from './pure/graph/positioning/layout/packComponents'
 export { SPAWN_RADIUS, CHILD_ANGLE_CONE, DEFAULT_EDGE_LENGTH, calculateChildAngle, polarToCartesian, calculateParentAngle } from './pure/graph/positioning/placement/angularPositionSeeding'
-export { mergePositionsIntoGraph } from './pure/graph/positioning/layout/mergePositionsIntoGraph'
+export { mergeNodeLayoutIntoGraph } from './pure/graph/positioning/layout/mergeNodeLayoutIntoGraph'
 export { type EdgeSegment, type LocalGeometry, segmentsIntersect, rectIntersectsSegment, needsLayoutCorrection, hasEdgeCrossingsAmong } from './pure/graph/spatial/geometry'

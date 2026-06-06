@@ -16,6 +16,7 @@ import {getNodeTitle} from "@vt/graph-model/pure/graph/markdown-parsing";
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType";
 import * as O from "fp-ts/lib/Option.js";
 import {anchorToNode} from "@/shell/edge/UI-edge/floating-windows/anchoring/anchor-to-node";
+import {reconcileTerminalAnchorEdges} from "@/shell/edge/UI-edge/floating-windows/anchoring/reconcile-terminal-anchors";
 import {getCurrentIndex} from "@/shell/UI/cytoscape-graph-ui/services/layout/spatialIndexSync";
 
 function isValidCSSColor(color: string): boolean {
@@ -196,6 +197,25 @@ function syncFolderNodeInteractivity(folder: CollectionReturnValue, collapsed: b
     if (folder.selected()) folder.unselect()
 }
 
+/**
+ * Apply a folder's persisted size by stamping it as node data
+ * (`folderWidth`/`folderHeight`). The stylesheet (defaultNodeStyles) maps that
+ * data onto the compound's cytoscape min-width/min-height, so size stays
+ * data-driven — no imperative style bypass. The children bbox remains a hard
+ * floor: min-* only grows the compound past its contents (default centered bias
+ * spreads the extra space around the children). Only expanded folders carry a
+ * size; the collapsed pill is fixed-size, so its size data is cleared.
+ */
+function applyFolderSize(folder: CollectionReturnValue, specNode: ProjectedNode): void {
+    if (specNode.kind === 'folder' && specNode.size) {
+        folder.data('folderWidth', specNode.size.width)
+        folder.data('folderHeight', specNode.size.height)
+        return
+    }
+    if (folder.data('folderWidth') !== undefined) folder.removeData('folderWidth')
+    if (folder.data('folderHeight') !== undefined) folder.removeData('folderHeight')
+}
+
 function addFolderNode(
     cy: Core,
     specNode: ProjectedNode,
@@ -218,6 +238,7 @@ function addFolderNode(
         },
     })
     syncFolderNodeInteractivity(addedFolder, collapsed)
+    applyFolderSize(addedFolder, specNode)
 }
 
 function updateFolderNode(existing: CollectionReturnValue, specNode: ProjectedNode): void {
@@ -233,6 +254,7 @@ function updateFolderNode(existing: CollectionReturnValue, specNode: ProjectedNo
         if (existing.data('childCount') !== undefined) existing.removeData('childCount')
     }
     syncFolderNodeInteractivity(existing, collapsed)
+    applyFolderSize(existing, specNode)
 }
 
 export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraphDeltaResult {
@@ -403,6 +425,13 @@ export function applyGraphDeltaToUI(cy: Core, graph: ProjectedGraph): ApplyGraph
     for (const nodeId of newNodeIds) {
         repairTerminalAnchorsForNode(cy, nodeId)
     }
+
+    // Keep every anchored terminal tethered to the visible endpoint of its node:
+    // the node itself, or — when a folder collapses and hides it — the collapsed
+    // ancestor folder. Runs over ALL terminals (not just newNodeIds) because a
+    // collapse REMOVES nodes rather than adding them, so a newNodeIds-keyed pass
+    // would never fire for the node that just got hidden.
+    reconcileTerminalAnchorEdges(cy, graph)
 
     // Terminal→node indicator edges driven by agent_name YAML (new + updated nodes).
     // createTerminalIndicatorEdge is idempotent, so re-running it for already-edged

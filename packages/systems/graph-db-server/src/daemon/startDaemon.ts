@@ -179,6 +179,7 @@ async function startOwnedDaemon(
 
     const app = createDaemonApp({
       registry,
+      allowedOrigins: opts.allowedOrigins,
       readHealth: () =>
         buildHealthResponse(
           CONTRACT_VERSION,
@@ -265,7 +266,14 @@ async function startOwnedDaemon(
 function commandFingerprintForProcess() {
   return {
     executable: process.execPath,
-    args: process.argv.slice(1),
+    // Splice execArgv back in front of argv: Node strips its own loader flags
+    // (`--import tsx`, `--experimental-*`) out of process.argv into
+    // process.execArgv before user code runs. The owner-record fingerprint is
+    // compared against the live exec line read from `ps -p <pid> -o command=`,
+    // which DOES include those flags; recording only argv.slice(1) loses them,
+    // so a tsx-launched daemon (`node --import tsx vt-graphd …`) mismatches and
+    // the stale-owner check flips to `unsafe-owner`, timing out the launcher.
+    args: [...process.execArgv, ...process.argv.slice(1)],
   }
 }
 

@@ -16,13 +16,13 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 const test = base.extend<{
@@ -124,7 +124,7 @@ This node is in the read-project and should be removed when project is removed.
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -183,8 +183,8 @@ test.describe('Remove Read Path', () => {
     console.log('=== STEP 2: Verify readPaths includes read-project ===');
 
     const initialReadPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getReadOnLinkPaths();
     });
 
@@ -194,8 +194,8 @@ test.describe('Remove Read Path', () => {
     console.log('=== STEP 3: Remove read-project path via API ===');
 
     const removeResult = await appWindow.evaluate(async (pathToRemove: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
     }, readProjectPath);
 
@@ -220,8 +220,8 @@ test.describe('Remove Read Path', () => {
     console.log('=== STEP 5: Verify readPaths no longer includes read-project ===');
 
     const finalReadPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getReadOnLinkPaths();
     });
 
@@ -257,8 +257,8 @@ test.describe('Remove Read Path', () => {
 
     // Attempt to remove the write path via API
     const removeResult = await appWindow.evaluate(async (pathToRemove: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
     }, writeFolderPath);
 
@@ -281,8 +281,8 @@ test.describe('Remove Read Path', () => {
 
     // Get initial project paths
     const initialProjectPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 
@@ -292,8 +292,8 @@ test.describe('Remove Read Path', () => {
 
     // Remove the read path
     await appWindow.evaluate(async (pathToRemove: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.removeReadOnLinkPath(pathToRemove);
     }, readProjectPath);
 
@@ -301,8 +301,8 @@ test.describe('Remove Read Path', () => {
 
     // Get project paths after removal
     const finalProjectPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 

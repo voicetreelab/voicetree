@@ -200,7 +200,7 @@ export async function runProjectCommand(
 ): Promise<void> {
     try {
         const parsed: ParsedProjectCommand = parseProjectCommand(argv)
-        const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd()})
+        const project: string = resolveProject({flag: parsed.projectFlag, cwd: process.cwd(), env: process.env})
 
         // Validate containment before touching the daemon: a write path outside
         // the project must fail fast with a clear message and never reach the

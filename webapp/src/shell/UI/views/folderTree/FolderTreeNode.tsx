@@ -10,7 +10,7 @@ import type { JSX } from 'react';
 import type { FolderTreeNode as FolderTreeNodeType, FileTreeNode as FileTreeNodeType } from '@vt/graph-model/folders';
 import { isFolderTreeNode } from '@vt/graph-model/folders';
 import type { ActionMenuItem } from '@/shell/UI/lib/ctxmenu';
-import '@/shell/electron.d.ts';
+import '@/shell/hostApi.d.ts';
 import { absolutePathToGraphFolderId } from '@vt/graph-model/graph';
 import { getCyInstance } from '@/shell/edge/UI-edge/state/controllers/cytoscape-state';
 import { collapseFolder, expandFolder, hideFolder } from '@/shell/edge/UI-edge/graph/view/folderCollapse';
@@ -145,7 +145,7 @@ export function FolderTreeNodeComponent({ node, depth, searchQuery, expandedPath
         }
         const trimmed: string = newFolderName.trim();
         if (trimmed) {
-            void window.electronAPI?.main.createSubfolder(node.absolutePath, trimmed);
+            void window.hostAPI?.main.createSubfolder(node.absolutePath, trimmed);
         }
         setIsCreatingFolder(false);
         setNewFolderName('');

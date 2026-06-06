@@ -27,9 +27,10 @@ import { AUTO_RUN_FLAG } from "@/shell/edge/UI-edge/graph/popups/agentCommandEdi
 import { highlightContainedNodes, highlightPreviewNodes, clearContainedHighlights } from '@/shell/UI/cytoscape-graph-ui/highlightContextNodes';
 import { getTerminals } from '@/shell/edge/UI-edge/state/stores/TerminalStore';
 import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/terminals/terminalDataType';
-import type { WorktreeInfo } from '@/shell/edge/main/workspace/worktree/gitWorktreeCommands';
-import type { WatchStatus } from '@/shell/electron';
+import type { WorktreeInfo } from '@vt/vt-daemon-protocol';
+import type { WatchStatus } from '@/shell/hostApi';
 import { showWorktreeDeleteConfirmation } from '@/shell/edge/UI-edge/graph/popups/worktreeDeletePopup';
+import { hostCapabilities } from '@/shell/runtimeCapabilities';
 import type { WorkflowTreeNode } from '@/shell/edge/main/workflows/workflowHandlers';
 import type { SliderConfig, HorizontalMenuItem, NodeMenuItemsInput } from './horizontalMenuTypes';
 import { squareToHops } from './DistanceSlider';
@@ -49,9 +50,9 @@ function createRunButtonSliderConfig(
         currentDistance,
         onDistanceChange: (newSquare: number): void => {
             void (async (): Promise<void> => {
-                const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
-                if (currentSettings && window.electronAPI) {
-                    await window.electronAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: squareToHops(newSquare)});
+                const currentSettings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
+                if (currentSettings && window.hostAPI) {
+                    await window.hostAPI.main.saveSettings({...currentSettings, contextNodeMaxDistance: squareToHops(newSquare)});
                 }
                 clearContainedHighlights(cy);
                 await highlightPreviewNodes(cy, nodeId);
@@ -62,7 +63,7 @@ function createRunButtonSliderConfig(
 }
 
 async function spawnCurrentAgentByName(nodeId: string, cy: Core, agentName: string): Promise<void> {
-    const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+    const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
     const agent: AgentConfig | undefined = settings?.agents?.find((candidate: AgentConfig) => candidate.name === agentName);
     if (!agent?.command) {
         console.error(`[getNodeMenuItems] Agent "${agentName}" is no longer present in settings.agents`);
@@ -116,15 +117,22 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
         onHoverLeave: () => clearContainedHighlights(cy),
         sliderConfig, // Show distance slider on hover for non-context nodes
         getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
-            const items: HorizontalMenuItem[] = [
-                { icon: GitBranch, label: 'New Worktree', action: () => { void spawnTerminalInNewWorktree(nodeId, cy); } },
-            ];
+            const items: HorizontalMenuItem[] = [];
+
+            // Git worktrees are an Electron-only capability; omit the
+            // "New Worktree" entry and the existing-worktree list in browser mode.
+            const canWorktree: boolean = hostCapabilities().worktrees;
+            if (canWorktree) {
+                items.push({ icon: GitBranch, label: 'New Worktree', action: () => { void spawnTerminalInNewWorktree(nodeId, cy); } });
+            }
 
             // Fetch existing worktrees dynamically
-            const watchStatus: WatchStatus | undefined = await window.electronAPI?.main.getWatchStatus();
+            const watchStatus: WatchStatus | undefined = canWorktree
+                ? await window.hostAPI?.main.getWatchStatus()
+                : undefined;
             const repoRoot: string | undefined = watchStatus?.directory;
             if (repoRoot) {
-                const worktrees: WorktreeInfo[] = await window.electronAPI?.main.listWorktrees(repoRoot) ?? [];
+                const worktrees: WorktreeInfo[] = await window.hostAPI?.main.listWorktrees(repoRoot) ?? [];
                 // Check which worktrees have active (running) terminals
                 const terminalMap: Map<string, TerminalData> = getTerminals();
                 const activeWorktreeNames: Set<string> = new Set<string>();
@@ -150,7 +158,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                                 if (!confirmed) return;
 
                                 const ipcResult: { success: boolean; command: string; error?: string } | undefined =
-                                    await window.electronAPI?.main.removeWorktree(repoRoot, wt.path, false);
+                                    await window.hostAPI?.main.removeWorktree(repoRoot, wt.path, false);
                                 if (ipcResult?.success) return;
 
                                 // Normal delete failed — offer force delete
@@ -159,7 +167,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                                     ipcResult?.error ?? 'Deletion failed',
                                 );
                                 if (!retry) return;
-                                await window.electronAPI?.main.removeWorktree(repoRoot, wt.path, true);
+                                await window.hostAPI?.main.removeWorktree(repoRoot, wt.path, true);
                             },
                         },
                     });
@@ -167,7 +175,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             }
 
             // Auto-run checkbox: only for claude commands, toggles --dangerously-skip-permissions
-            const currentSettings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+            const currentSettings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
             const defaultAgent: AgentConfig | undefined = currentSettings ? getDefaultAgent(currentSettings.agents ?? [], currentSettings.defaultAgent) : undefined;
             const defaultCommand: string = defaultAgent?.command ?? '';
             if (defaultCommand.toLowerCase().includes('claude')) {
@@ -178,7 +186,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                     checked: defaultCommand.includes(AUTO_RUN_FLAG),
                     preventClose: true,
                     action: async () => {
-                        const settings: VTSettings | null = await window.electronAPI?.main.loadSettings() ?? null;
+                        const settings: VTSettings | null = await window.hostAPI?.main.loadSettings() ?? null;
                         if (!settings) return;
                         const currentAgents: readonly AgentConfig[] = settings.agents ?? [];
                         const defAgent: AgentConfig | undefined = getDefaultAgent(currentAgents, settings.defaultAgent);
@@ -200,7 +208,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                             (agent: AgentConfig): AgentConfig =>
                                 agent.name === defAgent.name ? { ...agent, command: newCommand } : agent
                         );
-                        await window.electronAPI?.main.saveSettings({ ...settings, agents: updatedAgents });
+                        await window.hostAPI?.main.saveSettings({ ...settings, agents: updatedAgents });
                     },
                 });
             }
@@ -219,7 +227,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             action: () => {},
             getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
                 const workflows: WorkflowTreeNode[] | undefined =
-                    await window.electronAPI?.main.listWorkflows();
+                    await window.hostAPI?.main.listWorkflows();
                 if (!workflows?.length) {
                     return [{ icon: Zap, label: 'No workflows found', action: () => {} }];
                 }
@@ -232,7 +240,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                             label: (!isActionable && !hasChildren) ? `${wf.name}  ⚠ missing SKILL.md` : wf.name,
                             color: (!isActionable && !hasChildren) ? '#ef4444' : undefined,
                             action: isActionable ? async (): Promise<void> => {
-                                const content: string | undefined = await window.electronAPI?.main.readSkillFileSummary(wf.path);
+                                const content: string | undefined = await window.hostAPI?.main.readSkillFileSummary(wf.path);
                                 if (!content) { console.warn('[workflow-inject] readSkillFileSummary returned empty for', wf.path); return; }
                                 console.log('[workflow-inject] SKILL summary length:', content.length);
                                 const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
@@ -256,7 +264,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
             label: 'Copy to...',
             action: () => {}, // No-op, submenu handles interaction
             getSubMenuItems: async (): Promise<HorizontalMenuItem[]> => {
-                const starredFolders: readonly string[] = await window.electronAPI?.main.getStarredFolders() ?? [];
+                const starredFolders: readonly string[] = await window.hostAPI?.main.getStarredFolders() ?? [];
                 if (starredFolders.length === 0) {
                     return [{
                         icon: FolderOpen,
@@ -269,7 +277,7 @@ export function getNodeMenuItems(input: NodeMenuItemsInput): HorizontalMenuItem[
                     label: folder.split('/').pop() ?? folder,
                     action: async () => {
                         const result: { success: boolean; targetPath: string; error?: string } | undefined =
-                            await window.electronAPI?.main.copyNodeToFolder(nodeId, folder);
+                            await window.hostAPI?.main.copyNodeToFolder(nodeId, folder);
                         if (result?.success) {
                             console.log(`Copied to ${result.targetPath}`);
                         } else {

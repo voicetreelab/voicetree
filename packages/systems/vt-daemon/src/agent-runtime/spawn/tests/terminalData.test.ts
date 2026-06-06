@@ -100,4 +100,61 @@ describe('prepareTerminalDataInMain', () => {
             await rm(voicetreeHomePath, {recursive: true, force: true})
         }
     })
+
+    it('disables Codex project-doc injection for VoiceTree-spawned Codex sessions', async () => {
+        const voicetreeHomePath = await mkdtemp(join(tmpdir(), 'vt-terminal-data-'))
+        const projectRoot = await mkdtemp(join(tmpdir(), 'vt-terminal-project-'))
+        const taskNodeId = join(projectRoot, 'task.md') as NodeIdAndFilePath
+        const contextNodeId = join(projectRoot, 'ctx-nodes/task-context.md') as NodeIdAndFilePath
+        const codexSettings = {
+            agents: [{name: 'Codex', command: 'codex "$AGENT_PROMPT" --yolo'}],
+            defaultAgent: 'Codex',
+            INJECT_ENV_VARS: {AGENT_PROMPT: 'task body'},
+        } as VTSettings
+
+        try {
+            process.env.VOICETREE_HOME_PATH = voicetreeHomePath
+            configureAgentRuntime({
+                env: {
+                    getProjectRoot: async () => projectRoot,
+                    getWriteFolderPath: async () => join(projectRoot, 'voicetree-25-5'),
+                    getProjectPaths: async () => [join(projectRoot, 'voicetree-25-5')],
+                },
+                graph: {
+                    getGraph: async () => graphWithOnlyTask(taskNodeId),
+                    getProjectPaths: async () => [join(projectRoot, 'voicetree-25-5')],
+                    getWriteFolderPath: async () => O.some(join(projectRoot, 'voicetree-25-5')),
+                    getProjectRoot: async () => projectRoot,
+                    getWatchStatus: async () => ({isWatching: false, directory: undefined}),
+                    applyGraphDelta: async (_delta: GraphDelta) => undefined,
+                    createContextNode: async () => contextNodeId,
+                    createContextNodeFromSelectedNodes: async () => contextNodeId,
+                    getUnseenNodesAroundContextNode: async () => [] as readonly UnseenNode[],
+                    updateContextNodeContainedIds: async () => undefined,
+                },
+            })
+
+            const terminalData = await prepareTerminalDataInMain(
+                contextNodeId,
+                taskNodeId,
+                0,
+                'codex "$AGENT_PROMPT" --yolo',
+                codexSettings,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                'Aki',
+            )
+
+            expect(terminalData.initialCommand).toContain('codex -c project_doc_max_bytes=0')
+            expect(terminalData.initialCommand).toContain('"$AGENT_PROMPT" --yolo')
+        } finally {
+            await rm(voicetreeHomePath, {recursive: true, force: true})
+            await rm(projectRoot, {recursive: true, force: true})
+        }
+    })
 })

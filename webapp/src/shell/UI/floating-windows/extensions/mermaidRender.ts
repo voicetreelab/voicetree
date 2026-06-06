@@ -12,7 +12,14 @@ async function getMermaid(): Promise<typeof import('mermaid')['default']> {
         mermaidModule.default.initialize({
             startOnLoad: false,
             theme: 'default',
-            securityLevel: 'loose',
+            // 'strict' (not 'loose'): diagram source comes from node markdown, which is
+            // UNTRUSTED graph/file content. 'loose' enables click-handler binding and
+            // raw HTML in labels — an XSS vector when an attacker authors the diagram.
+            // 'strict' makes mermaid HTML-encode label text and disable click callbacks,
+            // and its internal DOMPurify pass still sanitizes the emitted SVG. Normal
+            // flowcharts/sequence diagrams render unchanged; only raw-HTML labels and
+            // click interactions (which the app does not use) are dropped.
+            securityLevel: 'strict',
             suppressErrorRendering: true,
         });
     }
@@ -25,7 +32,12 @@ async function getMermaid(): Promise<typeof import('mermaid')['default']> {
  */
 class MermaidBlockWidget extends WidgetType {
     readonly source: string;
-    private rendered: string | null = null;
+    // Sanitized SVG markup from mermaid (safe to innerHTML — mermaid runs DOMPurify
+    // on its output). Mutually exclusive with `errorMessage`.
+    private svg: string | null = null;
+    // Plain-text error from a failed render. Rendered via textContent, never innerHTML,
+    // because mermaid error messages can echo the (untrusted) diagram source.
+    private errorMessage: string | null = null;
     private renderPromise: Promise<void> | null = null;
 
     constructor(source: string) {
@@ -45,13 +57,10 @@ class MermaidBlockWidget extends WidgetType {
             const mermaid: typeof import('mermaid')['default'] = await getMermaid();
             const id: string = 'mermaid-' + Math.random().toString(36).substring(2, 11);
             const result: RenderResult = await mermaid.render(id, diagramSource);
-            this.rendered = result.svg;
+            this.svg = result.svg;
         } catch (error) {
             console.error('Mermaid rendering error:', error);
-            this.rendered = `<div style="color: red; padding: 10px;">
-        <strong>Mermaid rendering error:</strong><br/>
-        ${error instanceof Error ? error.message : 'Unknown error'}
-      </div>`;
+            this.errorMessage = error instanceof Error ? error.message : 'Unknown error';
         }
     }
 
@@ -59,24 +68,28 @@ class MermaidBlockWidget extends WidgetType {
         return widget.source === this.source;
     }
 
+    /** Render the current state (svg / error / still-loading) into the container. */
+    private paint(container: HTMLElement): void {
+        if (this.svg !== null) {
+            container.innerHTML = this.svg;
+            return;
+        }
+        if (this.errorMessage !== null) {
+            container.replaceChildren(buildMermaidErrorNotice(this.errorMessage));
+            return;
+        }
+        container.replaceChildren(buildMermaidLoadingNotice());
+    }
+
     toDOM(): HTMLElement {
         const container: HTMLDivElement = document.createElement('div');
         container.setAttribute('contenteditable', 'false');
         container.className = 'cm-mermaid-render';
 
-        if (this.rendered) {
-            // Already rendered
-            container.innerHTML = this.rendered;
-        } else {
-            // Still rendering - show loading indicator
-            container.innerHTML = '<div style="padding: 10px; color: #666;">Rendering diagram...</div>';
-
-            // Update when rendering completes
-            void this.renderPromise?.then(() => {
-                if (this.rendered) {
-                    container.innerHTML = this.rendered;
-                }
-            });
+        this.paint(container);
+        // If still loading at first paint, repaint once the render settles.
+        if (this.svg === null && this.errorMessage === null) {
+            void this.renderPromise?.then(() => this.paint(container));
         }
 
         return container;
@@ -85,6 +98,34 @@ class MermaidBlockWidget extends WidgetType {
     ignoreEvent(): boolean {
         return false;
     }
+}
+
+/**
+ * Build the "rendering error" notice as a DOM node. The message is attached via
+ * textContent so an untrusted diagram source echoed back in a mermaid error can
+ * never inject markup. Exported for black-box testing.
+ */
+export function buildMermaidErrorNotice(message: string): HTMLElement {
+    const wrapper: HTMLDivElement = document.createElement('div');
+    wrapper.style.color = 'red';
+    wrapper.style.padding = '10px';
+
+    const heading: HTMLElement = document.createElement('strong');
+    heading.textContent = 'Mermaid rendering error:';
+
+    const detail: HTMLDivElement = document.createElement('div');
+    detail.textContent = message;
+
+    wrapper.append(heading, detail);
+    return wrapper;
+}
+
+function buildMermaidLoadingNotice(): HTMLElement {
+    const notice: HTMLDivElement = document.createElement('div');
+    notice.style.padding = '10px';
+    notice.style.color = '#666';
+    notice.textContent = 'Rendering diagram...';
+    return notice;
 }
 
 /**

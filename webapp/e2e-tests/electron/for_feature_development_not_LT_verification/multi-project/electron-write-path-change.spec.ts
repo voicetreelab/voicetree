@@ -24,14 +24,14 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Extend test with Electron app
@@ -111,7 +111,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -168,8 +168,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Get initial project paths
     const initialProjectPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 
@@ -178,8 +178,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Get initial default write path
     const initialDefaultPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -192,8 +192,8 @@ test.describe('Write Path Change Bug', () => {
 
     console.log('=== STEP 2: Add second project path to readPaths ===');
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.addReadPath(secondPath);
     }, secondProjectPath);
 
@@ -202,8 +202,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Verify we now have 2 project paths
     const updatedProjectPaths = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getProjectPaths();
     });
 
@@ -213,8 +213,8 @@ test.describe('Write Path Change Bug', () => {
 
     console.log('=== STEP 3: Change default write path to second-project ===');
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.setWriteFolderPath(secondPath);
     }, secondProjectPath);
 
@@ -223,8 +223,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Verify default write path changed
     const newDefaultPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -358,8 +358,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Get initial write path
     const initialWriteFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some' ? (result as { value: string }).value : null;
@@ -374,8 +374,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Step 2a: Add new path first (what saveEditedPath does)
     const addResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.addReadPath(secondPath);
     }, secondProjectPath);
 
@@ -384,8 +384,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Step 2b: Set new write path
     const setResult = await appWindow.evaluate(async (secondPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.setWriteFolderPath(secondPath);
     }, secondProjectPath);
 
@@ -394,8 +394,8 @@ test.describe('Write Path Change Bug', () => {
 
     // Step 2c: Remove old path (this is what should remove the nodes from graph)
     const removeResult = await appWindow.evaluate(async (primaryPath: string) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.removeReadPath(primaryPath);
     }, primaryProjectPath);
 

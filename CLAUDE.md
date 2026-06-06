@@ -1,5 +1,6 @@
-⛔ The main checkout is a READ-ONLY cache of origin/dev-manu — never edit/commit in it (worktrees ARE writable). `vt-worktree <name>` to work → `vt-land "msg"` to ship; `vt-sync` to update (never `git pull`). More: `scripts/dev-setup/worktree-readme.md`.
+⛔ This is a NORMAL, WRITABLE checkout of THIS machine's own branch `$VT_DEV_BRANCH` (machine-local, set in `~/.env` — e.g. `dev-mac` / `dev-remote`; never a literal in-repo; safe default `dev-new`). Edit & commit directly here (worktrees optional: `vt-worktree <name>`). `vt-sync` to pull `dev` into your branch (never `git pull`); `vt-pr "msg"` to integrate (PR → `dev`). More: `scripts/dev-setup/distributed-architecture.md`.
 
+🗺️ To locate code, read `architecture.md` (repo root) FIRST — it maps each component to its source path (drift-gated) and `refines:` into per-folder diagrams; descend those instead of grepping blind.
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
 EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
 
@@ -48,6 +49,7 @@ Code search & navigation tools (use over grep when applicable):
 - `ck --sem` — semantic search for when you can't guess any keyword (e.g. "graceful shutdown" → `cleanupOwnedDaemon`). Run `ck --index .` to completion once per repo (10-30min) before relying on it; otherwise indexing is hidden in query latency.
 - `cgcli` (`@vt/code-graph-cli`) — symbol-resolved call graph (`callers` / `callees` / `reachable` / `hotspots`). Use over grep when navigating by structure (grep can't follow barrel re-exports) and to surface the codebase's worst-coupled functions.
 
+**Concept → path map** — to find where a concept's code actually lives (daemon, transport, rpc, hooks, agent-runtime, create_graph, cli, graph-db, measures, webapp shell/layout, …) without grep-discovery rounds, read `docs/agent-concept-path-map.md`.
 
 <!-- VOICETREE_AGENT_DISCOVERY_START -->
 Run `vt manual` for the VoiceTree `vt` CLI reference (`vt manual <verb>` for one tool).

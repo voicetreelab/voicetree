@@ -1,5 +1,5 @@
 import {dirname, isAbsolute, join, relative as relativePath, resolve as resolvePath} from 'node:path'
-import {buildMarkdownBody, type FilesystemAuthoringInput} from '@vt/graph-tools/node'
+import {buildMarkdownBody, type FilesystemAuthoringInput} from '@vt/graph-tools/node-runtime'
 import {runSchemaGate, type SchemaGateResult} from '../core/schemaGate'
 import {detectProjectFromCwd} from '../cliDeps'
 import type {GraphCreateNode, NodeVerdict} from '../core/types'

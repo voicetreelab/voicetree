@@ -23,16 +23,17 @@
 import {z} from 'zod'
 import type {ZodTypeAny, ZodRawShape} from 'zod'
 
-import type {McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
-import {TOOL_SPECS, type ToolSpec} from '@vt/vt-daemon-protocol'
+import type {ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {TOOL_SPECS, type ToolSpec, AGENT_STATUSES, MAX_STATUS_PHRASE_LENGTH} from '@vt/vt-daemon-protocol'
 import {RPC_ROUTES, type RpcRoute} from '../rpc/index.ts'
-import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/spawnAgentTool'
-import {listAgentsTool} from '../agent-runtime/agent-control/listAgentsTool'
-import {waitForAgentsTool} from '../agent-runtime/agent-control/waitForAgentsTool'
-import {getUnseenNodesNearbyTool} from '../agent-runtime/agent-control/getUnseenNodesNearbyTool'
-import {sendMessageTool} from '../agent-runtime/agent-control/sendMessageTool'
-import {closeAgentTool} from '../agent-runtime/agent-control/closeAgentTool'
-import {readTerminalOutputTool} from '../agent-runtime/agent-control/readTerminalOutputTool'
+import {makeSpawnAgentDeps, spawnAgentTool} from '../agent-runtime/agent-control/tools/spawnAgentTool'
+import {listAgentsTool} from '../agent-runtime/agent-control/tools/listAgentsTool'
+import {waitForAgentsTool} from '../agent-runtime/agent-control/tools/waitForAgentsTool'
+import {getUnseenNodesNearbyTool} from '../agent-runtime/agent-control/tools/getUnseenNodesNearbyTool'
+import {sendMessageTool} from '../agent-runtime/agent-control/tools/sendMessageTool'
+import {closeAgentTool} from '../agent-runtime/agent-control/tools/closeAgentTool'
+import {applyAgentStatusTool} from '../agent-runtime/agent-control/tools/applyAgentStatusTool'
+import {readTerminalOutputTool} from '../agent-runtime/agent-control/tools/readTerminalOutputTool'
 import {createGraphTool} from '../create-graph/createGraphTool'
 import {OVERRIDABLE_RULE_IDS} from '@vt/graph-validation'
 import {graphStructureTool} from './graph/graphStructureTool'
@@ -42,15 +43,15 @@ import {getLiveStateTool} from './getLiveStateTool'
 import {getSessionsTool} from './getSessionsTool'
 import {appendSessionTool, type AppendSessionParams} from './appendSessionTool'
 import {buildCatalogEntry, specDescribe} from './tool-spec-binding'
-import type {McpToolBridges} from '../config/mcpBridges.ts'
+import type {ToolBridges} from '../config/toolBridges.ts'
 
-export type CatalogHandler = (args: Record<string, unknown>) => Promise<McpToolResponse>
+export type CatalogHandler = (args: Record<string, unknown>) => Promise<ToolResponse>
 
 // Handlers declared on catalog entries take the bridges explicitly so
 // they can be constructed once at boot and bound into the dispatch map
 // without a hidden module-level cell. Tools that don't talk to the
 // graph or search bridges ignore the second arg.
-export type BridgedCatalogHandler = (args: Record<string, unknown>, bridges: McpToolBridges) => Promise<McpToolResponse>
+export type BridgedCatalogHandler = (args: Record<string, unknown>, bridges: ToolBridges) => Promise<ToolResponse>
 
 export interface CatalogEntry {
     readonly name: string
@@ -59,12 +60,12 @@ export interface CatalogEntry {
     readonly handler: BridgedCatalogHandler
 }
 
-function adapt<P>(fn: (params: P) => Promise<McpToolResponse> | McpToolResponse): BridgedCatalogHandler {
-    return async (args: Record<string, unknown>): Promise<McpToolResponse> => fn(args as P)
+function adapt<P>(fn: (params: P) => Promise<ToolResponse> | ToolResponse): BridgedCatalogHandler {
+    return async (args: Record<string, unknown>): Promise<ToolResponse> => fn(args as P)
 }
 
 function adaptWithGraph<P>(
-    fn: (params: P, bridge: import('../config/mcpBridges.ts').GraphBridge) => Promise<McpToolResponse> | McpToolResponse,
+    fn: (params: P, bridge: import('../config/toolBridges.ts').GraphBridge) => Promise<ToolResponse> | ToolResponse,
 ): BridgedCatalogHandler {
     return async (args, bridges) => fn(args as P, bridges.graph)
 }
@@ -145,6 +146,14 @@ type InputShapeBuilder = (spec: ToolSpec) => ZodRawShape
 // Bespoke builders for tools whose input nests objects/arrays — these cannot
 // be expressed as a flat type-code map in FLAT_INPUTS.
 const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
+    apply_agent_status: (spec) => {
+        const d: (rpcPath: string) => string = specDescribe(spec)
+        return {
+            callerTerminalId: z.string().describe(d('callerTerminalId')),
+            preset: z.enum(AGENT_STATUSES).describe(d('preset')),
+            statusPhrase: z.string().max(MAX_STATUS_PHRASE_LENGTH).optional().describe(d('statusPhrase')),
+        }
+    },
     create_graph: (spec) => {
         const d: (rpcPath: string) => string = specDescribe(spec)
         return {
@@ -173,6 +182,12 @@ const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
             })).optional().describe(
                 'Override validation rules that would otherwise block. Each entry must match a rule ID from the error response.',
             ),
+            agentStatus: z.enum(AGENT_STATUSES).optional().describe(
+                'Your current status, reported with this progress node. Drives your lifecycle icon in the terminal tree. "working" = actively making progress; "awaiting_input" = blocked, need the user; "done" = task complete; "failed" = task failed. Omit to leave your status unchanged.',
+            ),
+            statusPhrase: z.string().max(MAX_STATUS_PHRASE_LENGTH).optional().describe(
+                `Short free-text live status (≤ ${MAX_STATUS_PHRASE_LENGTH} chars) shown next to your model name in the terminal tree, e.g. "wiring the create_graph param". Omit to leave it unchanged.`,
+            ),
         }
     },
     vt_dispatch_live_command: (spec) => {
@@ -198,22 +213,23 @@ const INPUT_SHAPES: Readonly<Record<string, InputShapeBuilder>> = {
 // ─── Per-spec handlers ───────────────────────────────────────────────────────
 
 const HANDLERS: Readonly<Record<string, BridgedCatalogHandler>> = {
-    spawn_agent: async (args, bridges): Promise<McpToolResponse> =>
+    spawn_agent: async (args, bridges): Promise<ToolResponse> =>
         spawnAgentTool(args as unknown as Parameters<typeof spawnAgentTool>[0], makeSpawnAgentDeps(bridges.graph)),
-    list_agents: async (_args, bridges): Promise<McpToolResponse> => listAgentsTool(bridges.graph),
+    list_agents: async (_args, bridges): Promise<ToolResponse> => listAgentsTool(bridges.graph),
     wait_for_agents: adaptWithGraph(waitForAgentsTool),
     get_unseen_nodes_nearby: adaptWithGraph(getUnseenNodesNearbyTool),
     close_agent: adaptWithGraph(closeAgentTool),
+    apply_agent_status: adapt(applyAgentStatusTool),
     send_message: adapt(sendMessageTool),
     read_terminal_output: adapt(readTerminalOutputTool),
     create_graph: adaptWithGraph(createGraphTool),
     graph_structure: adapt(graphStructureTool),
     search_nodes: adapt(searchNodesTool),
-    vt_get_live_state: async (): Promise<McpToolResponse> => getLiveStateTool(),
-    vt_dispatch_live_command: async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+    vt_get_live_state: async (): Promise<ToolResponse> => getLiveStateTool(),
+    vt_dispatch_live_command: async (args: Record<string, unknown>): Promise<ToolResponse> =>
         dispatchLiveCommandTool({command: args.command as never}),
-    'metrics.getSessions': async (): Promise<McpToolResponse> => getSessionsTool(),
-    'metrics.appendSession': async (args: Record<string, unknown>): Promise<McpToolResponse> =>
+    'metrics.getSessions': async (): Promise<ToolResponse> => getSessionsTool(),
+    'metrics.appendSession': async (args: Record<string, unknown>): Promise<ToolResponse> =>
         appendSessionTool(args as unknown as AppendSessionParams),
 }
 
@@ -261,16 +277,27 @@ export const TOOL_CATALOG: readonly CatalogEntry[] = buildToolCatalog()
  *
  * The 19 BF-376 outbound RPC routes (`RPC_ROUTES`) are merged in the same
  * way — they share the dispatch infrastructure but live outside
- * `TOOL_CATALOG` because they are not user-facing MCP tools (no manual
+ * `TOOL_CATALOG` because they are not user-facing RPC tools (no manual
  * coverage check, no description leader).
  *
- * Pure: depends only on `TOOL_CATALOG` + `RPC_ROUTES` data, no I/O.
+ * `extraRoutes` carries per-boot, dep-injected routes that cannot be static
+ * module data — notably the `graph.*` gateway routes
+ * (`buildGraphGatewayRoutes`), which close over the live `gdb.client` and the
+ * VTD-owned graphd session. They are validated and dispatched exactly like
+ * `RPC_ROUTES`; only their construction differs (factory at the edge vs.
+ * module constant).
+ *
+ * Pure: depends only on `TOOL_CATALOG` + `RPC_ROUTES` + the passed
+ * `extraRoutes` data, no I/O.
  */
-export function buildCatalogDispatchMap(bridges: McpToolBridges): ReadonlyMap<string, CatalogHandler> {
+export function buildCatalogDispatchMap(
+    bridges: ToolBridges,
+    extraRoutes: readonly RpcRoute[] = [],
+): ReadonlyMap<string, CatalogHandler> {
     const toolEntries: Array<[string, CatalogHandler]> = TOOL_CATALOG.map(
         (entry: CatalogEntry): [string, CatalogHandler] => {
             const schema: ZodTypeAny = z.object(entry.inputShape)
-            const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+            const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<ToolResponse> => {
                 const parsed: ReturnType<typeof schema.safeParse> = schema.safeParse(args)
                 if (!parsed.success) {
                     throw new CatalogValidationError(entry.name, parsed.error.issues)
@@ -280,17 +307,17 @@ export function buildCatalogDispatchMap(bridges: McpToolBridges): ReadonlyMap<st
             return [entry.name, validating]
         },
     )
-    const rpcEntries: Array<[string, CatalogHandler]> = RPC_ROUTES.map(
+    const rpcEntries: Array<[string, CatalogHandler]> = [...RPC_ROUTES, ...extraRoutes].map(
         (route: RpcRoute): [string, CatalogHandler] => {
             // Routes whose request shape is `Record<string, never>` (the
             // arg-less reads) skip schema validation — `z.object({})` would
             // strip every field, hiding accidental extras silently. For routes
             // with declared `inputShape`, validate exactly like tool entries.
             if (!route.inputShape) {
-                return [route.name, async (args: Record<string, unknown>): Promise<McpToolResponse> => route.handler(args)]
+                return [route.name, async (args: Record<string, unknown>): Promise<ToolResponse> => route.handler(args)]
             }
             const schema: ZodTypeAny = z.object(route.inputShape)
-            const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+            const validating: CatalogHandler = async (args: Record<string, unknown>): Promise<ToolResponse> => {
                 const parsed: ReturnType<typeof schema.safeParse> = schema.safeParse(args)
                 if (!parsed.success) {
                     throw new CatalogValidationError(route.name, parsed.error.issues)

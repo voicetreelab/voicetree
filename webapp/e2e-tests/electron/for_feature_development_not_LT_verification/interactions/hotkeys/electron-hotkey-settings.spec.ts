@@ -18,7 +18,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import type { VTSettings, HotkeySettings } from '@/pure/settings/types';
 
 // Use absolute paths
@@ -28,7 +28,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definitions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 // Extend test with Electron app
@@ -66,7 +66,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -112,16 +112,16 @@ test.describe('Hotkey Settings Integration', () => {
 
     console.log('=== STEP 1: Save original settings for later restoration ===');
     const originalSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
     console.log('Original closeWindow modifier:', originalSettings.hotkeys?.closeWindow?.modifiers);
 
     console.log('=== STEP 2: Update settings to use Control modifier for closeWindow ===');
     await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const currentSettings = await api.main.loadSettings();
       // Deep copy to remove readonly
@@ -160,8 +160,8 @@ test.describe('Hotkey Settings Integration', () => {
 
     console.log('=== STEP 4: Verify settings were saved correctly ===');
     const savedSettings = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     }) as VTSettings;
 
@@ -230,8 +230,8 @@ test.describe('Hotkey Settings Integration', () => {
 
     console.log('=== STEP 9: Restore original settings ===');
     await appWindow.evaluate(async (original) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.saveSettings(original);
     }, originalSettings);
     console.log('Original settings restored');

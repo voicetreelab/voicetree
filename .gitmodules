@@ -1,7 +1,3 @@
-[submodule "brain"]
-	path = brain
-	url = git@github.com:voicetreelab/brain.git
-	ignore = all
 [submodule "voicetree-evals"]
 	path = voicetree-evals
 	url = https://github.com/voicetreelab/voicetree-evals.git

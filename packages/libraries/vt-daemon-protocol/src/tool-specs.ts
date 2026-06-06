@@ -25,6 +25,7 @@
  */
 
 import {buildFromPrefixedMessage} from './from-prefix-message'
+import {SUBGRAPH_SIZE_LIMIT_GUIDANCE} from './subgraphSizeLimitGuidance'
 import type {ToolInputSpec, ToolSpec} from './tool-spec-types'
 
 // ─── Shared input descriptors ────────────────────────────────────────────────
@@ -178,6 +179,10 @@ export const CREATE_GRAPH_SPEC: ToolSpec = {
         '',
         '**Schema validation (optional):** If the folder containing the new node has a folder note declaring `## Type: <kind>`, `vt graph create` runs a schema validator (from `.voicetree/schemas.cjs`) before writing. On rejection it exits non-zero with the violating rules. If no upstream Type is declared, validation is silent and the node is created normally.',
         '',
+        `**Folder gardening:** ${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatManualGuidance()}`,
+        '',
+        '**Status (required from an agent terminal):** pass `--status <working|awaiting_input|done|failed>` (one status for the whole call — it is *your* lifecycle status, not the node\'s). It drives your terminal-tree icon. Filesystem mode reports it to the daemon after writing; live mode carries it in the payload. Offline authoring (no terminal) may omit it. To declare status without creating a node, use `vt agent status`.',
+        '',
         '**Modes:**',
         '- *Filesystem mode* — pass one or more `<file.md>` positional paths. The CLI parses frontmatter and `[[wikilinks]]` to build the create payload locally.',
         '- *Live mode* — pass `--node "title::summary[::content]"` (repeatable) and/or `--nodes-file FILE`, or pipe a JSON `{nodes, overrides?}` payload to stdin. The CLI forwards the payload to the daemon\'s `create_graph` RPC.',
@@ -230,7 +235,19 @@ export const CREATE_GRAPH_SPEC: ToolSpec = {
             rpcName: 'override',
             cliBulletLabel: '--override VALUE',
             annotation: 'repeatable, RPC: override_with_rationale[]',
-            description: 'Override a blocking validation rule, formatted `<ruleId>:<rationale>`.',
+            description: `Override a blocking validation rule, formatted \`<ruleId>:<rationale>\`. ${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatOverrideDescription()}`,
+        },
+        {
+            rpcName: 'agentStatus',
+            cliBulletLabel: '--status VALUE',
+            annotation: 'required from an agent terminal; RPC: agentStatus',
+            description: 'Your lifecycle status reported with this create — one of `working` | `awaiting_input` | `done` | `failed`. Required whenever you run from an agent terminal; one status per call (yours, not the node\'s). Omit only for offline authoring with no terminal.',
+        },
+        {
+            rpcName: 'statusPhrase',
+            cliBulletLabel: '--phrase VALUE',
+            annotation: 'RPC: statusPhrase',
+            description: 'Optional short free-text status (≤ 80 chars) shown next to your model name in the terminal tree, e.g. "wiring the create_graph param".',
         },
     ],
 }
@@ -273,6 +290,35 @@ export const CLOSE_AGENT_SPEC: ToolSpec = {
             cliBulletLabel: '--force VALUE',
             annotation: 'RPC: forceWithReason',
             description: 'Required to close a running (non-idle) agent or an agent that produced no nodes. Provide a reason string explaining the override.',
+        },
+    ],
+}
+
+export const APPLY_AGENT_STATUS_SPEC: ToolSpec = {
+    rpcName: 'apply_agent_status',
+    cliVerb: 'vt agent status',
+    tier: 'reference',
+    summary: 'Declare your own lifecycle status (working/awaiting_input/done/failed) without creating a node.',
+    description: [
+        'Set your own terminal\'s lifecycle status — the standalone path for declaring status when you do NOT want to create a progress node. (When you create a node, pass `agentStatus` on `vt graph create` instead; both drive the same sidebar lifecycle icon.)',
+        '',
+        'Acts on YOUR terminal (the caller); you cannot set another agent\'s status. The preset maps to your sidebar icon: `working` → active (amber spinner) · `awaiting_input` → blocked-on-user (blue) · `done` → completed (green ✓) · `failed` → errored (red ×). An orchestrator with active children has `awaiting_input`/`done` shown as idle (it is waiting on its children, not the user).',
+        '',
+        'Use `done` to close yourself out when finished — otherwise, when you stop emitting output, you will be nudged to declare a terminal status (the finish gate).',
+    ].join('\n'),
+    inputs: [
+        CALLER_TERMINAL_INPUT,
+        {
+            rpcName: 'preset',
+            cliBulletLabel: '<working|awaiting_input|done|failed>',
+            annotation: 'positional, RPC: preset',
+            description: 'The status preset to declare. One of: working, awaiting_input, done, failed.',
+        },
+        {
+            rpcName: 'statusPhrase',
+            cliBulletLabel: '--phrase VALUE',
+            annotation: 'RPC: statusPhrase',
+            description: 'Optional short free-text status (≤ 80 chars) shown next to your model name in the terminal tree, e.g. "running the e2e suite".',
         },
     ],
 }
@@ -551,6 +597,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
     GET_UNSEEN_NODES_NEARBY_SPEC,
     // Reference — agent control
     CLOSE_AGENT_SPEC,
+    APPLY_AGENT_STATUS_SPEC,
     SEND_MESSAGE_SPEC,
     READ_TERMINAL_OUTPUT_SPEC,
     // Reference — graph

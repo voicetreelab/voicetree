@@ -293,6 +293,8 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
                 'Topic C::Summary C::Needed marker present.',
                 '--parent',
                 parentNodeId,
+                '--status',
+                'working',
             ],
             projectRoot,
             {terminalId: 't'},
@@ -329,6 +331,8 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
                 parentNodeId,
                 '--override',
                 'node_line_limit:big rewrite',
+                '--status',
+                'working',
             ],
             projectRoot,
             {terminalId: 't'},
@@ -340,6 +344,42 @@ describe('graph create batch reporting (live mode + HTTP daemon)', () => {
         expect(payload.nodes[0]).toMatchObject({
             status: 'ok',
             overriddenRuleIds: ['node_line_limit'],
+        })
+    })
+
+    it('reports the daemon-created live-mode path when the target filename was uniquified', async () => {
+        stub = await startStubDaemon({
+            success: true,
+            nodes: [
+                {
+                    id: 'topic-e',
+                    path: join(projectRoot, 'work', 'topic-e_2.md'),
+                    status: 'ok',
+                },
+            ],
+        })
+        process.env.VOICETREE_DAEMON_URL = stub.url
+        process.env.VOICETREE_PROJECT_PATH = stub.projectPath
+
+        const result: CapturedRun = await captureGraphCreate(
+            [
+                '--node',
+                'Topic E::Summary E::Needed marker present.',
+                '--parent',
+                parentNodeId,
+                '--status',
+                'working',
+            ],
+            projectRoot,
+            {terminalId: 't'},
+        )
+
+        expect(result.exitCode).toBeNull()
+        const payload = JSON.parse(result.stdout)
+        expect(payload.summary).toEqual({ok: 1, rejected: 0, skipped: 0, warning: 0})
+        expect(payload.nodes[0]).toMatchObject({
+            path: 'work/topic-e_2.md',
+            status: 'ok',
         })
     })
 })

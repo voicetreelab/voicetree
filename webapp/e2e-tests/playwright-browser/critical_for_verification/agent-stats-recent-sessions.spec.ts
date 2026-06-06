@@ -64,11 +64,11 @@ function generateWeekOfSessions(): SessionMetric[] {
 async function setupMockElectronAPIWithSessions(page: Page, sessions: SessionMetric[]): Promise<void> {
   await setupMockElectronAPI(page);
   await page.addInitScript((sessionsData: SessionMetric[]) => {
-    const electronAPI = (window as unknown as { electronAPI?: { main: Record<string, unknown> } }).electronAPI;
-    if (!electronAPI) throw new Error('electronAPI not available');
+    const hostAPI = (window as unknown as { hostAPI?: { main: Record<string, unknown> } }).hostAPI;
+    if (!hostAPI) throw new Error('hostAPI not available');
 
-    electronAPI.main.getBackendPort = async () => 5001;
-    electronAPI.main.getMetrics = async () => ({ sessions: sessionsData });
+    hostAPI.main.getBackendPort = async () => 5001;
+    hostAPI.main.getMetrics = async () => ({ sessions: sessionsData });
   }, sessions);
 }
 

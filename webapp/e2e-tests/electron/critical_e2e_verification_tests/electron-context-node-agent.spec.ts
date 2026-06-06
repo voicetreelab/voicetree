@@ -27,6 +27,7 @@
 import { expect } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { agentBaseName } from '@vt/graph-model/settings';
 import { test, type ExtendedWindow } from './electron-context-node-agent-fixtures';
 
 const TEST_AGENT_COMMAND = 'CLAUDE_CODE_NO_FLICKER=1 claude --dangerously-skip-permissions "$AGENT_PROMPT"';
@@ -49,8 +50,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // agentCommand is one of `settings.agents[].command`. Register the grep
     // probe as a named agent so the test's command is accepted.
     await appWindow.evaluate(async ({ shell, command }) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       const currentSettings = await api.main.loadSettings();
       const updatedSettings = {
@@ -84,8 +85,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 2c: Verify graph loaded in main process state ===');
     const graphInMainProcess = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
 
@@ -97,8 +98,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     const watchDir = fixtureProjectPath;
     console.log(`✓ Watch directory: ${watchDir}`);
     const writeFolderPath = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const result = await api.main.getWriteFolderPath();
       if (result && typeof result === 'object' && '_tag' in result) {
         return (result as { _tag: string; value?: string })._tag === 'Some'
@@ -115,8 +116,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     console.log(`Parent node: ${parentNodeId}`);
 
     const contextNodeId = await appWindow.evaluate(async (nodeId) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.createContextNode(nodeId);
     }, parentNodeId);
 
@@ -178,8 +179,8 @@ test.describe('Context Node Agent Terminal E2E', () => {
     // the daemon-assigned `terminalId` we use to locate the pipe-pane log.
     const spawnResponse = await appWindow.evaluate(async ({ ctxNodeId, ctxNodePath, spawnDir, command, pathEnv }) => {
       const w = (window as ExtendedWindow);
-      const api = w.electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = w.hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       return api.main.spawnTerminalWithContextNode({
         taskNodeId: ctxNodeId,
@@ -206,10 +207,14 @@ test.describe('Context Node Agent Terminal E2E', () => {
 
     console.log('=== STEP 7: Verify spawned agent appears in the terminal tree sidebar ===');
     await expect(appWindow.getByTestId('terminal-tree-sidebar')).toBeVisible({ timeout: 15000 });
+    // Identity (with hash) is verified by the data-terminal-id locator above.
+    // The visible text shows the hash-stripped base name — the sidebar strips the
+    // uniqueness suffix for display, so assert on agentBaseName(), the same pure
+    // helper the sidebar renders with.
     const terminalTreeRow = appWindow.locator(`[data-testid="terminal-tree-sidebar"] [data-terminal-id="${terminalId}"]`);
     await expect(terminalTreeRow).toBeVisible({ timeout: 15000 });
-    await expect(terminalTreeRow).toContainText(terminalId);
-    console.log(`✓ Terminal tree sidebar shows spawned agent: ${terminalId}`);
+    await expect(terminalTreeRow).toContainText(agentBaseName(terminalId));
+    console.log(`✓ Terminal tree sidebar shows spawned agent: ${terminalId} (displayed as "${agentBaseName(terminalId)}")`);
 
     console.log('');
     console.log('=== TEST SUMMARY ===');

@@ -7,7 +7,7 @@
 
 import {describe, expect, it} from 'vitest'
 
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {dispatchRpcRequest} from '../rpcDispatch.ts'
 import type {ToolCatalog, ToolHandler} from '../httpServerTypes.ts'
 
@@ -49,7 +49,7 @@ function makeFetchFailedError(): Error {
 
 describe('dispatchRpcRequest — internal_error cause chain', (): void => {
     it('surfaces undici-shaped cause (ECONNREFUSED) in error.data.causes', async (): Promise<void> => {
-        const catalog = catalogWith('boom', async (): Promise<McpToolResponse> => {
+        const catalog = catalogWith('boom', async (): Promise<ToolResponse> => {
             throw makeFetchFailedError()
         })
 
@@ -72,7 +72,7 @@ describe('dispatchRpcRequest — internal_error cause chain', (): void => {
         const level2 = new Error('mid-a', {cause: level3})
         const level1 = new Error('outer', {cause: level2})
 
-        const catalog = catalogWith('deep', async (): Promise<McpToolResponse> => {
+        const catalog = catalogWith('deep', async (): Promise<ToolResponse> => {
             throw new Error('top', {cause: level1})
         })
 
@@ -87,7 +87,7 @@ describe('dispatchRpcRequest — internal_error cause chain', (): void => {
         for (let i = 6; i >= 1; i--) {
             current = new Error(`level-${i}`, current === undefined ? undefined : {cause: current})
         }
-        const catalog = catalogWith('long', async (): Promise<McpToolResponse> => {
+        const catalog = catalogWith('long', async (): Promise<ToolResponse> => {
             throw new Error('top', {cause: current!})
         })
 
@@ -97,7 +97,7 @@ describe('dispatchRpcRequest — internal_error cause chain', (): void => {
     })
 
     it('omits data field entirely when there is no .cause', async (): Promise<void> => {
-        const catalog = catalogWith('plain', async (): Promise<McpToolResponse> => {
+        const catalog = catalogWith('plain', async (): Promise<ToolResponse> => {
             throw new Error('something went wrong')
         })
 
@@ -109,7 +109,7 @@ describe('dispatchRpcRequest — internal_error cause chain', (): void => {
     })
 
     it('serializes a non-Error cause as a NonError link', async (): Promise<void> => {
-        const catalog = catalogWith('weird', async (): Promise<McpToolResponse> => {
+        const catalog = catalogWith('weird', async (): Promise<ToolResponse> => {
             throw new Error('wrapper', {cause: 'string-as-cause'})
         })
 
@@ -119,7 +119,7 @@ describe('dispatchRpcRequest — internal_error cause chain', (): void => {
     })
 
     it('keeps existing happy-path envelope unchanged when handler returns ok', async (): Promise<void> => {
-        const catalog = catalogWith('ok', async (): Promise<McpToolResponse> => buildJsonResponse({ok: true}))
+        const catalog = catalogWith('ok', async (): Promise<ToolResponse> => buildJsonResponse({ok: true}))
         const {status, body} = await dispatchRpcRequest(rpcRequest('ok'), catalog)
         expect(status).toBe(200)
         expect(body).toEqual({jsonrpc: '2.0', id: 1, result: {ok: true}})

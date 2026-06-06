@@ -70,8 +70,14 @@ function handleClientFrame(ctx: WsSubscriberContext, raw: RawData): void {
 
 export function wireWebSocketSubscriber(ws: WebSocket, hub: EventSubscriptionHub): void {
     const subscriber: Subscriber = {
-        send: (frame: string): void => {
-            if (ws.readyState === ws.OPEN) ws.send(frame)
+        send: (frame: string, onSent?: () => void): void => {
+            // ws.send's callback fires once the frame is flushed to the socket
+            // (or errors) — this is the backpressure signal the hub's conflation
+            // pump needs to release the next snapshot. When the socket is not
+            // OPEN we still settle onSent so the pump never stalls on a frame
+            // that was dropped.
+            if (ws.readyState === ws.OPEN) ws.send(frame, (): void => onSent?.())
+            else onSent?.()
         },
         overflow: (): void => {
             try { ws.close(1011, 'overflow') } catch { /* socket may already be torn down */ }

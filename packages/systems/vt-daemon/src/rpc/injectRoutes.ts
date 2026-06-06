@@ -10,7 +10,7 @@ import type {
 } from '@vt/vt-daemon-protocol'
 
 import {type RpcRoute} from './RpcRoute.ts'
-import {buildJsonResponse, type McpToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {buildJsonResponse, type ToolResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 const sendTextToTerminalRoute: RpcRoute = {
     name: 'sendTextToTerminal',
@@ -18,7 +18,7 @@ const sendTextToTerminalRoute: RpcRoute = {
         terminalId: z.string(),
         text: z.string(),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: SendTextToTerminal.Request = args as unknown as SendTextToTerminal.Request
         const result: SendTextToTerminal.Response = await sendTextToTerminal(req.terminalId, req.text)
         return buildJsonResponse(result)
@@ -31,7 +31,7 @@ const injectNodesIntoTerminalRoute: RpcRoute = {
         terminalId: z.string(),
         nodeIds: z.array(z.string()),
     },
-    handler: async (args: Record<string, unknown>): Promise<McpToolResponse> => {
+    handler: async (args: Record<string, unknown>): Promise<ToolResponse> => {
         const req: InjectNodesIntoTerminal.Request = args as unknown as InjectNodesIntoTerminal.Request
         const result: InjectNodesIntoTerminal.Response = await injectNodesIntoTerminal(req.terminalId, [...req.nodeIds])
         return buildJsonResponse(result)

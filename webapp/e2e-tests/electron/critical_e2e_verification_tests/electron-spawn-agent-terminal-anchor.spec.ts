@@ -71,8 +71,8 @@ test.describe("spawn_agent terminal anchoring", () => {
       // Bind the daemon to the fixture project. openProject throws on failure and
       // returns the resolved write folder path on success.
       const openResult = await appWindow.evaluate(async (projectRoot) => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         const response = await api.main.openProject(projectRoot);
         return { writeFolderPath: response.writeFolderPath };
       }, fixtureProjectPath);
@@ -82,8 +82,8 @@ test.describe("spawn_agent terminal anchoring", () => {
         .poll(
           async () => {
             return await appWindow.evaluate(async () => {
-              const api = (window as ExtendedWindow).electronAPI;
-              if (!api) throw new Error("electronAPI not available");
+              const api = (window as ExtendedWindow).hostAPI;
+              if (!api) throw new Error("hostAPI not available");
               const graph = await api.main.getGraph();
               return Object.keys(graph.nodes).length;
             });
@@ -98,8 +98,8 @@ test.describe("spawn_agent terminal anchoring", () => {
         .toBeGreaterThan(0);
 
       const parentNodeId = await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (!api) throw new Error("electronAPI not available");
+        const api = (window as ExtendedWindow).hostAPI;
+        if (!api) throw new Error("hostAPI not available");
         const graph = await api.main.getGraph();
         const nodeIds = Object.keys(graph.nodes);
         if (nodeIds.length === 0) throw new Error("No graph nodes loaded");
@@ -112,8 +112,8 @@ test.describe("spawn_agent terminal anchoring", () => {
       // can target with the returned `callerTerminalId`.
       const callerSpawn = await appWindow.evaluate(
         async ({ parentNodeId }) => {
-          const api = (window as ExtendedWindow).electronAPI;
-          if (!api) throw new Error("electronAPI not available");
+          const api = (window as ExtendedWindow).hostAPI;
+          if (!api) throw new Error("hostAPI not available");
           return await api.main.spawnTerminalWithContextNode({
             taskNodeId: parentNodeId,
             terminalCount: 0,

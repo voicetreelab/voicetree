@@ -3,13 +3,13 @@
  * Eliminates duplication across spawnPlainTerminal, spawnHookTerminal, and prepareTerminalDataInMain.
  */
 
-import {resolveEnvVarsWithSelection, expandEnvVarsInValues} from '@vt/graph-model/settings'
+import {resolveEnvVarsWithSelection, expandEnvVarsInValues, appendPersonaToAgentPrompt} from '@vt/graph-model/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import * as O from 'fp-ts/lib/Option.js'
 import {getRuntimeEnv, getGraphBridge} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-bridge'
-import {appendCliManualToAgentPrompt} from './injection/cliManualInjection'
+import {appendCliDiscoveryToAgentPrompt} from './injection/cliManualInjection'
 import {prependVtBinToPath, prependHomeBinToPath, readVtBinDirOrNull} from './injection/vtPathInjection'
 import {readDaemonPortFromProject} from './daemonUrlFile'
 import {promises as fs} from 'fs'
@@ -44,10 +44,9 @@ export async function buildTerminalEnvVars(params: {
 
     // VOICETREE_PROJECT_PATH points at the canonical project root (where `.voicetree/` lives),
     // not the daemon's current writeFolderPath. Many consumers — the CLI's auth-token resolver
-    // (vt-rpc#authTokenFilePath), the agent hook script template
-    // (agentHookInjection.ts), tmuxPromptFile, the tmux namespace builder — all read
+    // (vt-rpc#authTokenFilePath), tmuxPromptFile, the tmux namespace builder — all read
     // `$VOICETREE_PROJECT_PATH/.voicetree/...`. Pointing the var at a subfolder writeFolderPath
-    // creates stub `.voicetree/` dirs that break the CLI up-walk and the hook script.
+    // creates stub `.voicetree/` dirs that break the CLI up-walk.
     const projectRoot: string | null = env.getProjectRoot
         ? await env.getProjectRoot()
         : await getRuntimeProjectRoot()
@@ -64,8 +63,8 @@ export async function buildTerminalEnvVars(params: {
     // AGENT_PROMPT_* templates are .md files in the single per-machine prompts
     // location ~/.voicetree/prompts (NO per-project prompts dir) — symlinks to the
     // canonical shipped source, kept in sync at daemon/Electron startup. A file is
-    // authoritative over any settings default of the same name; a settings value
-    // only applies when no file exists (e.g. a test that blanks the prompt).
+    // authoritative over any settings value of the same name; persisted settings
+    // prune these reserved keys so stale UI values cannot shadow the files.
     // --prompt-template selects which one becomes AGENT_PROMPT.
     const voicetreePromptsDir: string = path.join(voicetreeHomePath, 'prompts')
     const promptTemplates: Record<string, string> = await readPromptTemplates(voicetreePromptsDir)
@@ -88,8 +87,8 @@ export async function buildTerminalEnvVars(params: {
         VOICETREE_TERMINAL_ID: params.terminalId,
         VOICETREE_CALLER_TERMINAL_ID: params.terminalId,
         AGENT_NAME: params.agentName,
-        // §5.3 — spawn pipeline injects DAEMON_URL (not the token, which the
-        // hook subprocess reads via `cat` from disk to avoid `ps` leak, §3.3).
+        // §5.3 — spawn pipeline injects DAEMON_URL (not the token, which
+        // consumers read via `cat` from disk to avoid `ps` leak, §3.3).
         // Spawned agents always run inside WSL alongside the daemon, so
         // 127.0.0.1 works in both WSL mirrored and NAT networking modes.
         ...(daemonUrl !== null ? {VOICETREE_DAEMON_URL: daemonUrl} : {}),
@@ -97,11 +96,12 @@ export async function buildTerminalEnvVars(params: {
         ...(params.envOverrides ?? {}),
     }
     const filtered: Record<string, string> = dropPromptTemplateVariants(expandEnvVarsInValues(unexpandedEnvVars))
-    const withManual: Record<string, string> = appendCliManualToAgentPrompt(filtered)
+    const withCliDiscovery: Record<string, string> = appendCliDiscoveryToAgentPrompt(filtered)
+    const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withCliDiscovery, params.agentName, params.settings)
     const vtBinDir: string | null = await readVtBinDirOrNull()
     // $HOME/bin is prepended first so the daemon's vt-bin can sit in front of it.
     // Final order: vtBinDir : $HOME/bin : ...inherited PATH
-    const withHomeBin: Record<string, string> = prependHomeBinToPath(withManual)
+    const withHomeBin: Record<string, string> = prependHomeBinToPath(withPersona)
     return prependVtBinToPath(withHomeBin, vtBinDir)
 }
 

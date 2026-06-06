@@ -16,7 +16,7 @@ export const REALISTIC_PERF_NODE_COUNT = Number.parseInt(process.env.REALISTIC_P
 
 export interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main?: {
       startFileWatching?: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       getGraph?: () => Promise<{ nodes?: Record<string, unknown>; edges?: Record<string, unknown> }>;
@@ -105,7 +105,7 @@ export async function collectLoadDiagnostics(page: Page): Promise<Record<string,
     const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
     const api = (
       window as unknown as {
-        electronAPI?: {
+        hostAPI?: {
           main?: {
             getWatchStatus?: () => Promise<unknown>;
             getProjectPaths?: () => Promise<unknown>;
@@ -113,7 +113,7 @@ export async function collectLoadDiagnostics(page: Page): Promise<Record<string,
           };
         };
       }
-    ).electronAPI;
+    ).hostAPI;
 
     const safeCall = async <T>(fn: (() => Promise<T>) | undefined): Promise<T | string> => {
       if (!fn) return 'unavailable';
@@ -256,9 +256,9 @@ export const test = base.extend<{
       await window.evaluate(async () => {
         const api = (
           window as unknown as {
-            electronAPI?: { main?: { stopFileWatching?: () => Promise<void> } };
+            hostAPI?: { main?: { stopFileWatching?: () => Promise<void> } };
           }
-        ).electronAPI;
+        ).hostAPI;
         if (api?.main?.stopFileWatching) {
           await api.main.stopFileWatching();
         }
@@ -307,7 +307,7 @@ export const test = base.extend<{
     console.log(`[Realistic Perf] App auto-opening startup folder (project=${generatedProjectPath}, nodes=${REALISTIC_PERF_NODE_COUNT})`);
 
     const watchResult: { success: boolean; error?: string } = await window.evaluate(async (projectPath) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).hostAPI;
       if (!api?.main?.startFileWatching) return { success: true };
       return api.main.startFileWatching(projectPath);
     }, generatedProjectPath);

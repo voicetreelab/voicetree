@@ -24,9 +24,9 @@ import cytoscape from 'cytoscape';
 import type { Core, NodeSingular, CollectionReturnValue } from 'cytoscape';
 import { isLayoutParticipantNode } from '@/shell/UI/cytoscape-graph-ui/layoutParticipation';
 
-// Mock window.electronAPI to prevent enableAutoLayout from calling main process
+// Mock window.hostAPI to prevent enableAutoLayout from calling main process
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(window as any).electronAPI = {
+(window as any).hostAPI = {
   main: {
     loadSettings: () => Promise.resolve({ layoutConfig: undefined }),
     saveNodePositions: () => Promise.resolve(),
@@ -173,6 +173,23 @@ describe('collapsed folder proxy at (0,0) — origin-pull bug mechanism', () => 
     // runLocalCola should NOT have been called because the onNodeAdd guard
     // prevents folder nodes from being added to pendingNewNodeIds
     expect(runLocalColaSpy).not.toHaveBeenCalled();
+  });
+
+  it('connected collapsed folder DOES trigger runLocalCola once synthetic topology exists', () => {
+    cy.add({
+      group: 'nodes',
+      data: { id: 'folder/', isFolderNode: true, collapsed: true, childCount: 2 },
+    });
+    cy.add({
+      group: 'edges',
+      data: { id: 'synthetic-file-a-folder', source: 'file-a.md', target: 'folder/', isSyntheticEdge: true },
+    });
+
+    vi.advanceTimersByTime(400);
+
+    expect(cy.getElementById('synthetic-file-a-folder').length).toBe(1);
+    const passedNodeIds: Set<string> | undefined = runLocalColaSpy.mock.calls[0]?.[1];
+    expect(passedNodeIds?.has('folder/')).toBe(true);
   });
 
   it('control: a regular file node at (0,0) DOES trigger runLocalCola', () => {

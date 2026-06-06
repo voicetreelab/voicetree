@@ -25,7 +25,7 @@ interface CytoscapeInstance {
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeInstance;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       getBackendPort: () => Promise<number>;
       startFileWatching: (dir?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
@@ -60,7 +60,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -125,8 +125,8 @@ test.describe('Backend API Integration E2E', () => {
 
     console.log('=== STEP 1: Get backend port from Electron main process ===');
     const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       // This triggers the IPC call to get-backend-port
       const port = await api.main.getBackendPort();
@@ -184,8 +184,8 @@ test.describe('Backend API Integration E2E', () => {
 
     // Start watching the fixture project - this triggers backend API call from main process
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
 
       console.log(`[Renderer] Starting file watching for: ${projectRoot}`);
       return await api.main.startFileWatching(projectRoot);
@@ -249,8 +249,8 @@ test.describe('Backend API Integration E2E', () => {
 
     console.log('=== STEP 7: Stop file watching ===');
     const stopResult = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.stopFileWatching();
     });
 
@@ -271,8 +271,8 @@ test.describe('Backend API Integration E2E', () => {
 
     console.log('=== STEP 1: Get backend port dynamically ===');
     const backendPort = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const port = await api.main.getBackendPort();
       console.log(`[Renderer] Got backend port: ${port}`);
       return port;
@@ -323,8 +323,8 @@ test.describe('Backend API Integration E2E', () => {
 
     console.log('=== STEP 3: Start file watching (uses backend-api.ts) ===');
     const watchResult = await appWindow.evaluate(async (projectRoot) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.startFileWatching(projectRoot);
     }, FIXTURE_PROJECT_PATH);
 

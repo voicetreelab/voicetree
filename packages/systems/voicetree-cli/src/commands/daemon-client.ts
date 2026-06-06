@@ -23,6 +23,7 @@ import {
     ERROR_CODES,
     authTokenFilePath,
     discoverDaemonEndpoint,
+    discoverDaemonEndpointForProject,
     readAuthTokenFile,
     type ResolvedDaemonEndpoint,
 } from '@vt/vt-rpc'
@@ -59,6 +60,29 @@ interface ResolvedClient {
     readonly token: string
 }
 
+function dropDaemonUrlOverride(env: Record<string, string | undefined>): Record<string, string | undefined> {
+    const next: Record<string, string | undefined> = {...env}
+    delete next.VOICETREE_DAEMON_URL
+    return next
+}
+
+async function buildProjectDiscoveredClientAfterEnvUrlFailure(
+    failedClient: ResolvedClient,
+    env: Record<string, string | undefined>,
+    cwd: string,
+): Promise<ResolvedClient | null> {
+    if (failedClient.endpoint.source !== 'env_url') return null
+
+    let fallback: ResolvedClient
+    try {
+        fallback = await buildResolvedClient(dropDaemonUrlOverride(env), cwd)
+    } catch {
+        return null
+    }
+
+    return fallback.endpoint.url === failedClient.endpoint.url ? null : fallback
+}
+
 async function buildResolvedClient(
     env: Record<string, string | undefined>,
     cwd: string,
@@ -81,6 +105,25 @@ async function buildResolvedClient(
     const tokenFilePath: string = authTokenFilePath(tokenProjectPath)
     const token: string = await loadToken(tokenProjectPath, tokenFilePath)
     return {endpoint, tokenProjectPath: tokenProjectPath, tokenFilePath, token}
+}
+
+async function buildResolvedClientForProject(
+    projectPath: string,
+    env: Record<string, string | undefined>,
+): Promise<ResolvedClient> {
+    const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpointForProject(
+        projectPath,
+        {env: dropDaemonUrlOverride(env)},
+    )
+    if (!endpoint?.projectPath) {
+        throw new DaemonUnreachable(
+            `Cannot resolve VoiceTree daemon URL for project ${projectPath}. ` +
+            'Confirm the project has `.voicetree/rpc.port` and its daemon is running.',
+        )
+    }
+    const tokenFilePath: string = authTokenFilePath(endpoint.projectPath)
+    const token: string = await loadToken(endpoint.projectPath, tokenFilePath)
+    return {endpoint, tokenProjectPath: endpoint.projectPath, tokenFilePath, token}
 }
 
 async function loadToken(project: string, tokenFilePath: string): Promise<string> {
@@ -222,10 +265,44 @@ export async function callDaemon(
     const env: Record<string, string | undefined> = process.env
     const cwd: string = process.cwd()
     const timeoutMs: number = getTimeoutMs(env)
-    const client: ResolvedClient = await buildResolvedClient(env, cwd)
+    let client: ResolvedClient = await buildResolvedClient(env, cwd)
+
+    let outcome: PostOutcome
+    try {
+        outcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
+    } catch (error) {
+        if (!(error instanceof DaemonUnreachable)) throw error
+        const fallbackClient: ResolvedClient | null =
+            await buildProjectDiscoveredClientAfterEnvUrlFailure(client, env, cwd)
+        if (fallbackClient === null) throw error
+        client = fallbackClient
+        outcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
+    }
+
+    if (outcome.kind === 'auth_required') {
+        const freshToken: string = await loadToken(client.tokenProjectPath, client.tokenFilePath)
+        outcome = await postRpc(client.endpoint.url, freshToken, toolName, args, timeoutMs)
+        if (outcome.kind === 'auth_required') {
+            throw new DaemonAuthRequired(
+                `Daemon at ${client.endpoint.url} rejected the bearer token after one retry. Re-check ${client.tokenFilePath} — the daemon may have been restarted with a new token.`,
+            )
+        }
+    }
+
+    if (outcome.envelope.error) throwForRpcError(outcome.envelope.error, client.tokenFilePath)
+    return outcome.envelope.result
+}
+
+export async function callDaemonForProject(
+    projectPath: string,
+    toolName: string,
+    args: Record<string, unknown>,
+): Promise<unknown> {
+    const env: Record<string, string | undefined> = process.env
+    const timeoutMs: number = getTimeoutMs(env)
+    const client: ResolvedClient = await buildResolvedClientForProject(projectPath, env)
 
     let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
-
     if (outcome.kind === 'auth_required') {
         const freshToken: string = await loadToken(client.tokenProjectPath, client.tokenFilePath)
         outcome = await postRpc(client.endpoint.url, freshToken, toolName, args, timeoutMs)

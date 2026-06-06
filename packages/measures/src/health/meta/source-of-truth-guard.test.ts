@@ -1,9 +1,9 @@
-import {execFileSync} from 'node:child_process'
 import {existsSync} from 'node:fs'
 import {readFile} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
+import {runGitWorktreeCommand} from '../../_shared/discovery/run-git.ts'
 import {recordHealthMetric} from '../../_shared/writers/report-writer'
 
 const TEST_DIR: string = dirname(fileURLToPath(import.meta.url))
@@ -60,9 +60,7 @@ const WRITER_DEFINITION_PATTERNS: readonly WriterPattern[] = [
 ]
 
 function gitTrackedAndUnignoredFiles(): string[] {
-    const output = execFileSync('git', ['ls-files', '-co', '--exclude-standard'], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
+    const output = runGitWorktreeCommand(['ls-files', '-co', '--exclude-standard'], REPO_ROOT, {
         stdio: ['ignore', 'pipe', 'pipe'],
     })
     return output

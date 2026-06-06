@@ -45,6 +45,41 @@ import {readBudgetSync} from '../../_shared/budgets/read-budget.ts'
 //   and the >=0.7 pair count from 658 to 626.
 //   Observed 626 + 5 headroom = 631; ratchet DOWN as remaining intentional
 //   thin-wrapper clusters (subscribeX, isCallerKind/isDaemonKind) are consolidated.
+// Re-anchored 2026-06-02 [agent-name roster feature]:
+//   graph-model/pure/agents/siliconValleyRoster.ts adds baseIdFromAgentName,
+//   a one-line `agentName.replace(/(_\d+)+$/, '')` that strips collision
+//   suffixes. It collides with the codebase's existing family of unrelated
+//   single-`.replace()` escape helpers (escapeRegex×N, escapeGlobPattern,
+//   sanitizeTag, escapeWikilinkMarkers) on structural+behavioral signals ONLY
+//   — lexical does not match, since the regexes and intent differ. These are
+//   not consolidatable: each escapes a different thing. +6 false-positive
+//   thin-shape pairs (all sharing baseIdFromAgentName as one endpoint).
+//   Observed 638 + 5 headroom = 643. This cluster cannot ratchet down without
+//   deleting a distinct, tested, single-purpose function.
+// Re-anchored 2026-06-02 [vtd production-spawn packaging — PR #213]:
+//   @vt/vt-daemon-client's autoLaunch/runtime.ts gained a bundle-preferring
+//   entrypoint resolver (resolveDefaultDaemonArgs + sourceIsNewerThan +
+//   defaultSiblingDaemonPath + dist/source path helpers) that deliberately
+//   MIRRORS @vt/graph-db-client's resolver — the two are intentionally kept in
+//   separate packages because the daemons take different argv shapes
+//   (vtd `--project` vs graphd `--project-root`) and resolve different
+//   packages. Same vt-daemon-family parallelism that drove the 549→626
+//   re-anchor; the new pairs all live within autoLaunch/runtime.ts. FOLLOW-UP:
+//   unify the two resolvers behind a shared selectDaemonEntrypointArgs helper
+//   in graph-db-client and ratchet back down (deferred to avoid refactoring the
+//   proven graphd spawn path in the same change that first makes vtd spawnable
+//   in production). +8 pairs over dev's 638. Observed 646 + 5 headroom = 651.
+//   The numeric budget lives in budgets/duplication/semantic-duplication.json
+//   (read below); ratchet DOWN as the resolvers are unified.
+// Re-anchored 2026-06-03 [PR #232 merge: dev -> dev-manu]:
+//   merging origin/dev's browser/VTD gateway work into the newer dev-manu head
+//   combines both daemon-family resolver/transport surfaces and raises the
+//   observed >=0.7-score pair count to 655. The mass gate remains within its
+//   hard budget, and the top offenders are still the same known consolidation
+//   targets (popup helpers, cogcx/cognitive scorers, vt-daemon SSE/body helpers).
+//   Observed 655 + 5 headroom = 660; ratchet DOWN by consolidating those
+//   shared helpers rather than adding more parallel daemon/browser surfaces.
+// Ratchet DOWN as the codebase is de-duplicated, never up.
 const {maxPairs: MAX_DUPLICATE_PAIRS, scoreThreshold: SCORE_THRESHOLD} =
     readBudgetSync<{maxPairs: number; scoreThreshold: number}>('duplication/semantic-duplication.json')
 

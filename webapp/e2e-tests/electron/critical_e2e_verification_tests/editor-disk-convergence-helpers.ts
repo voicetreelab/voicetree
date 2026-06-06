@@ -4,7 +4,7 @@ import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import {
   focusEditorInstance,
   getEditorInstanceId,
@@ -30,7 +30,7 @@ export const INITIAL_PARENT_CONTENT = `# ${PARENT_TITLE}\n\nInitial body.\n`;
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 function idSelector(id: string): string {
@@ -123,8 +123,8 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
     await window.waitForLoadState('domcontentloaded');
 
     const openResult = await window.evaluate(async (project: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       const response = await api.main.openProject(project);
       return { writeFolderPath: response.writeFolderPath };
     }, projectPath);
@@ -145,8 +145,8 @@ export const test = base.extend<Record<string, never>, EditorDiskConvergenceWork
 
   settingsSnapshot: [async ({ appWindow }, use) => {
     const settings = await appWindow.evaluate(async () => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.loadSettings();
     });
     await use(settings);
@@ -295,7 +295,7 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
   await page.locator('.cy-floating-window-terminal').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
   await page.locator('.cy-floating-window-terminal .terminal-relay-status').first().waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
   await page.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     const terminalWindows = Array.from(document.querySelectorAll<HTMLElement>('.cy-floating-window-terminal'));
     const terminalIds = terminalWindows
       .map((tw) => tw.dataset.floatingWindowId)
@@ -316,8 +316,8 @@ export async function closeAllTerminalWindows(page: Page): Promise<void> {
 
 async function deleteGraphExtraMarkdownNodes(page: Page, writeFolderPath: string): Promise<readonly string[]> {
   return page.evaluate(async ({ parentNodeId, projectPath }) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as unknown as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     await api.main.reconcileGraphWithDisk();
     const graph = await api.main.getGraph();
     const graphWithNodes = graph as { nodes?: Record<string, unknown> };
@@ -362,16 +362,16 @@ export async function resetSettings(page: Page, snapshot: unknown): Promise<void
     throw new Error('resetSettings requires an explicit settings snapshot');
   }
   await page.evaluate(async (settings) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as unknown as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     await api.main.saveSettings(settings);
   }, snapshot);
 }
 
 export async function configureNoopAgent(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api) throw new Error('electronAPI not available');
+    const api = (window as unknown as ExtendedWindow).hostAPI;
+    if (!api) throw new Error('hostAPI not available');
     const currentSettings = await api.main.loadSettings();
     await api.main.saveSettings({
       ...currentSettings,
@@ -384,7 +384,7 @@ export async function configureNoopAgent(page: Page): Promise<void> {
 
 export async function syncRendererSessionStateWithDaemon(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
+    const api = (window as unknown as ExtendedWindow).hostAPI;
     await api?.main.syncRendererSessionStateWithDaemon();
   });
 }
@@ -528,7 +528,7 @@ export async function expectDaemonNodeContains(
 ): Promise<void> {
   await expect.poll(async () => {
     return page.evaluate(async ({ id }) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
+      const api = (window as unknown as ExtendedWindow).hostAPI;
       const node = await api?.main.getNode(id);
       return node?.contentWithoutYamlOrLinks ?? null;
     }, { id: nodeId });

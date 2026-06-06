@@ -5,6 +5,7 @@ import {
     formatBatchReportSummary,
     reportExitCode,
 } from '../core/schemaGate'
+import {SUBGRAPH_SIZE_LIMIT_GUIDANCE} from '@vt/vt-daemon-protocol'
 import type {BatchReport, NodeVerdict} from '../core/types'
 
 function recordRejectionTelemetry(verdicts: readonly NodeVerdict[]): void {
@@ -76,16 +77,20 @@ export function emitBatchReport(report: BatchReport): void {
     }
 }
 
-export function rewriteOverrideHintForCli(mcpError: string): string {
-    const markerIndex: number = mcpError.indexOf('To override, add "override_with_rationale"')
-    if (markerIndex === -1) return mcpError
-    const head: string = mcpError.slice(0, markerIndex).trimEnd()
-    const ruleIds: readonly string[] = [...new Set([...head.matchAll(/^ {2}• \[([^\]]+)\]/gm)].map((m) => m[1]))]
-    if (ruleIds.length === 0) return mcpError
-    return `${head}\n\nTo override, re-run with: ${ruleIds.map((id) => `--override '${id}:<rationale>'`).join(' ')}`
+export function rewriteOverrideHintForCli(toolErrorMessage: string): string {
+    const markerIndex: number = toolErrorMessage.indexOf('To override, add "override_with_rationale"')
+    if (markerIndex === -1) return toolErrorMessage
+    const head: string = toolErrorMessage.slice(0, markerIndex).trimEnd()
+    const allRuleIds: readonly string[] = [...new Set([...head.matchAll(/^ {2}• \[([^\]]+)\]/gm)].map((m) => m[1]))]
+    const ruleIds: readonly string[] = allRuleIds.filter((ruleId: string) => ruleId !== SUBGRAPH_SIZE_LIMIT_GUIDANCE.ruleId)
+    if (allRuleIds.length === 0) return toolErrorMessage
+    if (ruleIds.length === 0) {
+        return `${head}\n\n${SUBGRAPH_SIZE_LIMIT_GUIDANCE.formatGuidance()}`
+    }
+    return `${head}\n\nTo override non-gardening rule(s), re-run with: ${ruleIds.map((id) => `--override '${id}:<rationale>'`).join(' ')}`
 }
 
-export function emitMcpFailureAndExit(rawMessage: string): never {
+export function emitToolFailureAndExit(rawMessage: string): never {
     const message: string = rewriteOverrideHintForCli(rawMessage)
     setErrorClass('CliError')
     process.stderr.write(`error: ${message}\n`)

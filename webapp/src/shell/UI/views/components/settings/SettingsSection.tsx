@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import type { JSX } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { VTSettings, HotkeySettings, HotkeyBinding, HookSettings, EnvVarValue, AgentConfig } from '@vt/graph-model/settings';
-import { DEFAULT_HOTKEYS } from '@vt/graph-model/settings';
+import { DEFAULT_HOTKEYS, isReservedAgentPromptEnvKey } from '@vt/graph-model/settings';
 import { SECTION_MAP, HIDDEN_KEYS, NUMBER_FIELD_CONFIG, SELECT_FIELD_OPTIONS, inferFieldType, keyToLabel } from './settingsUtils';
 import type { Section, FieldType, NumberFieldConfig, SelectOption } from './settingsUtils';
 import { ToggleField } from './fields/ToggleField';
@@ -117,10 +117,12 @@ function EnvVarCreator({ existingKeys, onAdd }: {
     const [valueInput, setValueInput] = useState<string>('');
     const normalizedKey: string = normalizeEnvVarKey(keyInput);
     const isDuplicate: boolean = existingKeys.includes(normalizedKey);
-    const canAdd: boolean = isValidEnvVarKey(normalizedKey) && !isDuplicate;
+    const isReserved: boolean = isReservedAgentPromptEnvKey(normalizedKey);
+    const canAdd: boolean = isValidEnvVarKey(normalizedKey) && !isDuplicate && !isReserved;
     const validationMessage: string | null = (() => {
         if (normalizedKey.length === 0) return null;
         if (!isValidEnvVarKey(normalizedKey)) return 'Names must start with a letter or underscore and contain only letters, numbers, and underscores.';
+        if (isReserved) return 'AGENT_PROMPT_* variables are managed by prompt files. Edit AGENT_PROMPT to change prompt composition.';
         if (isDuplicate) return 'That environment variable already exists.';
         return null;
     })();
@@ -189,17 +191,20 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
     }, [settings.hooks, onUpdate]);
 
     const handleEnvVarUpdate: (envKey: string, value: string) => void = useCallback((envKey: string, value: string): void => {
+        if (isReservedAgentPromptEnvKey(envKey)) return;
         const currentVars: Record<string, EnvVarValue> = settings.INJECT_ENV_VARS ?? {};
         onUpdate('INJECT_ENV_VARS', { ...currentVars, [envKey]: value });
     }, [settings.INJECT_ENV_VARS, onUpdate]);
 
     const handleEnvVarAdd: (envKey: string, value: string) => void = useCallback((envKey: string, value: string): void => {
+        if (isReservedAgentPromptEnvKey(envKey)) return;
         const currentVars: Record<string, EnvVarValue> = settings.INJECT_ENV_VARS ?? {};
         if (Object.prototype.hasOwnProperty.call(currentVars, envKey)) return;
         onUpdate('INJECT_ENV_VARS', { ...currentVars, [envKey]: value });
     }, [settings.INJECT_ENV_VARS, onUpdate]);
 
     const handleEnvVarRemove: (envKey: string) => void = useCallback((envKey: string): void => {
+        if (isReservedAgentPromptEnvKey(envKey)) return;
         const currentVars: Record<string, EnvVarValue> = settings.INJECT_ENV_VARS ?? {};
         const { [envKey]: _removed, ...remaining } = currentVars;
         onUpdate('INJECT_ENV_VARS', remaining);
@@ -322,6 +327,9 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
 
                     case 'key-value': {
                         const envVars: Record<string, EnvVarValue> = (value as Record<string, EnvVarValue>) ?? {};
+                        const visibleEnvVars: Record<string, EnvVarValue> = Object.fromEntries(
+                            Object.entries(envVars).filter(([envKey]: readonly [string, EnvVarValue]): boolean => !isReservedAgentPromptEnvKey(envKey)),
+                        ) as Record<string, EnvVarValue>;
                         return (
                             <div key={key} className="space-y-2">
                                 <div className="font-mono text-sm text-foreground font-medium">{label}</div>
@@ -329,7 +337,7 @@ export function SettingsSection({ settings, section, onUpdate }: SettingsSection
                                     existingKeys={Object.keys(envVars)}
                                     onAdd={handleEnvVarAdd}
                                 />
-                                {Object.entries(envVars).map(([envKey, envValue]) => (
+                                {Object.entries(visibleEnvVars).map(([envKey, envValue]) => (
                                     <EnvVarEntry
                                         key={envKey}
                                         envKey={envKey}

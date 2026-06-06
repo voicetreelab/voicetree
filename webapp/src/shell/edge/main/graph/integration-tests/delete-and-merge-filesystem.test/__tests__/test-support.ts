@@ -56,7 +56,7 @@ function projectFilePath(filename: string): string {
 
 function createTestWindow(cy: Core, includeWriteFolderPath: boolean): Window {
     return {
-        electronAPI: {
+        hostAPI: {
             main: {
                 getGraph: async () => state.currentGraph,
                 getNode: async (nodeId: string) => state.currentGraph?.nodes[nodeId],

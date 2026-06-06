@@ -18,7 +18,7 @@ import { applyCommandToSessionState } from '../state/sessionStateStore'
 import { getCurrentProject } from '../state/currentProject'
 
 import { buildJsonResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
-import type { McpToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
+import type { ToolResponse } from '@vt/vt-daemon/_shared/toolResponse.ts'
 
 export interface DispatchLiveCommandParams {
     readonly command: SerializedCommand
@@ -99,7 +99,7 @@ export async function dispatchLiveCommand(
 
 export async function dispatchLiveCommandTool(
     params: DispatchLiveCommandParams,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     try {
         const result: DispatchLiveCommandResult = await dispatchLiveCommand(params)
         return buildJsonResponse(result)

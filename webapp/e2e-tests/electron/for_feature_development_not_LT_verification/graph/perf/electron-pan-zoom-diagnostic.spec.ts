@@ -93,7 +93,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
     try {
       const window = await app.firstWindow();
       await window.evaluate(async () => {
-        await (window as unknown as ExtendedWindow).electronAPI?.main.stopFileWatching();
+        await (window as unknown as ExtendedWindow).hostAPI?.main.stopFileWatching();
       });
       await window.waitForTimeout(300);
     } catch {
@@ -120,7 +120,7 @@ const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page; pr
     await window.waitForTimeout(1000);
 
     await window.evaluate(async (targetProjectRoot: string) => {
-      await (window as unknown as ExtendedWindow).electronAPI?.main.startFileWatching(targetProjectRoot);
+      await (window as unknown as ExtendedWindow).hostAPI?.main.startFileWatching(targetProjectRoot);
     }, projectRoot);
 
     await window.waitForFunction(() => !!(window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 30000 });
@@ -191,8 +191,8 @@ async function cycleTerminal(page: Page): Promise<void> {
 
 async function spawnPlainTerminal(page: Page, nodeId: string): Promise<void> {
   await page.evaluate(async (targetNodeId: string) => {
-    const api = (window as unknown as ExtendedWindow).electronAPI;
-    if (!api?.main) throw new Error('electronAPI.main not available');
+    const api = (window as unknown as ExtendedWindow).hostAPI;
+    if (!api?.main) throw new Error('hostAPI.main not available');
     await api.main.spawnPlainTerminal(targetNodeId, 0);
   }, nodeId);
 }

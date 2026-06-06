@@ -13,13 +13,13 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 
 const PROJECT_ROOT: string = path.resolve(process.cwd());
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 const test = base.extend<{
@@ -72,7 +72,7 @@ const test = base.extend<{
     try {
       const window: Page = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -118,8 +118,8 @@ test.describe('Auto link resolution', () => {
 
     // Reload the folder to pick up the new files
     const result = await appWindow.evaluate(async (dir: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.startFileWatching(dir);
       return true;
     }, tempDir);
@@ -161,8 +161,8 @@ test.describe('Auto link resolution', () => {
 
     // Load and verify
     await appWindow.evaluate(async (dir: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.startFileWatching(dir);
     }, tempDir);
 
@@ -188,8 +188,8 @@ test.describe('Auto link resolution', () => {
     await fs.writeFile(path.join(tempDir, 'c.md'), '# C\nEnd of chain');
 
     await appWindow.evaluate(async (dir: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.startFileWatching(dir);
     }, tempDir);
 
@@ -216,8 +216,8 @@ test.describe('Auto link resolution', () => {
     await fs.writeFile(path.join(tempDir, 'b.md'), '# B\nLinks to [[a]]');
 
     await appWindow.evaluate(async (dir: string) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as unknown as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       await api.main.startFileWatching(dir);
     }, tempDir);
 

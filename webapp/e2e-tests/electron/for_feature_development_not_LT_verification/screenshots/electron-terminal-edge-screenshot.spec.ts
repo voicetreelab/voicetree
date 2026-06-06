@@ -15,7 +15,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
+  hostAPI?: {
     main: {
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
       spawnTerminalWithContextNode: (nodeId: string, command: string, terminalCount: number) => Promise<void>;
@@ -55,7 +55,7 @@ const test = base.extend<{
     try {
       const page = await electronApp.firstWindow();
       await page.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }

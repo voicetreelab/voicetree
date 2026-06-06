@@ -1,5 +1,5 @@
 import type { VTSettings, HotkeySettings, AgentConfig, HookSettings, EnvVarValue } from './types';
-import { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD } from './types';
+import { DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_COMPLEXITY_WARN_SCORE, DEFAULT_COMPLEXITY_BLOCK_SCORE } from './types';
 
 // ============================================================================
 // Types
@@ -117,6 +117,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     return {
     // ── General ──────────────────────────────────────────────────────────
     darkMode:                  { default: false, section: 'general', label: 'Dark Mode' },
+    siliconValleyMode:         { default: false, section: 'general', label: 'Silicon Valley Mode' },
     vimMode:                   { default: false, section: 'general', label: 'Vim Mode' },
     shiftEnterSendsOptionEnter:{ default: true,  section: 'general', label: 'Shift+Enter \u2192 Option+Enter' },
     autoNotifyUnseenNodes:     { default: false, section: 'general', label: 'Auto-notify Unseen Nodes' },
@@ -168,7 +169,7 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
         default: {
             onWorktreeCreatedBlocking: './scripts/git/worktree/on-created-blocking.sh',
             postWorktreeCreatedAsync: './scripts/git/worktree/on-created-async.sh',
-            onNewNode: '# node .voicetree/hooks/on-new-node.cjs',
+            onNewNode: '',
         } as HookSettings,
         section: 'hooks',
     },
@@ -185,6 +186,9 @@ export function createSettingsSchema(runtime: SettingsRuntime = {}): SettingsSch
     nodeLineLimit:          { default: 80,  label: 'Node Line Limit',    number: { min: 20, max: 200, step: 10 } },
     subgraphWarnThreshold:  { default: DEFAULT_SUBGRAPH_WARN_THRESHOLD,  section: 'general', label: 'Subgraph Warn Threshold',  number: { min: 2, max: 20, step: 1 } },
     subgraphErrorThreshold: { default: DEFAULT_SUBGRAPH_ERROR_THRESHOLD, section: 'general', label: 'Subgraph Block Threshold', number: { min: 3, max: 30, step: 1 } },
+    maxChildrenPerNode:     { default: DEFAULT_MAX_CHILDREN_PER_NODE,     section: 'general', label: 'Max Children Per Node',    number: { min: 2, max: 20, step: 1 } },
+    complexityWarnScore:    { default: DEFAULT_COMPLEXITY_WARN_SCORE,     section: 'general', label: 'Graph Complexity Warn Score',  number: { min: 0.3, max: 2, step: 0.1 } },
+    complexityBlockScore:   { default: DEFAULT_COMPLEXITY_BLOCK_SCORE,    section: 'general', label: 'Graph Complexity Block Score', number: { min: 0.5, max: 3, step: 0.1 } },
 
     // ── Hidden (not shown in UI — rendered inside agent-list field) ──────
     defaultAgent:              { hidden: true },

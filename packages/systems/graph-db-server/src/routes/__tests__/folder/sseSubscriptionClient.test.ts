@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type DaemonHandle, startDaemon } from '../../../daemon/server.ts'
@@ -155,5 +155,51 @@ describe('SSE subscription client round-trip', () => {
         expect(graph.edges).toBeDefined()
         const node = graph.nodes.find(n => n.id === testNodePath)
         expect(node).toBeDefined()
+    }, 20000)
+
+    test('collapsing a folder pushes a fresh ProjectedGraph over the live SSE wire', async () => {
+        const handle = await startDaemon({ project, voicetreeHomePath: voicetreeHome })
+        handles.push(handle)
+        const base = `http://127.0.0.1:${handle.port}`
+
+        // A real folder with a node inside, so a collapse is a meaningful
+        // projection change (the child is hidden) rather than a no-op.
+        const docsPath = join(project, 'docs')
+        await mkdir(docsPath, { recursive: true })
+        await writeFile(join(docsPath, 'inside.md'), '# Inside docs\nbody')
+
+        const createRes = await fetch(`${base}/sessions`, { method: 'POST' })
+        expect(createRes.status).toBe(201)
+        const { sessionId } = SessionCreateResponseSchema.parse(await createRes.json())
+
+        sseController = new AbortController()
+        const forwarded: ForwardedGraph[] = []
+        void subscribeAndCollect(base, sessionId, sseController, forwarded)
+
+        // Let the SSE connection settle; no graph delta is posted, so nothing
+        // should arrive until the collapse triggers a re-projection.
+        await new Promise(r => setTimeout(r, 300))
+        const baselineFrames = forwarded.length
+
+        const collapseRes = await fetch(
+            `${base}/sessions/${sessionId}/folder-state/${encodeURIComponent(docsPath)}`,
+            {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: 'collapsed' }),
+            },
+        )
+        expect(collapseRes.status).toBe(200)
+
+        const deadline = Date.now() + 5000
+        while (Date.now() < deadline && forwarded.length <= baselineFrames) {
+            await new Promise(r => setTimeout(r, 100))
+        }
+
+        // The collapse alone (no node-set change) must have produced a live
+        // ProjectedGraph frame on the SSE wire — the bug was that it did not.
+        expect(forwarded.length).toBeGreaterThan(baselineFrames)
+        const graph = forwarded.at(-1)!.data as ProjectedGraph
+        expect(graph.nodes).toBeDefined()
     }, 20000)
 })

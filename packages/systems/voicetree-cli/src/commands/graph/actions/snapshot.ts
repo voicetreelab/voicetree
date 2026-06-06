@@ -43,9 +43,9 @@ export function assertGraphRootExists(folderPath: string): void {
 
 export function resolveGraphProject(folderPath: string): string {
     try {
-        return resolveProject({cwd: folderPath})
+        return resolveProject({cwd: folderPath, env: process.env})
     } catch {
-        return resolveProject({cwd: process.cwd()})
+        return resolveProject({cwd: process.cwd(), env: process.env})
     }
 }
 

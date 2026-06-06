@@ -31,7 +31,7 @@
     "./graph/notifyTextToTreeServer": "./src/data/graph/loading/notifyTextToTreeServer.ts",
     "./graph/undoOperations": "./src/data/graph/mutations/undoOperations.ts",
     "./graph/writeMarkdownFile": "./src/data/graph/mutations/writeMarkdownFile.ts",
-    "./graph/writeAllPositionsOnExit": "./src/data/graph/mutations/writeAllPositionsOnExit.ts",
+    "./graph/writeAllNodeLayoutOnExit": "./src/data/graph/mutations/writeAllNodeLayoutOnExit.ts",
     "./state/*": "./src/state/*.ts",
     "./watch-folder/project-allowlist": "./src/state/projectAllowlist.ts",
     "./watch-folder/resolve-project-config": "./src/data/watch-folder/paths/resolve-project-config.ts",

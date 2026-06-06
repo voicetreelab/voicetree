@@ -69,10 +69,10 @@ const test = base.extend<TestFixtures>({
         // Handle project selection screen
         const isProjectSelection = await win.locator('text=Select a project to open').isVisible({ timeout: 3000 }).catch(() => false);
         if (isProjectSelection) {
-            await win.waitForFunction(() => !!(window as { electronAPI?: unknown }).electronAPI, { timeout: 5000 });
+            await win.waitForFunction(() => !!(window as { hostAPI?: unknown }).hostAPI, { timeout: 5000 });
             await win.evaluate(async (params: { folderPath: string }) => {
-                const api = (window as { electronAPI?: { main: { saveProject: (p: unknown) => Promise<void> } } }).electronAPI;
-                if (!api) throw new Error('electronAPI not available');
+                const api = (window as { hostAPI?: { main: { saveProject: (p: unknown) => Promise<void> } } }).hostAPI;
+                if (!api) throw new Error('hostAPI not available');
                 await api.main.saveProject({
                     id: crypto.randomUUID(),
                     path: params.folderPath,

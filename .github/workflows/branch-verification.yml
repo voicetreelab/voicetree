@@ -116,6 +116,62 @@ jobs:
         if: failure()
         run: scripts/ci/write-failure-summary.sh "Browser smoke failed"
 
+  browser-daemon-roundtrip:
+    needs: [static-gates]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Install Playwright browser dependencies
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+
+      # tmux is the relay backend (attachTmuxSessionToWebSocket) and is NOT
+      # preinstalled on ubuntu-latest. Without it the round-trip WS closes with
+      # "tmux session check failed". vtd runs under plain node via tsx (not
+      # Electron), so node-pty's default npm-ci node build is correct — no
+      # @electron/rebuild here (that is electron-smoke only).
+      - name: Install tmux (relay backend)
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Pre-warm tsx JIT (graphd + vtd source bins)
+        run: scripts/ci/prewarm-daemons.sh || true
+
+      - name: Browser daemon round-trip E2E
+        timeout-minutes: 15
+        working-directory: webapp
+        run: npx playwright test --config=playwright-browser-daemon.config.ts
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-browser-daemon-results
+          path: |
+            webapp/test-results/
+            webapp/playwright-report/
+          retention-days: 7
+
+      - name: Summarize failure
+        if: failure()
+        run: scripts/ci/write-failure-summary.sh "Browser daemon round-trip failed"
+
   electron-smoke:
     needs: [static-gates]
     runs-on: ubuntu-latest

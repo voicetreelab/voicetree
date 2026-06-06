@@ -30,8 +30,16 @@ const test = base.extend<{
 }>({
   fixtureProjectPath: async ({}, use) => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-project-'));
-    const tempProjectPath = path.join(tempRoot, 'example_small');
-    await fs.mkdir(tempProjectPath, { recursive: true });
+    // Canonicalize via realpath: on macOS os.tmpdir() is under a symlink
+    // (/tmp → /private/tmp, /var → /private/var), and the daemon canonicalizes
+    // every project path with realpathSync.native. If the fixture handed the
+    // daemon the un-canonicalized path, its voicetree-config.json pin (keyed by
+    // this path) would not match the daemon's canonical project root, the
+    // writeFolderPath pin would be silently dropped, and only the root node
+    // would load — green on Linux (no symlink), red on macOS. Resolve once here
+    // so every downstream use (config key, --open-folder) matches the daemon.
+    await fs.mkdir(path.join(tempRoot, 'example_small'), { recursive: true });
+    const tempProjectPath = await fs.realpath(path.join(tempRoot, 'example_small'));
     await fs.writeFile(path.join(tempProjectPath, 'root.md'), [
       '# Smoke Root',
       '',
@@ -57,7 +65,12 @@ const test = base.extend<{
   },
 
   tempUserDataPath: async ({}, use) => {
-    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-'));
+    // Canonicalize for the same macOS-symlink reason as fixtureProjectPath: this
+    // path is passed as VOICETREE_HOME_PATH, and any daemon/main canonicalization
+    // must resolve to the same dir the fixture seeded settings.json /
+    // voicetree-config.json into — otherwise reads fall back to the developer's
+    // real ~/.voicetree (leaking their starred folders / Fake Agent registration).
+    const tempUserDataPath = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-')));
     await use(tempUserDataPath);
     await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
@@ -225,7 +238,7 @@ test.describe('Smoke Test', () => {
 
     const appReady = await appWindow.evaluate(() => {
       return !!(window as ExtendedWindow).cytoscapeInstance &&
-             !!(window as ExtendedWindow).electronAPI;
+             !!(window as ExtendedWindow).hostAPI;
     });
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully with graph view');
@@ -243,8 +256,8 @@ test.describe('Smoke Test', () => {
     console.log('✓ Cytoscape nodes loaded');
 
     const graph = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
 
@@ -280,8 +293,8 @@ test.describe('Smoke Test', () => {
     // test-scoped, so each test re-launches the whole app) is paid ONCE per run
     // instead of twice. Same coverage; removes a full app boot from tier-1.
     const initialGraph = await appWindow.evaluate(async () => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.getGraph();
     });
     const taskNodeId = Object.keys(initialGraph.nodes).find(id =>
@@ -292,8 +305,8 @@ test.describe('Smoke Test', () => {
     }
 
     const spawnResponse = await appWindow.evaluate(async (id) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
+      const api = (window as ExtendedWindow).hostAPI;
+      if (!api) throw new Error('hostAPI not available');
       return await api.main.spawnTerminalWithContextNode({
         taskNodeId: id,
         terminalCount: 0,

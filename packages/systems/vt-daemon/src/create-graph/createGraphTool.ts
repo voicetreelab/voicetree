@@ -1,11 +1,11 @@
 /**
- * MCP Tool: create_graph
+ * RPC Tool: create_graph
  * Creates a graph of progress nodes in a single call.
  *
  * Pure types live in createGraphTypes.ts; DAG validation (cycle detection and
  * topological sort over parent refs declared in each node's content body) in
  * createGraphTopology.ts; markdown body construction in
- * @vt/graph-tools/node's filesystemAuthoring. Parent edges are authored as
+ * @vt/graph-tools/node-runtime's filesystemAuthoring. Parent edges are authored as
  * `- parent [[name|edge-label]]` lines inside `content` (no separate
  * `parents:[]` field).
  */
@@ -16,11 +16,11 @@ import normalizePath from 'normalize-path'
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath} from '@vt/graph-model/graph'
 import {getFolderIdentityNoteId} from '@vt/graph-model/graph'
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
-import {slugify} from '../tools/graph/addProgressNodeTool'
-import {type McpToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {slugify} from '../_shared/slugify.ts'
+import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
-import {DEFAULT_SUBGRAPH_WARN_THRESHOLD, DEFAULT_SUBGRAPH_ERROR_THRESHOLD} from '@vt/graph-model/settings'
+import {DEFAULT_SUBGRAPH_LIMITS} from '@vt/graph-model/settings'
 import {
     type ValidationResult,
     type RuleViolation,
@@ -32,8 +32,8 @@ import {
 } from './createGraphValidation'
 import type {OverrideEntry} from '@vt/graph-validation'
 import {registerAgentNodes} from '../agent-runtime/agent-control/completion/agentNodeIndex.ts'
-import {applyMcpGraphDelta, getMcpGraph, getMcpProjectPaths, getMcpWriteFolderPath} from '../config/graphBridge.ts'
-import type {GraphBridge} from '../config/mcpBridges.ts'
+import {applyToolGraphDelta, getToolGraph, getToolProjectPaths, getToolWriteFolderPath} from '../config/graphBridge.ts'
+import type {GraphBridge} from '../config/toolBridges.ts'
 import {
     hasCycle,
     topologicalSort,
@@ -46,7 +46,8 @@ import type {
     GraphParentContext,
     Result,
 } from './createGraphTypes'
-import {listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
+import {applyAgentStatus, listTerminalRecords, resetTerminalAuditRetryCount, type TerminalRecord} from './createGraphRuntime'
+import type {AgentStatus} from '@vt/vt-daemon-protocol'
 
 export type {CreateGraphNodeInput}
 
@@ -56,9 +57,20 @@ export interface CreateGraphParams {
     readonly outputPath?: string
     readonly nodes: readonly CreateGraphNodeInput[]
     readonly override_with_rationale?: readonly OverrideEntry[]
+    /**
+     * Agent-authored status preset reported alongside this progress node. Drives
+     * the caller terminal's lifecycle icon in the sidebar (working→active,
+     * awaiting_input, done→completed, failed→errored).
+     */
+    readonly agentStatus?: AgentStatus
+    /**
+     * Free-text live status phrase (≤ MAX_STATUS_PHRASE_LENGTH chars) shown next
+     * to the model name in the terminal tree.
+     */
+    readonly statusPhrase?: string
 }
 
-function errorResponse(error: string): McpToolResponse {
+function errorResponse(error: string): ToolResponse {
     return buildJsonResponse({success: false, error}, true)
 }
 
@@ -162,13 +174,13 @@ export function worktreeFolderNoteInput(
 }
 
 async function resolveConfiguredOutputDirectory(outputPath: string | undefined, bridge: GraphBridge): Promise<Result<string>> {
-    const projectPathOpt: O.Option<string> = await getMcpWriteFolderPath(bridge)
+    const projectPathOpt: O.Option<string> = await getToolWriteFolderPath(bridge)
     if (O.isNone(projectPathOpt)) {
         return {ok: false, error: 'No project loaded. Please load a folder in the UI first.'}
     }
 
     const writeFolderPath: string = projectPathOpt.value
-    const loadedProjectPaths: readonly string[] = await getMcpProjectPaths(bridge)
+    const loadedProjectPaths: readonly string[] = await getToolProjectPaths(bridge)
     const allowedProjectPaths: readonly string[] = (loadedProjectPaths.length > 0 ? loadedProjectPaths : [writeFolderPath])
         .map((projectRoot: string) => normalizePath(projectRoot))
     const outputDirectoryResolution = resolveOutputDirectory(writeFolderPath, outputPath, allowedProjectPaths)
@@ -260,8 +272,11 @@ async function validateOverridableRules(
         callerTaskNodeId,
         graph,
         lineLimit: settings.nodeLineLimit ?? 70,
-        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_WARN_THRESHOLD,
-        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_ERROR_THRESHOLD,
+        subgraphWarnThreshold: settings.subgraphWarnThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphWarnThreshold,
+        subgraphErrorThreshold: settings.subgraphErrorThreshold ?? DEFAULT_SUBGRAPH_LIMITS.subgraphErrorThreshold,
+        maxChildrenPerNode: settings.maxChildrenPerNode ?? DEFAULT_SUBGRAPH_LIMITS.maxChildrenPerNode,
+        complexityWarnScore: settings.complexityWarnScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityWarnScore,
+        complexityBlockScore: settings.complexityBlockScore ?? DEFAULT_SUBGRAPH_LIMITS.complexityBlockScore,
         destinationFolderPath,
     })
     if (validationResult.status !== 'violations') return {error: null, warnings: []}
@@ -287,7 +302,7 @@ async function appendNodesToCallerContext(
     bridge: GraphBridge,
 ): Promise<void> {
     try {
-        const updatedGraph: Graph = await getMcpGraph(bridge)
+        const updatedGraph: Graph = await getToolGraph(bridge)
         const callerContextNodeId: string = callerRecord.terminalData.attachedToContextNodeId
         const callerContextNode: GraphNode | undefined = updatedGraph.nodes[callerContextNodeId]
         if (!callerContextNode?.nodeUIMetadata.containedNodeIds) return
@@ -307,7 +322,7 @@ async function appendNodesToCallerContext(
             nodeToUpsert: updatedContextNode,
             previousNode: O.some(callerContextNode),
         }]
-        await applyMcpGraphDelta(bridge, contextDelta)
+        await applyToolGraphDelta(bridge, contextDelta)
     } catch (_contextError: unknown) {
         // Non-fatal: context node update failed, nodes were still created
     }
@@ -320,9 +335,11 @@ export async function createGraphTool(
         outputPath,
         nodes,
         override_with_rationale,
+        agentStatus,
+        statusPhrase,
     }: CreateGraphParams,
     bridge: GraphBridge,
-): Promise<McpToolResponse> {
+): Promise<ToolResponse> {
     const callerRecordResult: Result<TerminalRecord> = findCallerRecord(callerTerminalId)
     if (!callerRecordResult.ok) return errorResponse(callerRecordResult.error)
     const callerRecord: TerminalRecord = callerRecordResult.value
@@ -335,7 +352,7 @@ export async function createGraphTool(
     const inputValidation: Result<void> = validateNodeInputs(nodes)
     if (!inputValidation.ok) return errorResponse(inputValidation.error)
 
-    const graph: Graph = await getMcpGraph(bridge)
+    const graph: Graph = await getToolGraph(bridge)
 
     const graphParentResult: Result<GraphParentContext> = resolveGraphParent(graph, callerRecord, graphParentId)
     if (!graphParentResult.ok) return errorResponse(graphParentResult.error)
@@ -363,13 +380,20 @@ export async function createGraphTool(
     )
 
     if (batchResult.batchDelta.length > 0) {
-        await applyMcpGraphDelta(bridge, batchResult.batchDelta)
+        await applyToolGraphDelta(bridge, batchResult.batchDelta)
     }
 
     registerAgentNodes(callerTerminalId, createdAgentNodeRecords(sortedNodes, batchResult.createdNodes))
     await appendNodesToCallerContext(callerRecord, batchResult.allNewNodeIds, bridge)
 
     resetTerminalAuditRetryCount(callerTerminalId)
+
+    // Apply the agent-authored status reported with this progress node. This is
+    // the sole driver of the caller's lifecycle icon + live status phrase now
+    // that the legacy CLI-hook adapter is gone. No-op when neither is provided.
+    if (agentStatus !== undefined || statusPhrase !== undefined) {
+        applyAgentStatus(callerTerminalId, {preset: agentStatus, phrase: statusPhrase})
+    }
 
     return buildJsonResponse({
         success: true,

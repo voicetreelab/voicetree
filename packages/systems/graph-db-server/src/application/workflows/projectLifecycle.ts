@@ -18,7 +18,7 @@ import { getFolderStateForActiveView } from '@vt/graph-db-server/views/folderSta
 import { getProjectConfigForDirectory } from '@vt/app-config/project-config'
 import { createDatedSubfolder, findExistingVoicetreeDir } from '@vt/app-config/project'
 import { createEmptyGraph } from '@vt/graph-model'
-import { setGraph } from '@vt/graph-db-server/state/graph-store'
+import { setGraph, clearFolderLayout } from '@vt/graph-db-server/state/graph-store'
 import { reconcileGraphWithDisk } from './project/reconcileGraphWithDisk.ts'
 import {
   getReadPaths,
@@ -191,6 +191,7 @@ async function bindProject(input: OpenProjectWorkflowInput, targetProjectRoot: s
 
   const result = await setWriteFolderPath(targetWriteFolderPath, {
     createStarterIfEmpty: input.createStarterIfEmpty,
+    awaitProjectStateBroadcast: false,
   })
   if (!result.success) {
     throw new ProjectOpenFailedError(result.error ?? `Failed to open project ${targetProjectRoot}`)
@@ -229,6 +230,7 @@ export async function openProjectWorkflow(input: OpenProjectWorkflowInput): Prom
 
         lifecycleState.activeSessionId = null
         setGraph(createEmptyGraph())
+        clearFolderLayout()
 
         try {
           await bindProject(
@@ -270,6 +272,7 @@ export async function closeProjectWorkflow(): Promise<void> {
       lifecycleState.activeSessionId = null
       clearProjectRoot()
       setGraph(createEmptyGraph())
+      clearFolderLayout()
       span.setAttribute('outcome', 'closed')
     })
   })

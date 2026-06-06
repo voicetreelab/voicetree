@@ -5,18 +5,22 @@ import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/shell/edge/UI-edge/text_to_tree_server_communication/useTranscriptionSender";
 import getAPIKey, { prefetchAPIKey } from "@/utils/get-api-key";
 import { onVoiceResult, appendManualText, reset as resetTranscriptionStore, subscribe as subscribeToTranscription, getDisplayTokenCount } from "@/shell/edge/UI-edge/state/stores/TranscriptionStore";
-import type {} from "@/shell/electron";
+import type {} from "@/shell/hostApi";
 import { initVoiceRecording, disposeVoiceRecording } from "@/shell/edge/UI-edge/state/controllers/VoiceRecordingController";
 import { SseStatusPanel } from "@/shell/UI/sse-status-panel";
+import { hostCapabilities } from "@/shell/runtimeCapabilities";
 import { ControlRow, ErrorMessages, TranscriptionOverlay, type InputMode } from "./voicetree-transcribe/presentation";
 
 export default function VoiceTreeTranscribe(): JSX.Element {
+  // Ask-mode needs a semantic backend + a context-node-from-question spawn path
+  // the browser host lacks; hide the toggle there rather than silently no-op.
+  const canAskMode: boolean = hostCapabilities().askMode;
   const [textInput, setTextInput] = useState("");
   const [backendPort, setBackendPort] = useState<number | undefined>(undefined);
   const [isTranscriptionExpanded, setIsTranscriptionExpanded] = useState(true);
   const [inputMode, setInputMode] = useState<InputMode>(() => {
     const stored: string | null = localStorage.getItem('voicetree-input-mode');
-    if (stored === 'ask') return 'ask';
+    if (stored === 'ask') return canAskMode ? 'ask' : null;  // don't restore a gated mode
     if (stored === 'add') return 'add';
     return null;
   });
@@ -49,6 +53,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     stopTranscription,
     cancelTranscription,
     error,
+    isSupported: voiceInputSupported,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
     onPartialResult: onVoiceResult,  // Wire raw SDK events directly to store
@@ -61,7 +66,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
   // Fetch backend port on mount
   useEffect(() => {
-    window.electronAPI?.main.getBackendPort().then((port: number | null) => {
+    window.hostAPI?.main.getBackendPort().then((port: number | null) => {
       if (port) {
         setBackendPort(port);
       }
@@ -101,11 +106,11 @@ export default function VoiceTreeTranscribe(): JSX.Element {
   // Start transcription with permission check and reset
   const handleStartTranscription: () => Promise<void> = async () => {
     // Check microphone permission before starting
-    const status = await window.electronAPI?.main.checkMicrophonePermission();
+    const status = await window.hostAPI?.main.checkMicrophonePermission();
 
     if (status === 'not-determined') {
       // First time - show native permission dialog
-      const granted = await window.electronAPI?.main.requestMicrophonePermission();
+      const granted = await window.hostAPI?.main.requestMicrophonePermission();
       if (!granted) {
         setMicPermissionDenied(true);
         return;
@@ -171,7 +176,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
     try {
       // 1. Get relevant nodes from backend via IPC
       const response: { relevant_nodes?: Array<{ node_path: string; score: number; title: string }>; error?: string } | null | undefined =
-        await window.electronAPI?.main.askQuery(question, 10);
+        await window.hostAPI?.main.askQuery(question, 10);
 
       let nodePaths: string[];
 
@@ -189,7 +194,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
       if (!hasValidResults) {
         // Fallback: get nodes from graph when search fails
-        const graph: { nodes: Record<string, unknown> } | undefined = await window.electronAPI?.main.getGraph();
+        const graph: { nodes: Record<string, unknown> } | undefined = await window.hostAPI?.main.getGraph();
         if (!graph || Object.keys(graph.nodes).length === 0) {
           alert('No nodes in graph');
           return;
@@ -201,7 +206,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
 
       // 2. Create context node and spawn terminal via IPC
       // Note: askModeCreateAndSpawn returns void on success, or { error: string } on RPC failure
-      const result: unknown = await window.electronAPI?.main.askModeCreateAndSpawn(nodePaths, question);
+      const result: unknown = await window.hostAPI?.main.askModeCreateAndSpawn(nodePaths, question);
 
       // Check for RPC error in askModeCreateAndSpawn
       if (result && typeof result === 'object' && 'error' in result) {
@@ -250,6 +255,7 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             scrollContainerRef={scrollContainerRef}
           />
           <ControlRow
+            canAskMode={canAskMode}
             connectionError={connectionError}
             inputMode={inputMode}
             isConnecting={isConnecting}
@@ -262,13 +268,17 @@ export default function VoiceTreeTranscribe(): JSX.Element {
             ssePanelMountRef={ssePanelMountRef}
             state={state}
             textInput={textInput}
+            voiceInputSupported={voiceInputSupported}
           />
           <ErrorMessages
             connectionError={connectionError}
             error={error}
-            isMacPlatform={navigator.platform.includes('Mac')}
+            voiceInputUnsupported={!voiceInputSupported}
+            // Only show the OS-settings deep-link when the host can actually open
+            // it (native mac). The browser controls mic access via site-settings.
+            isMacPlatform={navigator.platform.includes('Mac') && hostCapabilities().nativeMicrophoneSettings}
             micPermissionDenied={micPermissionDenied}
-            onOpenMicrophoneSettings={() => { void window.electronAPI?.main.openMicrophoneSettings() }}
+            onOpenMicrophoneSettings={() => { void window.hostAPI?.main.openMicrophoneSettings() }}
           />
         </div>
       </div>

@@ -59,6 +59,30 @@ export function getDefaultNodeStyles(colors: GraphColorPalette, font: string, is
       }
     },
 
+    // User-resized expanded folder — the persisted size rides as
+    // folderWidth/folderHeight data (set by applyGraphDeltaToUI from the
+    // node-layout sidecar) and maps onto the compound's min-width/min-height.
+    // cytoscape still grows the compound to fit its children (bbox is a hard
+    // floor); min-* only enlarges it past the contents. The min-*-bias below
+    // anchors that extra slack to the TOP-LEFT (all surplus grows toward the
+    // bottom-right of the children) so the top-left corner — where the DOM chip
+    // strip (chevron + eye) is pinned — never moves, in the resting and the
+    // reloaded state alike. A live grip drag overrides the dragged axis toward
+    // the cursor (resizeBiasForHandle); leaving the default centered (0/0) here
+    // would re-split the slack and detach the chips. The collapsed pill rule
+    // below has fixed width/height and never carries this data.
+    {
+      selector: 'node[?isFolderNode][folderWidth][folderHeight]',
+      style: {
+        'min-width': 'data(folderWidth)',
+        'min-height': 'data(folderHeight)',
+        'min-width-bias-left': 0,
+        'min-width-bias-right': 1,
+        'min-height-bias-top': 0,
+        'min-height-bias-bottom': 1,
+      }
+    },
+
     // Collapsed folder — pill sized to seat the DOM chip strip (44 wide) plus
     // a label row beneath it. padding:0 overrides the 25px inherited from the
     // general folder rule (that padding exists to give expanded compounds room

@@ -4,7 +4,7 @@
  * Boots an in-process headless VoiceTree (graph-db-server + the unified
  * @vt/vt-daemon HTTP server + agent-runtime, no Electron) against a fresh
  * temp project, then spawns N tmux-backed `vt-fake-agent` terminals in
- * parallel. Each fake-agent runs a deterministic script of `create_node`
+ * parallel. Each fake-agent runs a deterministic script of `create_nodes`
  * actions, which exercise the real `create_graph` tool over the daemon's
  * `/rpc` JSON-RPC endpoint and the daemon-routed project write path
  * end-to-end.
@@ -50,13 +50,11 @@ import {
 import { tracing } from '@vt/observability'
 import {
     startHttpDaemonServer,
-    type HookHandler,
     type HttpDaemonServerHandle,
 } from '@vt/vt-daemon/transport/httpServer.ts'
-import type {McpToolBridges} from '@vt/vt-daemon/config/mcpBridges.ts'
+import type {ToolBridges} from '@vt/vt-daemon/config/toolBridges.ts'
 import {setCurrentProject} from '@vt/vt-daemon/state/currentProject.ts'
 import {buildDefaultToolCatalog} from '@vt/vt-daemon/transport/toolCatalog.ts'
-import {handleHookEventRequest} from '@vt/vt-daemon/hooks/hookEventHandler.ts'
 import {registerChildIfMonitored} from '@vt/vt-daemon/agent-runtime/agent-control/agent-completion-monitor.ts'
 import {
     generateAuthToken,
@@ -72,12 +70,8 @@ import {
 } from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import { GraphDbClient } from '@vt/graph-db-client'
 import {
-    applyGraphDeltaToGraph,
-    createEmptyGraph,
-    mapNewGraphToDelta,
+    rehydrateSerializedGraph,
     type Graph,
-    type GraphNode,
-    type NodeIdAndFilePath,
 } from '@vt/graph-model/graph'
 import { generateProjectOnDisk } from '@vt/perf-fixtures'
 import {
@@ -190,59 +184,19 @@ async function main(): Promise<void> {
     const openResult = await daemonClient.openProject(tempProject, { writeFolderPath: tempProject })
     setCurrentProject(tempProject)
 
-    // The daemon serializes Graph over JSON, which collapses Maps (e.g.
-    // nodeByBaseName, additionalYAMLProps) into plain objects. createGraphTool
-    // assumes Map types on those fields. The webapp's getNormalizedDaemonGraph
-    // helper rehydrates by applying a delta-from-graph onto an empty graph,
-    // which rebuilds the Map indexes. We replicate that logic here to keep
-    // the perf harness honest about exercising the production createGraph
-    // path.
-    const normalizeDaemonGraph = (raw: { nodes: Record<string, unknown> }): Graph => {
-        type SerializableGraphNode = GraphNode & {
-            nodeUIMetadata?: GraphNode['nodeUIMetadata'] & {
-                additionalYAMLProps?: unknown
-            }
-        }
-        const normalizedNodes = Object.fromEntries(
-            Object.entries(raw.nodes).map(([nodeId, rawNode]) => {
-                const node = rawNode as SerializableGraphNode
-                const additional = node.nodeUIMetadata?.additionalYAMLProps
-                const revived: ReadonlyMap<string, string> = additional instanceof Map
-                    ? additional
-                    : new Map(
-                        Object.entries(
-                            typeof additional === 'object' && additional !== null
-                                ? (additional as Record<string, string>)
-                                : {},
-                        ),
-                    )
-                return [
-                    nodeId,
-                    {
-                        ...node,
-                        nodeUIMetadata: {
-                            ...node.nodeUIMetadata,
-                            additionalYAMLProps: revived,
-                        },
-                    },
-                ]
-            }),
-        ) as Record<NodeIdAndFilePath, GraphNode>
-        const emptyGraph: Graph = createEmptyGraph()
-        return applyGraphDeltaToGraph(
-            emptyGraph,
-            mapNewGraphToDelta({ ...emptyGraph, nodes: normalizedNodes }),
-        )
-    }
-
-    const mcpBridges: McpToolBridges = {
+    // The daemon serializes Graph over JSON, which collapses the Graph-level Map
+    // indexes (nodeByBaseName, incomingEdgesIndex, unresolvedLinksIndex) into
+    // plain objects; createGraphTool assumes the Map types. `rehydrateSerializedGraph`
+    // (the canonical graph-model helper, also used by the webapp and daemon bridges)
+    // rebuilds them, so the perf harness exercises the same production path.
+    const toolBridges: ToolBridges = {
         graph: {
             getGraph: async (): Promise<Graph> => {
                 const raw = await daemonClient.getGraph()
                 const nodes = (typeof raw === 'object' && raw !== null && 'nodes' in raw)
                     ? (raw as { nodes: Record<string, unknown> }).nodes
                     : {}
-                return normalizeDaemonGraph({ nodes })
+                return rehydrateSerializedGraph({ nodes })
             },
             getProjectPaths: async () => {
                 // ProjectState has {projectRoot, readPaths, writeFolderPath}. Match the
@@ -274,17 +228,10 @@ async function main(): Promise<void> {
     const token: string = generateAuthToken()
     await writeAuthTokenFile(tempProject, token)
 
-    const hookHandler: HookHandler = (input): unknown =>
-        handleHookEventRequest(
-            { source: input.source, terminalId: input.terminalId, hookEventName: input.eventName },
-            { updateAgentEvent: agentRuntime.updateTerminalAgentEvent },
-        )
-
     let httpHandle: HttpDaemonServerHandle
     try {
         httpHandle = await startHttpDaemonServer({
-            catalog: buildDefaultToolCatalog(mcpBridges),
-            hookHandler,
+            catalog: buildDefaultToolCatalog(toolBridges),
             token,
             bindHost: '127.0.0.1',
             port: undefined,

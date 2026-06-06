@@ -69,7 +69,7 @@ export async function createFloatingEditor(
     // Fetch settings and node content in parallel
     const [node, settings] = await Promise.all([
         getNodeFromMainToUIOrNull(nodeId),
-        window.electronAPI!.main.loadSettings()
+        window.hostAPI!.main.loadSettings()
     ]);
 
     // Re-check after await - another path may have created editor during async gap
@@ -138,9 +138,9 @@ export async function createFloatingEditor(
             .catch(() => undefined)
             .then(async (): Promise<void> => {
                 //console.log('[createFloatingEditor-v2] Saving editor content for node:', nodeId);
-                const writeMarkdownFile = window.electronAPI?.main.writeMarkdownFile;
+                const writeMarkdownFile = window.hostAPI?.main.writeMarkdownFile;
                 if (!writeMarkdownFile) {
-                    throw new Error('electronAPI.main.writeMarkdownFile is unavailable');
+                    throw new Error('hostAPI.main.writeMarkdownFile is unavailable');
                 }
                 const result = await writeMarkdownFile(nodeId, editor.getValue(), editorId);
                 const preservedSuffix = result?.preservedSuffix;

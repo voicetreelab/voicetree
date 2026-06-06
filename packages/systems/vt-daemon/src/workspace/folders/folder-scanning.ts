@@ -1,0 +1,145 @@
+// Recursive filesystem folder scanning — the FS reads behind the folder-tree
+// sidebar and the "add folder" selector. This is the EDGE: it produces RAW scans
+// (plain-string paths); branding those paths as graph-model `AbsolutePath`s is
+// graph-model's concern at its own boundary, not the edge's. Pure-of-deps
+// (`fs`/`path` only, plus graph-model TYPES), so it is reusable by both the
+// Electron main process and VTD. Total by construction: an unreadable folder
+// yields an empty/partial result, never a throw.
+
+import { promises as fs } from 'fs'
+import type { Dirent, Stats } from 'fs'
+import path from 'path'
+import normalizePath from 'normalize-path'
+import type { RawDirectoryEntry } from '@vt/graph-model/folders'
+
+// Directory names skipped during a recursive scan: dependency/build/cache dirs
+// and VCS metadata that never hold user nodes. A pure predicate (not a
+// module-level Set) so there is no module-level mutable container.
+function isIgnoredDir(name: string): boolean {
+    switch (name) {
+        case 'node_modules':
+        case '.git':
+        case '.next':
+        case 'dist':
+        case '.cache':
+        case '__pycache__':
+        case '.tox':
+        case '.venv':
+        case 'venv':
+        // TODO: drop once migrate-worktrees-to-sibling.sh has run and .worktrees/ is empty.
+        case '.worktrees':
+            return true
+        default:
+            return false
+    }
+}
+
+export async function isValidSubdirectory(
+    projectRoot: string,
+    targetPath: string,
+): Promise<boolean> {
+    try {
+        const realProjectRoot: string = await fs.realpath(projectRoot)
+        const realTargetPath: string = await fs.realpath(targetPath)
+        if (!realTargetPath.startsWith(realProjectRoot + '/') && realTargetPath !== realProjectRoot) {
+            return false
+        }
+        const stat: Stats = await fs.stat(realTargetPath)
+        return stat.isDirectory()
+    } catch {
+        return false
+    }
+}
+
+type SubfolderModifiedAt = { path: string; modifiedAt: number }
+
+export async function getSubfoldersWithModifiedAt(
+    projectRoot: string,
+): Promise<readonly SubfolderModifiedAt[]> {
+    try {
+        const rootStat: Stats = await fs.stat(projectRoot)
+        const entries: Dirent[] = await fs.readdir(projectRoot, { withFileTypes: true })
+
+        // Each subfolder stat is independent; run them concurrently rather
+        // than awaiting one at a time. The final sort makes the result order
+        // independent of stat completion order, so this is output-identical.
+        const subfolders: readonly (SubfolderModifiedAt | null)[] = await Promise.all(
+            entries
+                .filter((entry: Dirent) => entry.isDirectory() && !entry.name.startsWith('.'))
+                .map(async (entry: Dirent): Promise<SubfolderModifiedAt | null> => {
+                    const fullPath: string = normalizePath(path.join(projectRoot, entry.name))
+                    try {
+                        const stat: Stats = await fs.stat(fullPath)
+                        return { path: fullPath, modifiedAt: stat.mtime.getTime() }
+                    } catch {
+                        return null // Skip folders we cannot stat.
+                    }
+                }),
+        )
+
+        const results: SubfolderModifiedAt[] = [
+            { path: projectRoot, modifiedAt: rootStat.mtime.getTime() },
+            ...subfolders.filter((s: SubfolderModifiedAt | null): s is SubfolderModifiedAt => s !== null),
+        ]
+        results.sort((a, b) => b.modifiedAt - a.modifiedAt)
+        return results
+    } catch {
+        return []
+    }
+}
+
+export async function getDirectoryTree(
+    rootPath: string,
+    maxDepth: number = 10,
+): Promise<RawDirectoryEntry> {
+    async function scan(dirPath: string, depth: number): Promise<RawDirectoryEntry> {
+        const dirName: string = path.basename(dirPath)
+        const absDirPath: string = normalizePath(dirPath)
+        const children: RawDirectoryEntry[] = []
+
+        if (depth < maxDepth) {
+            try {
+                const entries: Dirent[] = await fs.readdir(dirPath, { withFileTypes: true })
+                for (const entry of entries) {
+                    if (entry.name.startsWith('.')) {
+                        continue
+                    }
+
+                    const fullPath: string = normalizePath(path.join(dirPath, entry.name))
+                    const absPath: string = fullPath
+
+                    if (entry.isDirectory()) {
+                        if (isIgnoredDir(entry.name)) {
+                            continue
+                        }
+                        children.push(await scan(fullPath, depth + 1))
+                    } else {
+                        children.push({
+                            absolutePath: absPath,
+                            name: entry.name,
+                            isDirectory: false,
+                        })
+                    }
+                }
+            } catch {
+                // Permission denied or path gone; return an empty directory entry.
+            }
+        }
+
+        children.sort((left, right) => {
+            if (left.isDirectory !== right.isDirectory) {
+                return left.isDirectory ? -1 : 1
+            }
+            return left.name.localeCompare(right.name)
+        })
+
+        return {
+            absolutePath: absDirPath,
+            name: dirName,
+            isDirectory: true,
+            children,
+        }
+    }
+
+    return scan(rootPath, 0)
+}

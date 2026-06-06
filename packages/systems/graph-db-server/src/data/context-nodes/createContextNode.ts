@@ -10,9 +10,14 @@ import {calculateInitialPositionForChild} from '@vt/graph-model/spatial'
 import {
     applyGraphDeltaToDBThroughMemAndUIAndEditors
 } from "../graph/mutations/applyGraphDelta";
+import {publish} from '@vt/graph-db-server/state/events/deltaEventBus'
 import {ensureUniqueNodeId} from '@vt/graph-model/graph';
 import { resolveContextWriteFolderPath } from './contextWriteFolderPath'
 import { CONTEXT_NODES_FOLDER } from './contextNodeFolder'
+import {
+    graphVisibleForContext,
+    readCollapsedFolderIdsForContext,
+} from './contextFolderVisibility'
 
 type ContextNodeClock = {
     readonly now: () => number
@@ -85,23 +90,28 @@ export async function createContextNode(
         writeFolderPath || undefined
     )
 
+    const visibleGraph: Graph = graphVisibleForContext(currentGraph, readCollapsedFolderIdsForContext())
+    const traversalGraph: Graph = visibleGraph.nodes[resolvedParentNodeId] !== undefined
+        ? visibleGraph
+        : currentGraph
+
     // 2. PURE: Extract subgraph within distance
     const settings: VTSettings = await loadSettings()
     const maxDistance: number = settings.contextNodeMaxDistance
 
     const parentNode: GraphNode = currentGraph.nodes[resolvedParentNodeId]
     const validSemanticNodeIds: readonly NodeIdAndFilePath[] = settings.enableSemanticContext
-        ? semanticNodeIds.filter((nodeId: NodeIdAndFilePath): boolean => currentGraph.nodes[nodeId] !== undefined)
+        ? semanticNodeIds.filter((nodeId: NodeIdAndFilePath): boolean => traversalGraph.nodes[nodeId] !== undefined)
         : []
 
     // Get subgraph - union if we have semantic results, otherwise distance-only
     const subgraph: Graph = validSemanticNodeIds.length > 0
         ? getUnionSubgraphByDistance(
-            currentGraph,
+            traversalGraph,
             [resolvedParentNodeId, ...validSemanticNodeIds],
             maxDistance
         )
-        : getSubgraphByDistance(currentGraph, resolvedParentNodeId, maxDistance)
+        : getSubgraphByDistance(traversalGraph, resolvedParentNodeId, maxDistance)
 
     // 3. PURE: Convert subgraph to ASCII visualization
     // Make edges bidirectional so parents are shown as "children" in the tree.
@@ -167,7 +177,14 @@ export async function createContextNode(
     // 8. EDGE: Apply via GraphDelta pipeline (writes to disk)
     await applyGraphDeltaToDBThroughMemAndUIAndEditors(contextNodeDelta)
 
-    // 9. Return the created node ID
+    // 9. EDGE: Broadcast the new node onto the delta event bus so per-session
+    // projectedGraph subscribers (notably the browser, which has NO optimistic
+    // local apply and learns of every node only via this stream) re-project and
+    // render it. Without this the context node exists on disk + in mem but never
+    // reaches the renderer, so the agent terminal anchored to it never appears.
+    publish({delta: contextNodeDelta, source: 'context-node'})
+
+    // 10. Return the created node ID
     return contextNodeId
 }
 

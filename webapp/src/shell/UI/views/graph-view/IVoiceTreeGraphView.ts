@@ -61,7 +61,7 @@ export interface VoiceTreeGraphViewOptions {
   showFps?: boolean;
 }
 
-// FileWatcherService interface removed - VoiceTreeGraphView uses window.electronAPI directly
+// FileWatcherService interface removed - VoiceTreeGraphView uses window.hostAPI directly
 
 /**
  * Main interface for VoiceTreeGraphView
@@ -256,14 +256,14 @@ export interface IVoiceTreeGraphView {
  * 3. Renders DOM structure (cytoscape container, overlays, hamburger menu)
  * 4. Initializes Cytoscape instance with extensions
  * 5. Sets up event listeners (window resize, keyboard shortcuts)
- * 6. Sets up file event handlers via window.electronAPI
+ * 6. Sets up file event handlers via window.hostAPI
  * 7. Sets up context menu with callbacks
  *
  * Side effects:
  * - Clears and populates container.innerHTML
  * - Reads from localStorage ('darkMode')
  * - Adds window event listeners
- * - Subscribes to window.electronAPI file events
+ * - Subscribes to window.hostAPI file events
  *
  * @example
  * const container = document.getElementById('graph-container');

@@ -12,6 +12,8 @@
     "perf:view": "node infra/perf-stack/scripts/lifecycle.mjs view",
     "perf:traceql": "node infra/perf-stack/scripts/traceql.mjs",
     "perf:profile-for-trace": "node infra/perf-stack/scripts/profile-for-trace.mjs",
+    "perf:folder-tree-open": "node --import tsx packages/measures/perf/folder-tree-open-bench.mjs",
+    "perf:project-open-broadcast": "node --import tsx packages/measures/perf/project-open-broadcast-bench.mjs",
     "install:devbox": "node scripts/run-remote.mjs npm install",
     "test": "node scripts/run-remote.mjs npm run test:local",
     "test:local": "node --no-warnings=ExperimentalWarning --experimental-strip-types packages/measures/src/_runners/record-run.ts --id=npm-test --name=\"npm run test\" --category=Command -- npm run test:t1",

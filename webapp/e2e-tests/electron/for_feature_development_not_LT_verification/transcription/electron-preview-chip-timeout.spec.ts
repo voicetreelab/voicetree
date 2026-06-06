@@ -20,7 +20,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/shell/electron';
+import type { HostAPI } from '@/shell/hostApi';
 import type { EditorView } from '@codemirror/view';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -29,7 +29,7 @@ const FIXTURE_PROJECT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 
 // Type definitions for window extensions
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: ElectronAPI;
+  hostAPI?: HostAPI;
 }
 
 interface ServerCallTracker {
@@ -74,7 +74,7 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as unknown as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).hostAPI;
         if (api) {
           await api.main.stopFileWatching();
         }
@@ -226,7 +226,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
     // Show preview chip directly
     const testText = 'hello world timeout test';
     const backendPort = await appWindow.evaluate(() => {
-      return (window as unknown as ExtendedWindow).electronAPI?.main.getBackendPort();
+      return (window as unknown as ExtendedWindow).hostAPI?.main.getBackendPort();
     }) || 8001;
     const endpoint = `http://localhost:${backendPort}/send-text`;
 
@@ -273,7 +273,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
 
     const testText = 'escape after timeout test';
     const backendPort = await appWindow.evaluate(() => {
-      return (window as unknown as ExtendedWindow).electronAPI?.main.getBackendPort();
+      return (window as unknown as ExtendedWindow).hostAPI?.main.getBackendPort();
     }) || 8001;
     const endpoint = `http://localhost:${backendPort}/send-text`;
 
@@ -312,7 +312,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
 
     const testText = 'quick enter test';
     const backendPort = await appWindow.evaluate(() => {
-      return (window as unknown as ExtendedWindow).electronAPI?.main.getBackendPort();
+      return (window as unknown as ExtendedWindow).hostAPI?.main.getBackendPort();
     }) || 8001;
     const endpoint = `http://localhost:${backendPort}/send-text`;
 
@@ -349,7 +349,7 @@ test.describe('Transcription Preview Chip Timeout', () => {
 
     const testText = 'escape before timeout test';
     const backendPort = await appWindow.evaluate(() => {
-      return (window as unknown as ExtendedWindow).electronAPI?.main.getBackendPort();
+      return (window as unknown as ExtendedWindow).hostAPI?.main.getBackendPort();
     }) || 8001;
     const endpoint = `http://localhost:${backendPort}/send-text`;
 

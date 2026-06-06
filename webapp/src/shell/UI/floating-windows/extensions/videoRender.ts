@@ -1,7 +1,7 @@
 import { Decoration, WidgetType, EditorView, type DecorationSet } from '@codemirror/view';
 import { RangeSet, StateField, type EditorState, type Range, type Line } from '@codemirror/state';
 import type { Core, NodeSingular } from 'cytoscape';
-import type {} from '@/shell/electron';
+import type {} from '@/shell/hostApi';
 import { VIDEO_EXTENSIONS } from '@vt/graph-model/graph';
 
 function getCytoscapeInstance(): Core | undefined {
@@ -15,9 +15,9 @@ function getCytoscapeInstance(): Core | undefined {
 let cachedWatchedFolder: string | null = null;
 
 function initWatchedFolderCache(): void {
-    const electronAPI = window.electronAPI;
-    if (!electronAPI?.main?.getWatchStatus) return;
-    void electronAPI.main.getWatchStatus().then(status => {
+    const hostAPI = window.hostAPI;
+    if (!hostAPI?.main?.getWatchStatus) return;
+    void hostAPI.main.getWatchStatus().then(status => {
         cachedWatchedFolder = status.directory ?? null;
     });
 }
@@ -78,6 +78,20 @@ function resolveVideoPath(linkText: string): string | null {
 }
 
 /**
+ * Build the "video not found" notice as a DOM node. The file path is attached via
+ * textContent (never innerHTML) so a path derived from an untrusted `![[...]]`
+ * wikilink cannot inject markup. Exported for black-box testing.
+ */
+export function buildVideoNotFoundNotice(filePath: string): HTMLElement {
+    const notice: HTMLDivElement = document.createElement('div');
+    notice.style.padding = '10px';
+    notice.style.color = '#888';
+    notice.style.fontSize = '13px';
+    notice.textContent = `Video not found: ${filePath}`;
+    return notice;
+}
+
+/**
  * Widget that renders a local video file as an inline HTML5 video player.
  */
 class VideoBlockWidget extends WidgetType {
@@ -106,7 +120,7 @@ class VideoBlockWidget extends WidgetType {
         video.src = `file://${this.filePath}`;
 
         video.addEventListener('error', (): void => {
-            container.innerHTML = `<div style="padding: 10px; color: #888; font-size: 13px;">Video not found: ${this.filePath}</div>`;
+            container.replaceChildren(buildVideoNotFoundNotice(this.filePath));
         });
 
         container.appendChild(video);

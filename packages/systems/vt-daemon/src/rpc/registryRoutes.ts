@@ -57,12 +57,14 @@ function applyPatch(terminalId: string, patch: TerminalRecordPatch): void {
             agentRuntime.updateTerminalIsDone(terminalId, patch.value)
             return
         case 'lifecycle':
-            // Outbound-only: the daemon computes lifecycle authoritatively and
-            // broadcasts it over the SSE topic. `patchShape` above does not
-            // accept this kind, so validation rejects an inbound `lifecycle`
-            // patch before it reaches here — this case exists only to keep the
-            // switch exhaustive over `TerminalRecordPatch`.
-            throw new Error('lifecycle is daemon-authoritative and cannot be set via patchTerminalRecord')
+        case 'statusPhrase':
+            // Outbound-only: the daemon owns lifecycle (computed authoritatively)
+            // and statusPhrase (set from an agent's create_graph call) and
+            // broadcasts both over the SSE topic. `patchShape` above does not
+            // accept these kinds, so validation rejects an inbound one before it
+            // reaches here — these cases exist only to keep the switch
+            // exhaustive over `TerminalRecordPatch`.
+            throw new Error(`${patch.kind} is daemon-authoritative and cannot be set via patchTerminalRecord`)
     }
 }
 

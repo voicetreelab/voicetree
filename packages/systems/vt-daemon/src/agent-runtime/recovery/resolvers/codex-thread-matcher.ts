@@ -1,3 +1,5 @@
+import {textContainsAllRecoveryMarkers} from './recovery-markers'
+
 export type CodexThreadRow = {
     readonly id: string
     readonly first_user_message?: string
@@ -21,10 +23,8 @@ function rowMatchesMarkers(
     taskNodePath: string,
 ): boolean {
     const firstUserMessage: string | undefined = row.first_user_message
-    if (typeof firstUserMessage !== 'string' || !firstUserMessage) return false
-    return firstUserMessage.includes(`VOICETREE_TERMINAL_ID = ${terminalId}`)
-        && firstUserMessage.includes(`VOICETREE_PROJECT_PATH = ${projectRoot}`)
-        && firstUserMessage.includes(`TASK_NODE_PATH = ${taskNodePath}`)
+    if (typeof firstUserMessage !== 'string') return false
+    return textContainsAllRecoveryMarkers(firstUserMessage, {terminalId, projectRoot, taskNodePath})
 }
 
 /**

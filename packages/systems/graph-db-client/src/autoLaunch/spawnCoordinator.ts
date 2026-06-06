@@ -37,10 +37,12 @@ import {
   probeOwnerHealth,
   readCommandFingerprintMatch,
   readCooldownBreadcrumb,
+  OwnerReclaimFailedError,
   readOwnerRecord,
   readProcessLiveness,
   sleep,
   spawnDaemon,
+  terminateProcess,
   UnsafeOwnerError,
   writeCooldownBreadcrumb,
   type CallerKind,
@@ -183,6 +185,11 @@ export async function attemptSpawnAndWait<TClient>(
       args: command.args,
       env: command.env,
       caller,
+      // Arms the daemon's parent-pid watchdog. `process.pid` is this
+      // launcher (electron-main, the CLI, or a VTD spawning graphd);
+      // buildDaemonChildEnv propagates an inherited VOICETREE_PARENT_PID
+      // over this fallback so a VTD-spawned graphd still points at the app.
+      launcherPid: process.pid,
       logPath: daemonLogPath(canonicalProject, options.daemonKind),
     })
     emitOwnerDiagnostic({
@@ -337,30 +344,39 @@ async function waitForDaemonHealth<TClient>(
 }
 
 /**
+ * Grace windows for escalating reclamation. The recorded owner is sent
+ * SIGTERM first; a daemon with a healthy shutdown handler exits well
+ * inside the SIGTERM window. A daemon wedged mid-shutdown ignores SIGTERM
+ * (its `shuttingDown` latch turns the signal into a no-op), so we escalate
+ * to SIGKILL and must positively confirm death before authorising a
+ * replacement — otherwise the un-killable process would run alongside the
+ * new daemon, the exact duplicate-daemon leak reclamation exists to stop.
+ */
+const RECLAIM_SIGTERM_GRACE_MS = 1_000
+const RECLAIM_SIGKILL_GRACE_MS = 2_000
+
+/**
  * Reclaim a stale owner: only invoked after `decideOwnerAction` has already
  * authorised reclamation through safe-kill predicates (dead pid, OR alive
  * pid with matching command fingerprint). The dead case has nothing to
  * terminate; the alive case is a hung daemon we are authorised to
  * terminate so its owner record can be replaced.
+ *
+ * Termination escalates SIGTERM → SIGKILL and confirms the process is
+ * gone. If it cannot be proven dead we throw {@link OwnerReclaimFailedError}
+ * rather than delete the record and spawn — refusing to create a duplicate.
  */
 export async function reclaimStaleOwner(
   canonicalProject: string,
   daemonKind: DaemonKind,
   staleRecord: OwnerRecord,
 ): Promise<void> {
-  if (readProcessLiveness(staleRecord.pid) === 'alive') {
-    try {
-      process.kill(staleRecord.pid, 'SIGTERM')
-    } catch {
-      // already gone
-    }
-    const exitDeadline = Date.now() + 500
-    while (
-      Date.now() < exitDeadline &&
-      readProcessLiveness(staleRecord.pid) === 'alive'
-    ) {
-      await sleep(25)
-    }
+  const outcome = await terminateProcess(staleRecord.pid, {
+    sigtermGraceMs: RECLAIM_SIGTERM_GRACE_MS,
+    sigkillGraceMs: RECLAIM_SIGKILL_GRACE_MS,
+  })
+  if (outcome === 'undead') {
+    throw new OwnerReclaimFailedError(canonicalProject, staleRecord.pid)
   }
   await deleteOwnerRecord(ownerRecordFile.pathFor(canonicalProject, daemonKind))
 }

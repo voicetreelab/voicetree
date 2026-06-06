@@ -7,7 +7,6 @@
 // Spec sources:
 //   - ctx-nodes/.../step9-design-override-ws-subprotocol-auth.md (Gus override)
 //   - ctx-nodes/.../step9e-surprise-auth-wire.md (Iris's 5-point handoff contract)
-//   - docs/step9-design.md §4.3 (out of date; 9g formally amends)
 
 import http, {type IncomingMessage} from 'node:http'
 import {randomBytes} from 'node:crypto'
@@ -17,9 +16,7 @@ import {WebSocket} from 'ws'
 
 import {generateAuthToken} from '@vt/vt-rpc'
 
-import {startHttpDaemonServer, type HookHandler, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
-
-const noopHook: HookHandler = (): unknown => ({ok: true})
+import {startHttpDaemonServer, type HttpDaemonServerHandle, type ToolCatalog} from '../httpServer.ts'
 
 interface Ctx {
     handle: HttpDaemonServerHandle
@@ -39,7 +36,6 @@ async function bring(): Promise<Ctx> {
     const token: string = generateAuthToken()
     const handle: HttpDaemonServerHandle = await startHttpDaemonServer({
         catalog: new Map() as ToolCatalog,
-        hookHandler: noopHook,
         token,
         bindHost: '127.0.0.1',
         logger: {logRequest: (): void => {}, logError: (): void => {}},

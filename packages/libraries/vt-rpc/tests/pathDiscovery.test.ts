@@ -58,6 +58,41 @@ describe('discoverDaemonEndpoint chain', (): void => {
         expect(endpoint?.projectPath).toBe(project)
     })
 
+    it('prefers $VOICETREE_PROJECT_PATH over the inner project the cwd up-walk would find', async (): Promise<void> => {
+        // The reported bug: both the outer (canonical) root and a nested project
+        // subfolder carry their own `.voicetree/` + rpc.port. The agent's CWD is
+        // inside the subfolder, but the app talks to the OUTER daemon. The env
+        // var must win over the cwd up-walk so the CLI binds the same daemon.
+        const outer: string = await makeProject()
+        await writeFile(join(outer, '.voicetree', 'rpc.port'), '64128\n', 'utf8')
+        const innerSub: string = join(outer, 'sub')
+        await mkdir(join(innerSub, '.voicetree'), {recursive: true})
+        await writeFile(join(innerSub, '.voicetree', 'rpc.port'), '64362\n', 'utf8')
+
+        const endpoint = await discoverDaemonEndpoint({
+            cwd: innerSub,
+            env: {VOICETREE_PROJECT_PATH: outer},
+        })
+        expect(endpoint?.url).toBe('http://127.0.0.1:64128')
+        expect(endpoint?.source).toBe('env_project_path')
+        expect(endpoint?.projectPath).toBe(outer)
+    })
+
+    it('returns null when $VOICETREE_PROJECT_PATH names a project with no daemon, never binding a different one', async (): Promise<void> => {
+        // Authoritative-or-fail: if the canonical project's daemon is down we do
+        // NOT silently fall through to a nested project's live daemon.
+        const outer: string = await makeProject() // no rpc.port → daemon down
+        const innerSub: string = join(outer, 'sub')
+        await mkdir(join(innerSub, '.voicetree'), {recursive: true})
+        await writeFile(join(innerSub, '.voicetree', 'rpc.port'), '64362\n', 'utf8')
+
+        const endpoint = await discoverDaemonEndpoint({
+            cwd: innerSub,
+            env: {VOICETREE_PROJECT_PATH: outer},
+        })
+        expect(endpoint).toBe(null)
+    })
+
     it('falls back to $VOICETREE_PROJECT_PATH when cwd has no project ancestor', async (): Promise<void> => {
         const project: string = await makeProject()
         await writeFile(join(project, '.voicetree', 'rpc.port'), '40404\n', 'utf8')

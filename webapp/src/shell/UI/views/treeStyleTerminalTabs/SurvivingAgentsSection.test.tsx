@@ -22,6 +22,7 @@ function makeTerminalData(overrides: Partial<TerminalData> = {}): TerminalData {
         isPinned: true,
         isDone: false,
         lifecycle: 'idle',
+        statusPhrase: '',
         lastOutputTime: 0,
         activityCount: 0,
         parentTerminalId: null,
@@ -121,7 +122,7 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
     it('renders same-project attach rows with an Attach action', () => {
         const {container, onAttach} = renderSection([makeAttachable()]);
 
-        expect(screen.getByText('Surviving agents (1)')).toBeTruthy();
+        expect(screen.getByText('Resumable agents (1)')).toBeTruthy();
         const row: Element | null = container.querySelector('[data-terminal-id="Ari"][data-has-attach="true"]');
         expect(row).not.toBeNull();
         expect(within(row as HTMLElement).getByText('This project')).toBeTruthy();
@@ -169,27 +170,10 @@ describe('SurvivingAgentsSection — attach capability rows', () => {
         consoleError.mockRestore();
     });
 
-    it('renders foreign-project attach rows as kill-only', () => {
-        const foreign: RecoverableAgentSession = makeAttachable({
-            sessionName: 'vt-bbbbbbbbbb-Beth',
-            terminalId: 'Beth',
-            hash: 'bbbbbbbbbb',
-            classification: 'foreign-project',
-            attachable: false,
-            agentName: 'Beth',
-            projectRoot: '/project/other',
-        });
-        const {container, onKill} = renderSection([foreign]);
-
-        const row: Element | null = container.querySelector('[data-terminal-id="Beth"]');
-        expect(row).not.toBeNull();
-        expect(within(row as HTMLElement).getByText('Foreign project')).toBeTruthy();
-        expect(within(row as HTMLElement).queryByRole('button', {name: /attach/i})).toBeNull();
-
-        fireEvent.click(within(row as HTMLElement).getByRole('button', {name: /kill beth/i}));
-
-        expect(onKill).toHaveBeenCalledWith('vt-bbbbbbbbbb-Beth');
-    });
+    // Foreign-project panes are filtered upstream in discovery (non-goal:
+    // cross-project recovery — see discoverRecoverableAgentSessions and the
+    // fix-resume design). The section therefore never receives a foreign row,
+    // so there is no UI behavior to assert for them here.
 });
 
 describe('SurvivingAgentsSection — resume capability rows', () => {
@@ -235,7 +219,7 @@ describe('SurvivingAgentsSection — combined capabilities', () => {
         expect(within(row as HTMLElement).getByRole('button', {name: /resume claude session/i})).toBeTruthy();
     });
 
-    it('hides claimed rows — they belong to the live tab strip, not Surviving Agents', () => {
+    it('hides claimed rows — they belong to the live tab strip, not Resumable Agents', () => {
         const claimed: RecoverableAgentSession = {...makeResumable(), isClaimed: true};
         renderSection([claimed]);
         expect(screen.queryByTestId('surviving-agents-section')).toBeNull();
@@ -254,7 +238,7 @@ describe('SurvivingAgentsSection — refresh and error handling', () => {
 
     it('calls onRefresh when the refresh button is clicked', () => {
         const {onRefresh} = renderSection([makeAttachable()]);
-        fireEvent.click(screen.getByRole('button', {name: /refresh surviving agents/i}));
+        fireEvent.click(screen.getByRole('button', {name: /refresh resumable agents/i}));
         expect(onRefresh).toHaveBeenCalledTimes(1);
     });
 
@@ -351,7 +335,7 @@ describe('SurvivingAgentsSection — row parity (§5.2, §5.3)', () => {
 
         const {container} = renderSection([claudeRow, codexRow, exitedRow]);
 
-        expect(screen.getByText('Surviving agents (3)')).toBeTruthy();
+        expect(screen.getByText('Resumable agents (3)')).toBeTruthy();
 
         const bobRow: HTMLElement = container.querySelector('[data-terminal-id="Bob"]') as HTMLElement;
         expect(within(bobRow).getByText('Refactor X')).toBeTruthy();
@@ -455,7 +439,7 @@ describe('SurvivingAgentsSection — renderRowActions slot for Delta', () => {
                 onResume={onResume}
                 renderRowActions={(row) => (
                     <button key={`trash-${row.terminalId}`} data-testid={`trash-${row.terminalId}`} type="button">
-                        Delete
+                        Clear
                     </button>
                 )}
             />,

@@ -3,7 +3,7 @@ import type {
     FilesystemAuthoringFix,
     FilesystemAuthoringInput,
     FilesystemAuthoringPlanEntry,
-} from '@vt/graph-tools/node'
+} from '@vt/graph-tools/node-runtime'
 import {error} from '../cliDeps'
 import type {
     GraphCreateNode,
