@@ -313,11 +313,16 @@ export async function agentList(
         return
     }
 
-    if (args.length > 0) {
-        error(`Unexpected arguments for \`agent list\`: ${args.join(' ')}`)
+    const parsedArgs: ParsedArgs = parseArgs(args, AGENT_LIST_SPEC)
+    if (parsedArgs.positionals.length > 0) {
+        error(`Unexpected positional arguments for \`agent list\`: ${parsedArgs.positionals.join(' ')}`)
     }
 
-    const payload: JsonRecord = ensureSuccessfulPayload(await callDaemon('list_agents', {}))
+    const projectPath: string | undefined = parsedArgs.values.has('--project')
+        ? requireNonEmptyValue(parsedArgs.values.get('--project'), '`--project` requires a value')
+        : undefined
+
+    const payload: JsonRecord = ensureSuccessfulPayload(await callDaemon('list_agents', {}, {projectPath}))
     output(payload, formatAgentList)
 }
 

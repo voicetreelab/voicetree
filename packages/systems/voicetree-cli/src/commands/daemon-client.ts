@@ -23,9 +23,11 @@ import {
     ERROR_CODES,
     authTokenFilePath,
     discoverDaemonEndpoint,
+    readRpcPortFile,
     readAuthTokenFile,
     type ResolvedDaemonEndpoint,
 } from '@vt/vt-rpc'
+import {resolve as resolvePath} from 'node:path'
 
 export {DaemonAuthRequired, DaemonUnreachable}
 
@@ -59,10 +61,48 @@ interface ResolvedClient {
     readonly token: string
 }
 
+const LOOPBACK_HOST: string = '127.0.0.1'
+
+function urlForLocalhostPort(port: number): string {
+    return `http://${LOOPBACK_HOST}:${port}`
+}
+
+async function buildResolvedClientForProject(projectPath: string): Promise<ResolvedClient> {
+    if (projectPath.trim().length === 0) {
+        throw new DaemonUnreachable('Project path must be non-empty when selecting a VoiceTree daemon explicitly.')
+    }
+
+    const resolvedProjectPath: string = resolvePath(projectPath)
+    const port: number | null = await readRpcPortFile(resolvedProjectPath)
+    if (port === null) {
+        throw new DaemonUnreachable(
+            `No VoiceTree daemon for project ${resolvedProjectPath}: rpc.port not found at ${resolvedProjectPath}/.voicetree/rpc.port.`,
+        )
+    }
+
+    const tokenFilePath: string = authTokenFilePath(resolvedProjectPath)
+    const token: string = await loadToken(resolvedProjectPath, tokenFilePath)
+    return {
+        endpoint: {
+            url: urlForLocalhostPort(port),
+            projectPath: resolvedProjectPath,
+            source: 'env_project_path',
+        },
+        tokenProjectPath: resolvedProjectPath,
+        tokenFilePath,
+        token,
+    }
+}
+
 async function buildResolvedClient(
     env: Record<string, string | undefined>,
     cwd: string,
+    explicitProjectPath?: string,
 ): Promise<ResolvedClient> {
+    if (explicitProjectPath !== undefined) {
+        return buildResolvedClientForProject(explicitProjectPath)
+    }
+
     const endpoint: ResolvedDaemonEndpoint | null = await discoverDaemonEndpoint({env, cwd})
     if (!endpoint) {
         throw new DaemonUnreachable(
@@ -218,11 +258,12 @@ function throwForRpcError(
 export async function callDaemon(
     toolName: string,
     args: Record<string, unknown>,
+    options: {readonly projectPath?: string} = {},
 ): Promise<unknown> {
     const env: Record<string, string | undefined> = process.env
     const cwd: string = process.cwd()
     const timeoutMs: number = getTimeoutMs(env)
-    const client: ResolvedClient = await buildResolvedClient(env, cwd)
+    const client: ResolvedClient = await buildResolvedClient(env, cwd, options.projectPath)
 
     let outcome: PostOutcome = await postRpc(client.endpoint.url, client.token, toolName, args, timeoutMs)
 

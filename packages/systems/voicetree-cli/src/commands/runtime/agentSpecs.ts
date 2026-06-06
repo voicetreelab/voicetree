@@ -3,7 +3,7 @@
  * the single source of truth for:
  *
  *   - which CLI flags the parser accepts (consumed by `parseArgs` in agent.ts),
- *   - which JSON RPC parameter each flag maps to (consumed by `formatHelp`),
+ *   - which JSON RPC or CLI transport parameter each flag maps to (consumed by `formatHelp`),
  *   - the human-readable usage and per-flag descriptions printed by
  *     `vt agent <verb> --help`.
  *
@@ -20,7 +20,8 @@
 export type FlagSpec = {
     readonly flag: string
     readonly kind: 'value' | 'bool'
-    readonly rpcParam: string
+    readonly rpcParam?: string
+    readonly transportParam?: string
     readonly description: string
 }
 
@@ -62,9 +63,12 @@ export const AGENT_SPAWN_SPEC: SubcommandSpec = {
 export const AGENT_LIST_SPEC: SubcommandSpec = {
     verb: 'vt agent list',
     rpcTool: 'list_agents',
-    usageTail: '',
+    usageTail: '[flags]',
     summary: 'List running agent terminals with status and newly created nodes.',
-    flags: [],
+    flags: [
+        {flag: '--project', kind: 'value', transportParam: 'projectPath',
+            description: 'Project path whose daemon should be queried. Overrides inherited daemon env.'},
+    ],
 }
 
 export const AGENT_WAIT_SPEC: SubcommandSpec = {
@@ -122,8 +126,10 @@ const GLOBAL_CALLER_TERMINAL_NOTE: string =
 function formatFlagLine(spec: FlagSpec): string {
     const flagAndKind: string = spec.kind === 'value' ? `${spec.flag} VALUE` : spec.flag
     const left: string = `  ${flagAndKind}`.padEnd(28)
-    const rpc: string = `(RPC: ${spec.rpcParam})`.padEnd(24)
-    return `${left} ${rpc} ${spec.description}`
+    const paramLabel: string = spec.rpcParam
+        ? `(RPC: ${spec.rpcParam})`
+        : `(transport: ${spec.transportParam ?? spec.flag})`
+    return `${left} ${paramLabel.padEnd(24)} ${spec.description}`
 }
 
 export function formatHelp(spec: SubcommandSpec): string {
@@ -140,7 +146,7 @@ export function formatHelp(spec: SubcommandSpec): string {
     }
     lines.push('')
     lines.push(
-        'CLI flag names map to JSON RPC parameter names via the `(RPC: …)` column. '
+        'CLI flag names map to JSON RPC parameter names via `(RPC: …)` or local transport selectors via `(transport: …)`. '
         + 'See `vt manual ' + spec.verb.replace(/^vt /, '') + '` for the full schema.',
     )
     return lines.join('\n')
