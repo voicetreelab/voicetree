@@ -268,7 +268,7 @@ describe('terminal-registry lifecycle wiring', () => {
     });
 
     describe('markTerminalInputStarted - new user/agent turn reset', () => {
-        it('reactivates a running terminal that previously reported done', () => {
+        it('reactivates a running terminal but preserves a freshly-authored phrase', () => {
             spawn('t1');
             updateTerminalIsDone('t1', true);
             applyAgentStatus('t1', {preset: 'done', phrase: 'opened PR #273'});
@@ -278,15 +278,58 @@ describe('terminal-registry lifecycle wiring', () => {
             expect(lifecycleOf('t1')).toBe('active');
             expect(isDoneOf('t1')).toBe(false);
             expect(lastReportedStatusOf('t1')).toBeNull();
-            expect(statusPhraseOf('t1')).toBe('please review PR');
+            // The agent wrote 'opened PR #273' moments ago, so the resume must
+            // NOT clobber it — only the turn state resets.
+            expect(statusPhraseOf('t1')).toBe('opened PR #273');
         });
 
-        it('uses a readable letter-only phrase from the input text', () => {
+        it('overrides a phrase older than the staleness window', () => {
+            vi.useFakeTimers();
+            try {
+                vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+                spawn('t1');
+                applyAgentStatus('t1', {preset: 'working', phrase: 'opened PR #273'});
+
+                vi.advanceTimersByTime(5 * 60_000 + 1);
+                markTerminalInputStarted('t1', 'please review PR #273!');
+
+                expect(statusPhraseOf('t1')).toBe('please review PR');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('protects a phrase that is still within the staleness window', () => {
+            vi.useFakeTimers();
+            try {
+                vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+                spawn('t1');
+                applyAgentStatus('t1', {preset: 'working', phrase: 'opened PR #273'});
+
+                vi.advanceTimersByTime(5 * 60_000 - 1);
+                markTerminalInputStarted('t1', 'please review PR #273!');
+
+                expect(statusPhraseOf('t1')).toBe('opened PR #273');
+                expect(lifecycleOf('t1')).toBe('active');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('uses a readable letter-only phrase when there is no phrase to protect', () => {
             spawn('t1');
 
             markTerminalInputStarted('t1', '[From: Bob] ship fix/status-reset-on-input? 123');
 
             expect(statusPhraseOf('t1')).toBe('From Bob ship fix status reset on input');
+        });
+
+        it('never overrides a phrase with empty input (no letters)', () => {
+            spawn('t1');
+
+            markTerminalInputStarted('t1', '12345 !@#$', 10 * 60_000);
+
+            expect(statusPhraseOf('t1')).toBe('');
         });
 
         it('does not reactivate a process that has actually exited', () => {

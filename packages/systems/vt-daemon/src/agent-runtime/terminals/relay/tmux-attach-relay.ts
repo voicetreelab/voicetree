@@ -4,7 +4,12 @@ import type {IPty} from 'node-pty'
 import {WebSocket} from 'ws'
 import {getTmuxBinaryPath, getTmuxCommandArgs} from '../tmux/tmux-server'
 import {hasSession, resolveTmuxSessionName} from '../tmux/tmux-session-manager'
-import {markTerminalInputStarted} from '../terminal-registry/lifecycle.ts'
+import {
+    advanceTerminalInputLine,
+    EMPTY_TERMINAL_INPUT_LINE_BUFFER,
+    markTerminalInputStarted,
+    type TerminalInputLineBuffer,
+} from '../terminal-registry/lifecycle.ts'
 
 const DEFAULT_COLS: 120 = 120
 const DEFAULT_ROWS: 40 = 40
@@ -260,6 +265,10 @@ export async function attachTmuxSessionToWebSocket(
 
     const pendingWrites: string[] = []
     const writeState: {flushing: boolean} = {flushing: false}
+    // Accumulates the user's keystrokes for this attachment so the terminal's
+    // live status is only updated once a full line is submitted (Enter), not on
+    // every partial keystroke frame.
+    let inputLineBuffer: TerminalInputLineBuffer = EMPTY_TERMINAL_INPUT_LINE_BUFFER
 
     term.onData((payload: string): void => sendData(ws, payload))
     term.onExit(({exitCode}: {readonly exitCode: number}): void => {
@@ -278,8 +287,15 @@ export async function attachTmuxSessionToWebSocket(
 
         if ((record.type === 'input' || record.type === 'data') && typeof record.payload === 'string') {
             const payload: string = record.payload
-            const markInputStarted = options.markInputStarted ?? markTerminalInputStarted
-            markInputStarted(parsed.sessionName, payload)
+            // Every keystroke is forwarded to the pty so typing/echo is
+            // unaffected; the status, though, is only refreshed once Enter
+            // completes a line (see `advanceTerminalInputLine`).
+            const step = advanceTerminalInputLine(inputLineBuffer, payload)
+            inputLineBuffer = step.buffer
+            if (step.submitted !== null) {
+                const markInputStarted = options.markInputStarted ?? markTerminalInputStarted
+                markInputStarted(parsed.sessionName, step.submitted)
+            }
             enqueuePacedInput(term, pendingWrites, writeState, payload)
             return
         }

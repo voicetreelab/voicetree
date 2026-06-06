@@ -53,6 +53,7 @@ export function createTerminalData(
         isDone: false,
         lifecycle: 'spawning',
         statusPhrase: '',
+        statusPhraseUpdatedAt: 0,
         lastReportedStatus: null,
         lastOutputTime: now(),
         activityCount: 0,
