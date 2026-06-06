@@ -262,7 +262,11 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     'voicetree-cli -> graph-db-client': 7,
     'voicetree-cli -> graph-db-server': 3,
     'voicetree-cli -> graph-model': 1,
-    'voicetree-cli -> graph-tools': 12,
+    // 2026-06-04 [vt graph garden]: 12 -> 13 (+1 graphGarden). `vt graph garden`
+    // is a thin CLI wrapper that re-exports `graphGarden` from @vt/graph-tools/node,
+    // exactly like graphGroup/Move/Rename above — the implementation lives in
+    // graph-tools; the CLI only routes to it. Ratchet down with the others.
+    'voicetree-cli -> graph-tools': 13,
     // 2026-06-02 [nested-.voicetree daemon resolution fix]: 2 -> 5. The
     // project-root up-walk (`detectProjectFromCwd`) was copy-pasted into both
     // voicetree-cli and vt-rpc with divergent precedence — that drift caused the
@@ -355,13 +359,23 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // buildTerminalEnvVars adds appendPersonaToAgentPrompt; the roster/lookup/
     // render internals stay inside graph-model so the daemon depends on one new
     // symbol, not three.
+    // 2026-06-05: hierarchical agent commands. The daemon spawn path now resolves
+    // the agent *tree* instead of a flat list, so it depends on the shared
+    // resolver: 27 -> 28 (+2 flattenAgentTree / resolveDefaultAgent, -1 the
+    // removed flat getDefaultAgent). Kept to +1 net by inlining the resolvable-
+    // command set in agentCommand.ts and reading the path label off ResolvedAgent.
     'vt-daemon -> graph-model': 28,
     // 2026-05-27 [Phase 3]: daemon owns live-command dispatch + state
     // hydration post-BF-379. Three value symbols: `applyCommandWithDelta`,
     // `hydrateCommand`, `serializeState` (all wire shapes formerly evaluated
     // in webapp's process).
     'vt-daemon -> graph-state': 3,
-    'vt-daemon -> graph-tools': 8,
+    // 2026-06-04 [vt graph garden]: 8 -> 9 (+1 buildGardenPlan). The create-graph
+    // subgraph_size_limit block now renders a guided garden proposal via
+    // gardenProposal.ts, which calls graph-tools' pure `buildGardenPlan` (the
+    // `GardenFolderNode` type import is free). One symbol, the same planner the CLI
+    // garden command uses. Ratchet DOWN as create-graph is refactored.
+    'vt-daemon -> graph-tools': 9,
     'vt-daemon -> observability': 10,
     'vt-daemon -> paths': 4,
     'vt-daemon -> voicetree-graph-validation': 1,

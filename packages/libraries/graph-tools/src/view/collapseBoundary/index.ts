@@ -31,6 +31,24 @@ export function countVisibleEntities(
     return (totalNodeCount - collapsedNodeCount) + clusters.length
 }
 
+/**
+ * Partition a graph's nodes into structural communities (Louvain), independent
+ * of any rendering budget. Unlike {@link findCollapseBoundary} — which collapses
+ * a folder *toward* a cognitive budget and may return a single folder-wide
+ * cluster — this surfaces the sub-communities *within* a flat set of nodes.
+ *
+ * Used by `vt graph garden` to propose sub-folders for an over-full folder.
+ * Returns communities of >= 2 nodes (singletons stay ungrouped), each scored by
+ * cohesion with a PageRank-chosen representative. Edges to nodes outside `graph`
+ * are dropped by {@link normalizeGraph}, so the result is bounded to the set.
+ */
+export function partitionIntoCommunities(
+    graph: CollapseBoundaryGraph,
+    options: FindCollapseBoundaryOptions = {},
+): readonly CollapseCluster[] {
+    return buildLouvainCandidates(normalizeGraph(graph, options))
+}
+
 export function findCollapseBoundary(
     graph: CollapseBoundaryGraph,
     budget: number,

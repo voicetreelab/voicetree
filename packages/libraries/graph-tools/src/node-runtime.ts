@@ -65,7 +65,8 @@ export {
 
 export { graphRename } from './authoring/rename'
 export { graphMove } from './authoring/move'
-export { graphGroup } from './authoring/group'
+export { graphGroup, groupNodesIntoFolder, type GraphGroupResult } from './authoring/group'
+export { graphGarden } from './authoring/garden/garden'
 
 export {
     computeMetricsFromProject,

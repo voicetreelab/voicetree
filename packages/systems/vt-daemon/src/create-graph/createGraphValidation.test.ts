@@ -414,12 +414,18 @@ describe('subgraphSizeLimitRule (via ALL_RULES)', () => {
         expect(sg[0].message).toContain(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.noRoutineOverrideInstruction)
     })
 
-    it('does not include an override recipe for subgraph size violations', () => {
+    it('presents the 3-option guided flow: accept grouping, choose manually, or bypass with a rationale', () => {
         const result: ValidationResult = runValidations(ALL_RULES, subgraphCtx(folderGraph(2), 3))
         const sg: readonly RuleViolation[] = subgraphViolations(result)
         const message: string = formatViolationError(sg)
         expect(message).toContain(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.gardeningInstruction)
-        expect(message).not.toContain('override_with_rationale')
+        // [1] accept the auto-grouping (via `vt graph garden … --apply`)
+        expect(message).toContain('vt graph garden')
+        // [2] reject and choose manually (editable plan)
+        expect(message).toContain('--plan')
+        // [3] bypass, only if absolutely necessary, with a rationale
+        expect(message).toContain('override_with_rationale')
+        expect(message).toContain(daemonProtocol.SUBGRAPH_SIZE_LIMIT_GUIDANCE.noRoutineOverrideInstruction)
     })
 
     it('is admitted by a matching override_with_rationale', () => {

@@ -1,7 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import type { JSX } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, CornerDownRight } from 'lucide-react';
 import type { AgentConfig } from '@vt/graph-model/settings';
+import {
+  flattenAgentTree,
+  resolveDefaultAgent,
+} from '@vt/graph-model/settings';
+import {
+  updateAgentAt,
+  removeAgentAt,
+  addChildAt,
+  appendAgent,
+  type AgentPath,
+} from './agentTreeEdit';
 
 interface AgentListFieldProps {
   value: readonly AgentConfig[];
@@ -10,109 +21,138 @@ interface AgentListFieldProps {
   onDefaultChange: (name: string) => void;
 }
 
+const INPUT_CLASS = 'bg-input border border-border rounded-md px-2 py-1 font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring';
+
+/**
+ * Compact editor for a node's env map. Keeps its own row list so a half-typed
+ * key persists while editing; only complete (non-empty-key) pairs are persisted.
+ */
+function EnvEditor({ env, onChange }: { env: Readonly<Record<string, string>> | undefined; onChange: (env: Record<string, string>) => void }): JSX.Element {
+  const [pairs, setPairs] = useState<{ key: string; value: string }[]>(() =>
+    Object.entries(env ?? {}).map(([key, value]) => ({ key, value })),
+  );
+
+  function commit(next: { key: string; value: string }[]): void {
+    setPairs(next);
+    const obj: Record<string, string> = {};
+    for (const { key, value } of next) if (key.trim()) obj[key.trim()] = value;
+    onChange(obj);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {pairs.map((pair, i) => (
+        <div key={i} className="flex items-center gap-0.5">
+          <input
+            type="text" value={pair.key} placeholder="ENV"
+            onChange={(e) => commit(pairs.map((p, j) => j === i ? { ...p, key: e.target.value } : p))}
+            className={`${INPUT_CLASS} text-[11px] w-20`}
+          />
+          <span className="text-muted-foreground/50 text-xs">=</span>
+          <input
+            type="text" value={pair.value} placeholder="val"
+            onChange={(e) => commit(pairs.map((p, j) => j === i ? { ...p, value: e.target.value } : p))}
+            className={`${INPUT_CLASS} text-[11px] w-16`}
+          />
+          <button type="button" aria-label="Remove env var"
+            onClick={() => commit(pairs.filter((_, j) => j !== i))}
+            className="flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground">
+            <X size={11} />
+          </button>
+        </div>
+      ))}
+      <button type="button"
+        onClick={() => commit([...pairs, { key: '', value: '' }])}
+        className="flex items-center gap-0.5 px-1 py-0.5 text-[11px] text-muted-foreground hover:text-foreground rounded hover:bg-muted">
+        <Plus size={10} /> env
+      </button>
+    </div>
+  );
+}
+
 export function AgentListField({ value, onChange, defaultAgent, onDefaultChange }: AgentListFieldProps): JSX.Element {
-  const [focusIndex, setFocusIndex] = useState<number | null>(null);
-  const nameRefs: React.MutableRefObject<(HTMLInputElement | null)[]> = useRef<(HTMLInputElement | null)[]>([]);
+  // The default is stored as a leaf path label ('Codex / Remote / XHigh').
+  const defaultLeaf = resolveDefaultAgent(value, defaultAgent);
+  const effectiveDefaultLabel: string = defaultLeaf ? defaultLeaf.label : '';
 
-  useEffect(() => {
-    if (focusIndex !== null && nameRefs.current[focusIndex]) {
-      nameRefs.current[focusIndex]?.focus();
-      setFocusIndex(null);
-    }
-  }, [focusIndex, value.length]);
-
-  // Resolve which agent is effectively the default (first if unset/not found)
-  const effectiveDefault: string = (() => {
-    if (defaultAgent && value.some(a => a.name === defaultAgent)) return defaultAgent;
-    return value[0]?.name ?? '';
-  })();
-
-  function updateAgent(index: number, field: keyof AgentConfig, fieldValue: string): void {
-    const oldName: string = value[index]?.name ?? '';
-    const updated: AgentConfig[] = value.map((agent, i) =>
-      i === index ? { ...agent, [field]: fieldValue } : { ...agent }
-    );
-    onChange(updated);
-    // If we renamed the default agent, update the default to track the new name
-    if (field === 'name' && oldName === effectiveDefault) {
-      onDefaultChange(fieldValue);
-    }
+  /** Apply a tree edit and keep `defaultAgent` pointing at the same leaf (or reset if it vanished). */
+  function applyChange(next: AgentConfig[]): void {
+    const before: string[] = flattenAgentTree(value).map((l) => l.label);
+    const after: string[] = flattenAgentTree(next).map((l) => l.label);
+    onChange(next);
+    if (after.includes(effectiveDefaultLabel)) return; // default leaf still present
+    const defIdx: number = before.indexOf(effectiveDefaultLabel);
+    const newLabel: string = (before.length === after.length && defIdx >= 0 && after[defIdx])
+      ? after[defIdx]   // a rename — same leaf, new label
+      : (after[0] ?? ''); // a removal of the default leaf — fall back to the first
+    if (newLabel !== effectiveDefaultLabel) onDefaultChange(newLabel);
   }
 
-  function addAgent(): void {
-    const updated: AgentConfig[] = [...value, { name: '', command: '' }];
-    onChange(updated);
-    setFocusIndex(updated.length - 1);
-  }
-
-  function removeAgent(index: number): void {
-    if (value.length === 1) {
-      if (!confirm('Remove the last agent?')) return;
-    }
-    const removedName: string = value[index]?.name ?? '';
-    const updated: AgentConfig[] = value.filter((_, i) => i !== index);
-    onChange(updated);
-    // If we removed the default agent, reset to first remaining
-    if (removedName === effectiveDefault && updated.length > 0) {
-      onDefaultChange(updated[0]?.name ?? '');
-    }
+  function renderNode(node: AgentConfig, path: AgentPath, depth: number): JSX.Element[] {
+    const label: string = flattenLabelPrefix(value, path).join(' / ');
+    const isLeaf: boolean = (node.children?.length ?? 0) === 0;
+    const rows: JSX.Element[] = [
+      <div key={path.join('.')} className="flex items-center gap-2" style={{ paddingLeft: depth * 18 }}>
+        {isLeaf ? (
+          <button type="button"
+            title={label === effectiveDefaultLabel ? 'Default agent' : `Set "${label}" as default`}
+            onClick={() => { if (label) onDefaultChange(label); }}
+            className="flex items-center justify-center w-4 h-4 shrink-0">
+            <span className={`block w-3.5 h-3.5 rounded-full border-2 transition-colors ${
+              label === effectiveDefaultLabel ? 'border-foreground bg-foreground' : 'border-muted-foreground/50 hover:border-foreground'}`}>
+              {label === effectiveDefaultLabel && <span className="block w-full h-full rounded-full bg-background scale-[0.35]" />}
+            </span>
+          </button>
+        ) : <span className="w-4 h-4 shrink-0 flex items-center justify-center text-muted-foreground/40"><CornerDownRight size={12} /></span>}
+        <input
+          type="text" value={node.name} placeholder="name"
+          onChange={(e) => applyChange(updateAgentAt(value, path, { name: e.target.value }))}
+          className={`${INPUT_CLASS} text-sm w-32`}
+        />
+        <input
+          type="text" value={node.command ?? ''}
+          placeholder={depth > 0 ? 'command (blank = inherit)' : 'command'}
+          onChange={(e) => applyChange(updateAgentAt(value, path, { command: e.target.value }))}
+          className={`${INPUT_CLASS} text-xs flex-1`}
+        />
+        <EnvEditor env={node.env} onChange={(env) => applyChange(updateAgentAt(value, path, { env }))} />
+        <button type="button" title="Add sub-agent"
+          onClick={() => applyChange(addChildAt(value, path, { name: '', command: '' }))}
+          className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <CornerDownRight size={14} />
+        </button>
+        <button type="button" aria-label={`Remove agent ${node.name || path.join('.')}`}
+          onClick={() => applyChange(removeAgentAt(value, path))}
+          className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <X size={14} />
+        </button>
+      </div>,
+    ];
+    (node.children ?? []).forEach((child, i) => rows.push(...renderNode(child, [...path, i], depth + 1)));
+    return rows;
   }
 
   return (
     <div className="flex flex-col gap-1.5">
-      {value.map((agent, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <button
-            type="button"
-            title={agent.name === effectiveDefault ? 'Default agent' : `Set ${agent.name || 'this agent'} as default`}
-            onClick={() => { if (agent.name) onDefaultChange(agent.name); }}
-            className="flex items-center justify-center w-4 h-4 shrink-0"
-          >
-            <span
-              className={`block w-3.5 h-3.5 rounded-full border-2 transition-colors ${
-                agent.name === effectiveDefault
-                  ? 'border-foreground bg-foreground'
-                  : 'border-muted-foreground/50 hover:border-foreground'
-              }`}
-            >
-              {agent.name === effectiveDefault && (
-                <span className="block w-full h-full rounded-full bg-background scale-[0.35]" />
-              )}
-            </span>
-          </button>
-          <input
-            ref={(el) => { nameRefs.current[index] = el; }}
-            type="text"
-            value={agent.name}
-            onChange={(e) => updateAgent(index, 'name', e.target.value)}
-            placeholder="name"
-            className="w-1/4 bg-input border border-border rounded-md px-2 py-1 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <input
-            type="text"
-            value={agent.command}
-            onChange={(e) => updateAgent(index, 'command', e.target.value)}
-            placeholder="command"
-            className="flex-1 bg-input border border-border rounded-md px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <button
-            type="button"
-            onClick={() => removeAgent(index)}
-            className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label={`Remove agent ${agent.name || index}`}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={addAgent}
-        className="flex items-center gap-1 self-start px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
-      >
-        <Plus size={12} />
-        Add Agent
+      {value.flatMap((node, i) => renderNode(node, [i], 0))}
+      <button type="button"
+        onClick={() => applyChange(appendAgent(value, { name: '', command: '' }))}
+        className="flex items-center gap-1 self-start px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted">
+        <Plus size={12} /> Add Agent
       </button>
     </div>
   );
+}
+
+/** Names along `path` through `agents`, e.g. [1,0,1] -> ['Codex','Local','XHigh']. */
+function flattenLabelPrefix(agents: readonly AgentConfig[], path: AgentPath): string[] {
+  const names: string[] = [];
+  let level: readonly AgentConfig[] = agents;
+  for (const idx of path) {
+    const node: AgentConfig | undefined = level[idx];
+    if (!node) break;
+    names.push(node.name);
+    level = node.children ?? [];
+  }
+  return names;
 }

@@ -74,6 +74,7 @@ Subcommands:
   structure   Render graph via daemon (or local fallback) with progressive-disclosure collapse
   create      Create progress nodes in the graph (agents must pass --status <working|awaiting_input|done|failed>)
   group       Group files into a new folder and update all references
+  garden      Suggest (and optionally apply) sub-folder groupings for an over-full folder
   lint        Lint graph for complexity violations and warnings
   complexity  Score graph cognitive complexity (branching, treewidth, crossings, coupling, cycles)
   rename      Rename a file and update all references
@@ -233,6 +234,11 @@ async function dispatchGraphCommand(
             await graphGroup(terminalId, args)
             return
         }
+        case 'garden': {
+            const {graphGarden} = await import('./commands/graph-node/garden.ts')
+            await graphGarden(terminalId, args)
+            return
+        }
         case '--help':
         case 'help':
         case undefined:
@@ -267,7 +273,7 @@ const KNOWN_AGENT_SUBS: ReadonlySet<string> = new Set([
     'spawn', 'list', 'wait', 'close', 'resume', 'fork', 'send', 'output',
 ])
 const KNOWN_GRAPH_SUBS: ReadonlySet<string> = new Set([
-    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group',
+    'create', 'index', 'search', 'unseen', 'live', 'structure', 'lint', 'complexity', 'rename', 'mv', 'group', 'garden',
 ])
 const KNOWN_TOP_LEVEL: ReadonlySet<string> = new Set([
     'project', 'session', 'view', 'search', 'debug', 'serve', 'webapp', 'manual',

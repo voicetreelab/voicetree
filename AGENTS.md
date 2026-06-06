@@ -1,6 +1,6 @@
 ⛔ This is a NORMAL, WRITABLE checkout of THIS machine's own branch `$VT_DEV_BRANCH` (machine-local, set in `~/.env` — e.g. `dev-mac` / `dev-remote`; never a literal in-repo; safe default `dev-new`). Edit & commit directly here (worktrees optional: `vt-worktree <name>`). `vt-sync` to pull `dev` into your branch (never `git pull`); `vt-pr "msg"` to integrate (PR → `dev`). More: `scripts/dev-setup/distributed-architecture.md`.
 
-🗺️ To locate code, read `architecture.md` (repo root) FIRST — it maps each component to its source path (drift-gated) and `refines:` into per-folder diagrams; descend those instead of grepping blind.
+🗺️ Read `architecture.md` (repo root) first — fastest way to find where any component lives.
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP.
 EVERYTHING SHOULD BE MODELLED AS FUNCTIONS & types. PUSH IMPURITY TO EDGE / SHELL.
 
