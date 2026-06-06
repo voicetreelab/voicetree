@@ -23,7 +23,7 @@ import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {getProjectDotVoicetreePath} from '@vt/paths'
 import type { DaemonKind } from '@vt/graph-db-protocol'
-import { readProcessLiveness } from './processLiveness.ts'
+import { readProcessLiveness } from './lifecycle/processLiveness.ts'
 
 export type SpawnLockAcquisition =
   | { readonly kind: 'acquired'; readonly release: () => Promise<void> }

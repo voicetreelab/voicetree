@@ -215,7 +215,13 @@ export const CROSS_PACKAGE_VALUE_SYMBOL_BUDGETS: Readonly<Record<string, number>
     // surface (DaemonKind type now imported alongside the existing 2 symbols).
     'daemon-lifecycle -> graph-db-protocol': 3,
     'daemon-lifecycle -> paths': 1,
-    'graph-db-client -> daemon-lifecycle': 23,
+    // 2026-06-05 [PR #272]: 23 -> 25. The stale-owner reclaim path now uses
+    // the shared `terminateProcess` primitive (SIGTERM -> escalate SIGKILL ->
+    // confirm death) instead of an inline process.kill, and throws the typed
+    // `OwnerReclaimFailedError` when an owner cannot be proven dead — +2 value
+    // symbols. This replaces ad-hoc termination logic with a reused, tested
+    // lifecycle primitive, so the coupling is intentional, not incidental.
+    'graph-db-client -> daemon-lifecycle': 25,
     // 2026-06-02 [PR #229]: 24 -> 26. graph-db-client now owns the projectedGraph
     // SSE consumer/parser (relocated here from the webapp) plus the shared
     // DAEMON_SHUTDOWN_HEADER/_VALUE CSRF constants it sends on /shutdown — +2

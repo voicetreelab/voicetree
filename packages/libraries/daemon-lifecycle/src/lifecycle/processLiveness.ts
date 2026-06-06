@@ -13,8 +13,8 @@ import type { CommandFingerprint } from '@vt/graph-db-protocol'
 import type {
   CommandFingerprintMatch,
   ProcessLiveness,
-} from './ownerDecision.ts'
-import { commandFingerprintsEqual } from './ownerRecordIo.ts'
+} from '../ownerDecision.ts'
+import { commandFingerprintsEqual } from '../ownerRecordIo.ts'
 
 export function readProcessLiveness(pid: number): ProcessLiveness {
   if (!Number.isInteger(pid) || pid <= 0) return 'unknown'

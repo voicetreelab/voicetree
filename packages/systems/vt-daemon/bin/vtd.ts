@@ -50,7 +50,7 @@ import {unlink} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {ensureGraphDaemonForProject, type EnsureGraphDaemonResult} from '@vt/graph-db-client'
-import {startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
+import {runGracefulShutdown, startParentPidWatchdog, startParentWatch, type CallerKind} from '@vt/daemon-lifecycle'
 import {tracing} from '@vt/observability'
 import {resolveVoicetreeHomePath} from '@vt/paths'
 import {loadSettings} from '@vt/app-config/settings'
@@ -421,6 +421,12 @@ async function main(): Promise<void> {
         `vtd: listening on ${httpHandle.url}, project=${args.project}, gdb=${gdb.port}\n`,
     )
 
+    // Per-step ceiling and absolute backstop for the teardown sequence. A
+    // healthy shutdown finishes in single-digit ms; these only bite when a
+    // step hangs. The hard deadline exceeds one step timeout so a normal
+    // timed-out step is never pre-empted by the backstop.
+    const SHUTDOWN_STEP_TIMEOUT_MS = 2_000
+    const SHUTDOWN_HARD_DEADLINE_MS = 8_000
     let shuttingDown: boolean = false
     const shutdown = async (signal: string): Promise<void> => {
         if (shuttingDown) return
@@ -435,30 +441,44 @@ async function main(): Promise<void> {
         // We delete <project>/.voicetree/rpc.port before release so a reader
         // never sees a missing owner record but a stale port — the absence of
         // the port file is the signal that the daemon is gone.
-        try {
-            stopHeartbeat()
-            // Tear down the graph live-update SSE subscription before closing the
-            // hub it publishes onto. graphd itself is NOT shut down (shared
-            // cross-process sibling, BF-346) — we only drop our own subscription.
-            gatewayLiveUpdates.stop()
-            await stopOtlpReceiver().catch((err: unknown): void => {
-                process.stderr.write(`vtd: OTLP receiver stop error: ${(err as Error).message}\n`)
-            })
-            await httpHandle.stop().catch((err: unknown): void => {
-                process.stderr.write(`vtd: http daemon stop error: ${(err as Error).message}\n`)
-            })
-            agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'})
-            await unlink(rpcPortFilePath(args.project)).catch((err: NodeJS.ErrnoException): void => {
-                if (err.code !== 'ENOENT') {
-                    process.stderr.write(`vtd: rpc.port cleanup error: ${err.message}\n`)
-                }
-            })
-            await ownerHandle.release()
-            process.exit(0)
-        } catch (err) {
-            process.stderr.write(`vtd: shutdown error: ${(err as Error).message}\n`)
-            process.exit(1)
-        }
+        //
+        // Each step is independently time-boxed by runGracefulShutdown: a
+        // step that throws OR hangs (an await that never resolves — e.g. an
+        // OTLP receiver or HTTP listener whose close stalls) is abandoned so
+        // the remaining steps — crucially the rpc.port deletion — still run
+        // and the process always exits. A hung step must never produce an
+        // immortal zombie daemon (the failure that left orphaned VTDs holding
+        // their port + discovery files until SIGKILL).
+        await runGracefulShutdown({
+            stepTimeoutMs: SHUTDOWN_STEP_TIMEOUT_MS,
+            hardDeadlineMs: SHUTDOWN_HARD_DEADLINE_MS,
+            exit: (code: number): void => process.exit(code),
+            onStepIssue: (label: string, error: Error): void => {
+                process.stderr.write(`vtd: shutdown step ${label} failed: ${error.message}\n`)
+            },
+            steps: [
+                {label: 'stopHeartbeat', run: (): void => stopHeartbeat()},
+                // Tear down the graph live-update SSE subscription before closing
+                // the hub it publishes onto. graphd itself is NOT shut down
+                // (shared cross-process sibling, BF-346) — we only drop our own
+                // subscription.
+                {label: 'gatewayLiveUpdates.stop', run: (): void => gatewayLiveUpdates.stop()},
+                {label: 'stopOtlpReceiver', run: (): Promise<void> => stopOtlpReceiver()},
+                {label: 'httpHandle.stop', run: (): Promise<void> => httpHandle.stop()},
+                {
+                    label: 'terminalManager.cleanup',
+                    run: (): void => agentRuntime.getTerminalManager().cleanup({tmuxSessions: 'preserve'}),
+                },
+                {
+                    label: 'unlink rpc.port',
+                    run: (): Promise<void> =>
+                        unlink(rpcPortFilePath(args.project)).catch((err: NodeJS.ErrnoException): void => {
+                            if (err.code !== 'ENOENT') throw err
+                        }),
+                },
+                {label: 'ownerHandle.release', run: (): Promise<void> => ownerHandle.release()},
+            ],
+        })
     }
     process.on('SIGINT', (): void => void shutdown('SIGINT'))
     process.on('SIGTERM', (): void => void shutdown('SIGTERM'))
