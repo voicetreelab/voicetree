@@ -23,6 +23,7 @@ import {
     markTerminalExited,
     markTerminalKillReason,
     applyAgentStatus,
+    markTerminalInputStarted,
 } from '../terminal-registry';
 import {
     setPublishTerminalRegistryEvent,
@@ -62,6 +63,11 @@ function statusPhraseOf(id: string): string | undefined {
 function lastReportedStatusOf(id: string): string | null | undefined {
     const rec = getTerminalRecords().find(r => r.terminalId === id);
     return rec?.terminalData.lastReportedStatus;
+}
+
+function isDoneOf(id: string): boolean | undefined {
+    const rec = getTerminalRecords().find(r => r.terminalId === id);
+    return rec?.terminalData.isDone;
 }
 
 describe('terminal-registry lifecycle wiring', () => {
@@ -258,6 +264,39 @@ describe('terminal-registry lifecycle wiring', () => {
             updateTerminalIsDone('parent-1', false);        // output resumes → active
             expect(lifecycleOf('parent-1')).toBe('active');
             expect(lastReportedStatusOf('parent-1')).toBeNull();
+        });
+    });
+
+    describe('markTerminalInputStarted - new user/agent turn reset', () => {
+        it('reactivates a running terminal that previously reported done', () => {
+            spawn('t1');
+            updateTerminalIsDone('t1', true);
+            applyAgentStatus('t1', {preset: 'done', phrase: 'opened PR #273'});
+
+            markTerminalInputStarted('t1', 'please review PR #273!');
+
+            expect(lifecycleOf('t1')).toBe('active');
+            expect(isDoneOf('t1')).toBe(false);
+            expect(lastReportedStatusOf('t1')).toBeNull();
+            expect(statusPhraseOf('t1')).toBe('please review PR');
+        });
+
+        it('uses a readable letter-only phrase from the input text', () => {
+            spawn('t1');
+
+            markTerminalInputStarted('t1', '[From: Bob] ship fix/status-reset-on-input? 123');
+
+            expect(statusPhraseOf('t1')).toBe('From Bob ship fix status reset on input');
+        });
+
+        it('does not reactivate a process that has actually exited', () => {
+            spawn('t1');
+            markTerminalExited('t1', 0, null);
+
+            markTerminalInputStarted('t1', 'try again');
+
+            expect(lifecycleOf('t1')).toBe('completed');
+            expect(statusPhraseOf('t1')).toBe('');
         });
     });
 

@@ -26,6 +26,30 @@ function deferred<T>(): Deferred<T> {
 }
 
 describe('createSendTextToTerminal', () => {
+    it('marks terminal input started before writing the injection bytes', async () => {
+        const events: Array<{readonly type: 'mark' | 'write'; readonly terminalId: string; readonly value: string}> = []
+        const sendTextToTerminal = createSendTextToTerminal()
+        const deps: SendTextToTerminalDeps = {
+            sleep: async (): Promise<void> => undefined,
+            markInputStarted: (terminalId: string, inputText: string): void => {
+                events.push({type: 'mark', terminalId, value: inputText})
+            },
+            writeLiteral: async (terminalId: string, bytes: string): Promise<void> => {
+                events.push({type: 'write', terminalId, value: bytes})
+            },
+        }
+
+        const result = await sendTextToTerminal('terminal-a', 'hello, terminal! 123', deps)
+
+        expect(result).toEqual({success: true})
+        expect(events[0]).toEqual({
+            type: 'mark',
+            terminalId: 'terminal-a',
+            value: 'hello, terminal! 123',
+        })
+        expect(events.some(event => event.type === 'write')).toBe(true)
+    })
+
     it('serializes concurrent writes to the same terminal through observable output order', async () => {
         const writes: WriteRecord[] = []
         const firstBodyWritten = deferred<void>()
