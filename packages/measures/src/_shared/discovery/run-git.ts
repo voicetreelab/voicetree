@@ -13,7 +13,7 @@ import {execFileSync, type ExecFileSyncOptionsWithStringEncoding} from 'node:chi
 // Stripping both overrides restores cwd-based resolution, which is exactly what
 // every measure git call already wants: they each pass an explicit `cwd` and
 // never depend on an ambient GIT_DIR.
-function envWithoutGitLocationOverrides(): NodeJS.ProcessEnv {
+export function envWithoutGitLocationOverrides(): NodeJS.ProcessEnv {
     return Object.fromEntries(
         Object.entries(process.env).filter(
             ([key]) => key !== 'GIT_DIR' && key !== 'GIT_WORK_TREE',
