@@ -41,9 +41,13 @@ export function statusPhraseFromTerminalInput(inputText: string): string {
  * the submit bytes `send-text-to-terminal` writes (`\r`, and `\x1b\r` for
  * Alt+Enter — the `\x1b` is consumed as an ordinary, non-Enter character here).
  */
-const ENTER_CHARS: ReadonlySet<string> = new Set(['\r', '\n'])
+const ENTER_CHARS = ['\r', '\n'] as const
 /** DEL (`\x7f`) and BS (`\x08`) — so an in-line correction edits the buffer. */
-const BACKSPACE_CHARS: ReadonlySet<string> = new Set(['\x7f', '\x08'])
+const BACKSPACE_CHARS = ['\x7f', '\x08'] as const
+
+function includesChar(chars: readonly string[], ch: string): boolean {
+    return chars.includes(ch)
+}
 
 export type TerminalInputLineBuffer = {readonly pending: string}
 
@@ -67,10 +71,10 @@ export function advanceTerminalInputLine(
     let pending: string = buffer.pending
     const completed: string[] = []
     for (const ch of payload) {
-        if (ENTER_CHARS.has(ch)) {
+        if (includesChar(ENTER_CHARS, ch)) {
             completed.push(pending)
             pending = ''
-        } else if (BACKSPACE_CHARS.has(ch)) {
+        } else if (includesChar(BACKSPACE_CHARS, ch)) {
             pending = pending.slice(0, -1)
         } else {
             pending += ch
