@@ -75,10 +75,6 @@ export function effRadius(node: LayoutNode): number {
   return 0.25 * (node.width + node.height);
 }
 
-export function toSegment(p1: Point, p2: Point): EdgeSegment {
-  return { p1, p2 };
-}
-
 // True when segments p1p2 and q1q2 cross. Wraps graph-model's `segmentsIntersect`
 // (which excludes shared-endpoint touches by coordinate equality).
 export function segmentsCross(p1: Point, p2: Point, q1: Point, q2: Point): boolean {
