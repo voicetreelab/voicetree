@@ -2,8 +2,15 @@ import { configDefaults, defineConfig } from 'vitest/config'
 import { existsSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'path'
+import { readHostLoad, resolveMaxWorkers } from './vitest.workers'
 
 const require = createRequire(import.meta.url)
+
+// Worker concurrency is derived from what is CURRENTLY FREE on the host (not its
+// total capacity) so that the cap is fast on an idle box, safe on a small CI
+// runner, AND degrades gracefully when several suites run at once — see
+// ./vitest.workers.ts for the full rationale and the pure, unit-tested resolver.
+const maxWorkers = resolveMaxWorkers(readHostLoad())
 // TODO: drop the .worktrees handling below once migrate-worktrees-to-sibling.sh
 // has run and .worktrees/ is empty. Sibling vt-wts/ is outside the repo root,
 // so vitest never walks into it.
@@ -96,13 +103,10 @@ export default defineConfig({
       'default',
       [ciCheckReporter, ciCheck],
     ],
-    // Cap concurrency: vitest defaults to availableParallelism(), which on the
-    // 14-core devbox + 15 GB RAM with no swap = ~14 workers × ~1.3 GB each =
-    // OOM cascade that reaps systemd. 4 is the safe ceiling (~6 GB peak).
     pool: 'forks',
     poolOptions: {
-      forks: { maxForks: 4 },
-      threads: { maxThreads: 4 },
+      forks: { maxForks: maxWorkers },
+      threads: { maxThreads: maxWorkers },
     },
     // Codebase-health tests parse the whole repo and can exceed the default 5s
     // budget under parallel-worker CPU contention.
