@@ -12,8 +12,7 @@ INSTALL_DIR="${HOME}/.local/bin"
 # Detect architecture
 ARCH=$(uname -m)
 case $ARCH in
-    x86_64)  ARCH_SUFFIX="" ;;
-    aarch64) ARCH_SUFFIX="-arm64" ;;
+    x86_64|aarch64) ;;
     *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
@@ -27,13 +26,28 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# Download AppImage
-FILENAME="Voicetree-${VERSION}${ARCH_SUFFIX}.AppImage"
-URL="https://github.com/$REPO/releases/download/$LATEST/$FILENAME"
+case $ARCH in
+    x86_64)  FILENAMES=("voicetree.AppImage" "voicetree-x86_64.AppImage" "Voicetree-${VERSION}.AppImage") ;;
+    aarch64) FILENAMES=("voicetree-arm64.AppImage" "Voicetree-${VERSION}-arm64.AppImage") ;;
+esac
 
 echo "Downloading Voicetree $VERSION for $ARCH..."
 mkdir -p "$INSTALL_DIR"
-curl -fsSL "$URL" -o "$INSTALL_DIR/voicetree"
+
+DOWNLOADED=false
+for FILENAME in "${FILENAMES[@]}"; do
+    URL="https://github.com/$REPO/releases/download/$LATEST/$FILENAME"
+    if curl -fsSL "$URL" -o "$INSTALL_DIR/voicetree"; then
+        DOWNLOADED=true
+        break
+    fi
+done
+
+if [ "$DOWNLOADED" != "true" ]; then
+    echo "Error: Could not download a Linux AppImage for $ARCH from $LATEST"
+    exit 1
+fi
+
 chmod +x "$INSTALL_DIR/voicetree"
 
 echo ""

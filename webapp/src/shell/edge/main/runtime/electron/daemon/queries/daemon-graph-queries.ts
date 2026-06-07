@@ -66,15 +66,6 @@ export async function getPreviewContainedNodeIdsThroughDaemon(
     return await callDaemon((client) => client.getPreviewContainedNodeIds(nodeId))
 }
 
-export async function getNodeThroughDaemon(
-    nodeId: string,
-): Promise<GraphNode | undefined> {
-    return await callDaemon(async (client) => {
-        const graph: Graph = await getNormalizedDaemonGraph(client)
-        return graph.nodes[nodeId]
-    })
-}
-
 export async function getGraphThroughDaemon(): Promise<Graph> {
     return await callDaemon((client) => getNormalizedDaemonGraph(client))
 }

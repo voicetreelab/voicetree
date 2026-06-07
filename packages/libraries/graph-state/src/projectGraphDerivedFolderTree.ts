@@ -172,6 +172,9 @@ export function projectGraphDerivedFolderTree(
   if (!projectRoot) return null
 
   const rootPath = normalizeFolderPath(projectRoot)
+  const normalizedReadPaths = readPaths.map(normalizeFolderPath)
+  const normalizedProjectPaths = projectPaths.map(normalizeFolderPath)
+  const normalizedWriteFolderPath = writeFolderPath ? normalizeFolderPath(writeFolderPath) : null
 
   // 1. Determine the set of folders that must appear in the synthesized tree:
   //    - the root itself
@@ -180,9 +183,9 @@ export function projectGraphDerivedFolderTree(
   const requiredFolderPaths = new Set<string>([rootPath])
 
   const candidateRoots: readonly string[] = [
-    ...readPaths,
-    ...projectPaths,
-    ...(writeFolderPath ? [writeFolderPath] : []),
+    ...normalizedReadPaths,
+    ...normalizedProjectPaths,
+    ...(normalizedWriteFolderPath ? [normalizedWriteFolderPath] : []),
   ]
   for (const candidate of candidateRoots) {
     if (!candidate) continue
@@ -222,13 +225,13 @@ export function projectGraphDerivedFolderTree(
   //    the same FolderTreeNode shape (sorting, loadState, isWriteTarget,
   //    isInGraph) as a scanned tree.
   const directoryEntry = freezeMutableToDirectoryEntry(rootDir)
-  const loadedPaths = new Set<string>([...readPaths, ...projectPaths])
+  const loadedPaths = new Set<string>([...normalizedReadPaths, ...normalizedProjectPaths])
   const graphFilePathsSet = new Set<string>(graphFilePaths)
 
   return buildFolderTree(
     directoryEntry,
     loadedPaths,
-    writeFolderPath ? toAbsolutePath(writeFolderPath) : null,
+    normalizedWriteFolderPath ? toAbsolutePath(normalizedWriteFolderPath) : null,
     graphFilePathsSet,
   )
 }
