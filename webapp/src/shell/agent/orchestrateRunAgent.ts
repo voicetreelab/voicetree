@@ -48,6 +48,7 @@ export interface RunAgentEffects {
     readonly getWriteFolderPath: () => Promise<O.Option<string>>
     readonly applyTaskNodeDelta: (delta: GraphDelta) => Promise<unknown>
     readonly spawnAgentTerminal: (req: SpawnAgentTerminalRequest) => Promise<SpawnAgentTerminalResult>
+    readonly isTaskFolderNodeEnabled?: () => boolean
 }
 
 export async function orchestrateRunAgentOnSelectedNodes(
@@ -65,7 +66,13 @@ export async function orchestrateRunAgentOnSelectedNodes(
 
     // createTaskNode places the node via layout (position: O.none); the click
     // position is intentionally not threaded here.
-    const taskNodeDelta: GraphDelta = createTaskNode({taskDescription, selectedNodeIds, graph, writeFolderPath})
+    const taskNodeDelta: GraphDelta = createTaskNode({
+        taskDescription,
+        selectedNodeIds,
+        graph,
+        writeFolderPath,
+        useTaskFolderNode: effects.isTaskFolderNodeEnabled?.() === true,
+    })
 
     const head = taskNodeDelta[0]
     const taskNodeId: NodeIdAndFilePath =

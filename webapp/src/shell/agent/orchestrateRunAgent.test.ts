@@ -56,6 +56,21 @@ describe('runAgentOnSelectedNodes (shared orchestrator)', () => {
         expect(result.contextNodeId).toBe('ctx.md')
     })
 
+    it('uses a task folder node when the injected feature flag is enabled', async () => {
+        const rec: Recorder = {appliedDeltas: [], spawnRequests: []}
+        const selectedNodeIds = ['/proj/a.md'] as NodeIdAndFilePath[]
+
+        await orchestrateRunAgentOnSelectedNodes(
+            {selectedNodeIds, taskDescription: 'folder task'},
+            {...recordingEffects(rec, O.some('/proj')), isTaskFolderNodeEnabled: () => true},
+        )
+
+        const head = rec.appliedDeltas[0][0]
+        expect(head.type).toBe('UpsertNode')
+        const taskNodeId = head.type === 'UpsertNode' ? head.nodeToUpsert.absoluteFilePathIsID : ''
+        expect(taskNodeId).toMatch(/^\/proj\/(task_[a-z0-9]+)\/\1\.md$/)
+    })
+
     it('spawns only AFTER the delta is applied (task node must exist first)', async () => {
         const order: string[] = []
         const selectedNodeIds = ['/proj/a.md'] as NodeIdAndFilePath[]

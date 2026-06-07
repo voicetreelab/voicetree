@@ -18,6 +18,7 @@ import {getFolderIdentityNoteId, getFolderChildNodeIds, getSubFolderPaths, getFo
 import {findBestMatchingNode} from '@vt/graph-model/markdown'
 import {slugify} from '../_shared/slugify.ts'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {taskFolderNodesEnabledFromEnv} from '@vt/vt-daemon/_shared/taskFolderFeatureFlag.ts'
 import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings} from '@vt/graph-model/settings'
 import {DEFAULT_SUBGRAPH_LIMITS} from '@vt/graph-model/settings'
@@ -174,12 +175,12 @@ export function worktreeFolderNoteInput(
 }
 
 /**
- * Live-gardening task-folder routing. An agent anchored to a task node that is a
- * folder identity note (every task node is created as one — see createTaskNode)
- * files its progress nodes INTO that folder by default, so they nest under the task
- * instead of cluttering the parent graph, and the folder is then subject to the
- * `folder_child_count_limit` cap. Returns the absolute task folder to use as the
- * effective outputPath, or null when task routing does not apply.
+ * Live-gardening task-folder routing. When the task-folder feature flag is enabled,
+ * an agent anchored to a task node that is a folder identity note files its progress
+ * nodes INTO that folder by default, so they nest under the task instead of cluttering
+ * the parent graph, and the folder is then subject to the `folder_child_count_limit`
+ * cap. Returns the absolute task folder to use as the effective outputPath, or null
+ * when task routing does not apply.
  *
  * Precedence: an explicit outputPath (deliberate placement) and worktree routing
  * both win. A plain (non-folder) anchored node is left untouched — converting an
@@ -190,7 +191,9 @@ export function resolveTaskFolderOutputPath(
     explicitOutputPath: string | undefined,
     worktreeRouting: WorktreeRouting,
     anchoredToNodeId: NodeIdAndFilePath | null,
+    enabled: boolean = taskFolderNodesEnabledFromEnv(),
 ): string | null {
+    if (!enabled) return null
     const hasExplicit: boolean = !!explicitOutputPath && explicitOutputPath.trim() !== ''
     if (hasExplicit || worktreeRouting.active || anchoredToNodeId === null) return null
     if (!isFolderIdentityNote(anchoredToNodeId)) return null
@@ -400,8 +403,8 @@ export async function createGraphTool(
     const worktreeRouting: WorktreeRouting = resolveWorktreeRouting(outputPath, callerRecord.terminalData.worktreeName)
     const anchoredToNodeId: NodeIdAndFilePath | null =
         O.isSome(callerRecord.terminalData.anchoredToNodeId) ? callerRecord.terminalData.anchoredToNodeId.value : null
-    // Task-folder routing wins over worktree routing: an agent's progress nests inside
-    // its own task folder; both yield to an explicit outputPath.
+    // Worktree routing and explicit outputPath keep deliberate placement ahead of
+    // optional task-folder nesting.
     const taskFolderOutputPath: string | null = resolveTaskFolderOutputPath(outputPath, worktreeRouting, anchoredToNodeId)
     const effectiveOutputPath: string | undefined = taskFolderOutputPath ?? worktreeRouting.outputPath
     const outputDirectoryResult: Result<string> = await resolveConfiguredOutputDirectory(effectiveOutputPath, bridge)

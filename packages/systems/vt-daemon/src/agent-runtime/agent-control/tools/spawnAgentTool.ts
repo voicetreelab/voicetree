@@ -11,6 +11,7 @@ import {loadSettings} from '@vt/app-config/settings'
 import type {VTSettings, AgentConfig, ResolvedAgent} from '@vt/graph-model/settings'
 import {flattenAgentTree} from '@vt/graph-model/settings'
 import {type ToolResponse, buildJsonResponse} from '@vt/vt-daemon/_shared/toolResponse.ts'
+import {taskFolderNodesEnabledFromEnv} from '@vt/vt-daemon/_shared/taskFolderFeatureFlag.ts'
 import {startMonitor} from '../agent-completion-monitor.ts'
 import {applyToolGraphDelta, getToolGraph, getToolWriteFolderPath} from '@vt/vt-daemon/config/graphBridge.ts'
 import type {GraphBridge} from '@vt/vt-daemon/config/toolBridges.ts'
@@ -314,7 +315,8 @@ async function spawnAgentForTask(
             selectedNodeIds: [resolvedParentId],
             graph: graphContext.graph,
             writeFolderPath: graphContext.writeFolderPath,
-            initialStatus: 'claimed'
+            initialStatus: 'claimed',
+            useTaskFolderNode: taskFolderNodesEnabledFromEnv(),
         })
         const taskNodeId: NodeIdAndFilePath | undefined = taskNodeIdFromDelta(taskNodeDelta)
         if (!taskNodeId) return errorResponse('Failed to create task node')

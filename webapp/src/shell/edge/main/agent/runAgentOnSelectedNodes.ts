@@ -16,6 +16,13 @@ import {spawnTerminalWithContextNode} from '@vt/vt-daemon-client'
 import {getVtDaemonClient} from '@/shell/edge/main/runtime/electron/daemon/daemon-url-binding'
 import {getGraphFromDaemon, postDeltaThroughDaemonWithEditors} from '@/shell/edge/main/runtime/electron/daemon/ipc/daemon-ipc-proxy'
 
+const TASK_FOLDER_NODES_FLAG: 'VT_ENABLE_TASK_FOLDER_NODES' = 'VT_ENABLE_TASK_FOLDER_NODES'
+
+function isTaskFolderNodeEnabled(): boolean {
+    const raw: string | undefined = process.env[TASK_FOLDER_NODES_FLAG]
+    return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on'
+}
+
 export function runAgentOnSelectedNodes(
     params: RunAgentOnSelectedParams,
 ): Promise<RunAgentOnSelectedResult> {
@@ -24,5 +31,6 @@ export function runAgentOnSelectedNodes(
         getWriteFolderPath,
         applyTaskNodeDelta: postDeltaThroughDaemonWithEditors,
         spawnAgentTerminal: (req) => spawnTerminalWithContextNode(getVtDaemonClient(), req),
+        isTaskFolderNodeEnabled,
     })
 }

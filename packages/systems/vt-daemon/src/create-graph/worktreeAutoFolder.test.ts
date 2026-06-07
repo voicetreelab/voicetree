@@ -78,26 +78,31 @@ describe('worktreeFolderNoteInput', () => {
 describe('resolveTaskFolderOutputPath (live-gardening task-folder routing)', () => {
     const inactiveWorktree: WorktreeRouting = {outputPath: undefined, active: false, worktreeName: null}
 
-    it('routes into the task folder when anchored to a folder task node (no outputPath / worktree)', () => {
+    it('does not route into the task folder when task folder nodes are disabled', () => {
         const taskNote: NodeIdAndFilePath = '/proj/sub/task_abc/task_abc.md'
-        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, taskNote)).toBe('/proj/sub/task_abc/')
+        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, taskNote, false)).toBeNull()
+    })
+
+    it('routes into the task folder when enabled and anchored to a folder task node (no outputPath / worktree)', () => {
+        const taskNote: NodeIdAndFilePath = '/proj/sub/task_abc/task_abc.md'
+        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, taskNote, true)).toBe('/proj/sub/task_abc/')
     })
 
     it('does not route when anchored to a plain (non-folder) node', () => {
-        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, '/proj/sub/plain.md')).toBeNull()
+        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, '/proj/sub/plain.md', true)).toBeNull()
     })
 
     it('does not route when there is no anchored node', () => {
-        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, null)).toBeNull()
+        expect(resolveTaskFolderOutputPath(undefined, inactiveWorktree, null, true)).toBeNull()
     })
 
     it('yields to an explicit outputPath (deliberate placement wins)', () => {
-        expect(resolveTaskFolderOutputPath('some/dir', inactiveWorktree, '/proj/task_x/task_x.md')).toBeNull()
+        expect(resolveTaskFolderOutputPath('some/dir', inactiveWorktree, '/proj/task_x/task_x.md', true)).toBeNull()
     })
 
     it('yields to active worktree routing', () => {
         const activeWorktree: WorktreeRouting = {outputPath: 'wt-x', active: true, worktreeName: 'wt-x'}
-        expect(resolveTaskFolderOutputPath(undefined, activeWorktree, '/proj/task_x/task_x.md')).toBeNull()
+        expect(resolveTaskFolderOutputPath(undefined, activeWorktree, '/proj/task_x/task_x.md', true)).toBeNull()
     })
 })
 
