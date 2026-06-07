@@ -19,7 +19,13 @@ import path from 'node:path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {configureAgentRuntime} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 import {buildTerminalEnvVars} from '../buildTerminalEnvVars'
-import {prependVtBinToPath, prependHomeBinToPath, resolveVtBinDir} from '../injection/vtPathInjection'
+import {
+    defaultExecutablePath,
+    inheritExecutablePathIfMissing,
+    prependVtBinToPath,
+    prependHomeBinToPath,
+    resolveVtBinDir,
+} from '../injection/vtPathInjection'
 
 describe('prependVtBinToPath (pure)', () => {
     it('passes through unchanged when vtBinDir is null', () => {
@@ -118,18 +124,45 @@ describe('resolveVtBinDir (pure)', () => {
     })
 })
 
+describe('inheritExecutablePathIfMissing (pure)', () => {
+    it('keeps an explicit PATH unchanged', () => {
+        expect(inheritExecutablePathIfMissing({PATH: '/custom/bin'}, '/usr/bin', 'darwin').PATH)
+            .toBe('/custom/bin')
+    })
+
+    it('inherits process PATH and appends the macOS baseline when PATH is absent', () => {
+        const result = inheritExecutablePathIfMissing({OTHER: 'x'}, '/custom/bin:/usr/bin', 'darwin')
+        expect(result.PATH).toContain('/custom/bin')
+        expect(result.PATH).toContain('/opt/homebrew/bin')
+        expect(result.PATH).toContain('/usr/local/bin')
+        expect(result.PATH).toContain('/bin')
+        expect(result.OTHER).toBe('x')
+    })
+
+    it('provides a Unix baseline even when inherited PATH is missing', () => {
+        const result = inheritExecutablePathIfMissing({}, undefined, 'linux')
+        expect(result.PATH).toBe(defaultExecutablePath('linux'))
+        expect(result.PATH).toContain('/usr/bin')
+        expect(result.PATH).toContain('/bin')
+    })
+})
+
 describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
     let tempDir: string
+    let originalPath: string | undefined
 
     beforeEach(async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vt-vtbin-spawn-'))
         process.env.VOICETREE_HOME_PATH = tempDir
+        originalPath = process.env.PATH
     })
 
     afterEach(async () => {
         await fs.rm(tempDir, {recursive: true, force: true})
         configureAgentRuntime({})
         delete process.env.VOICETREE_HOME_PATH
+        if (originalPath === undefined) delete process.env.PATH
+        else process.env.PATH = originalPath
     })
 
     it('prepends the configured vt-bin dir onto PATH', async () => {
@@ -192,9 +225,10 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
         expect(envVars.PATH).toContain('/usr/bin')
     })
 
-    it('sets PATH from scratch when no PATH is injected and vt-bin is configured', async () => {
+    it('inherits a usable PATH when no PATH is injected and vt-bin is configured', async () => {
         const vtBinDir: string = path.join(tempDir, 'vt-bin')
         await fs.mkdir(vtBinDir, {recursive: true})
+        process.env.PATH = '/custom/bin'
 
         configureAgentRuntime({
             env: {
@@ -215,10 +249,13 @@ describe('buildTerminalEnvVars — vt-bin PATH injection end-to-end', () => {
             } as never,
         })
 
-        // PATH = vtBinDir : $HOME/bin (or just vtBinDir on Windows)
+        // PATH = vtBinDir : $HOME/bin : inherited PATH : Unix baseline
         if (process.platform !== 'win32') {
             const homeBin: string = path.join(os.homedir(), 'bin')
-            expect(envVars.PATH).toBe(vtBinDir + path.delimiter + homeBin)
+            expect(envVars.PATH.startsWith(vtBinDir + path.delimiter + homeBin + path.delimiter)).toBe(true)
+            expect(envVars.PATH).toContain('/custom/bin')
+            expect(envVars.PATH).toContain('/usr/bin')
+            expect(envVars.PATH).toContain('/bin')
         } else {
             expect(envVars.PATH).toBe(vtBinDir)
         }

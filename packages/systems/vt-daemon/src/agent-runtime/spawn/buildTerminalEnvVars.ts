@@ -10,7 +10,12 @@ import {getRuntimeEnv, getGraphBridge} from '../runtime/runtime-config'
 import {getProjectDotVoicetreePath, resolveVoicetreeHomePath} from '@vt/paths'
 import {getRuntimeProjectRoot, getRuntimeProjectPaths} from '../runtime/graph-bridge'
 import {appendCliDiscoveryToAgentPrompt} from './injection/cliManualInjection'
-import {prependVtBinToPath, prependHomeBinToPath, readVtBinDirOrNull} from './injection/vtPathInjection'
+import {
+    inheritExecutablePathIfMissing,
+    prependVtBinToPath,
+    prependHomeBinToPath,
+    readVtBinDirOrNull,
+} from './injection/vtPathInjection'
 import {readDaemonPortFromProject} from './daemonUrlFile'
 import {promises as fs} from 'fs'
 import type {Dirent} from 'fs'
@@ -63,8 +68,8 @@ export async function buildTerminalEnvVars(params: {
     // AGENT_PROMPT_* templates are .md files in the single per-machine prompts
     // location ~/.voicetree/prompts (NO per-project prompts dir) — symlinks to the
     // canonical shipped source, kept in sync at daemon/Electron startup. A file is
-    // authoritative over any settings value of the same name; persisted settings
-    // prune these reserved keys so stale UI values cannot shadow the files.
+    // authoritative over any settings default of the same name; a settings value
+    // only applies when no file exists (e.g. a test that blanks the prompt).
     // --prompt-template selects which one becomes AGENT_PROMPT.
     const voicetreePromptsDir: string = path.join(voicetreeHomePath, 'prompts')
     const promptTemplates: Record<string, string> = await readPromptTemplates(voicetreePromptsDir)
@@ -99,9 +104,10 @@ export async function buildTerminalEnvVars(params: {
     const withCliDiscovery: Record<string, string> = appendCliDiscoveryToAgentPrompt(filtered)
     const withPersona: Record<string, string> = appendPersonaToAgentPrompt(withCliDiscovery, params.agentName, params.settings)
     const vtBinDir: string | null = await readVtBinDirOrNull()
+    const withInheritedPath: Record<string, string> = inheritExecutablePathIfMissing(withPersona, process.env.PATH)
     // $HOME/bin is prepended first so the daemon's vt-bin can sit in front of it.
     // Final order: vtBinDir : $HOME/bin : ...inherited PATH
-    const withHomeBin: Record<string, string> = prependHomeBinToPath(withPersona)
+    const withHomeBin: Record<string, string> = prependHomeBinToPath(withInheritedPath)
     return prependVtBinToPath(withHomeBin, vtBinDir)
 }
 

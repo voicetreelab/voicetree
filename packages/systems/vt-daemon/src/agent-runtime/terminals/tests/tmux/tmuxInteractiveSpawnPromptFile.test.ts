@@ -10,8 +10,8 @@
  *   - tmux session env carries AGENT_PROMPT_FILE pointing at the file
  *   - tmux session env's AGENT_PROMPT is empty (the primitive shadows it
  *     with '' to defeat OS env-inheritance)
- *   - the rewritten initialCommand consumes the file via stdin redirect
- *     (claude/gemini) or $(cat) (codex) rather than expanding $AGENT_PROMPT
+ *   - the rewritten initialCommand consumes the file via $(cat) rather than
+ *     expanding $AGENT_PROMPT or redirecting stdin away from the TTY
  *
  * No mocking. Real tmux underneath.
  */
@@ -23,7 +23,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {afterAll, afterEach, describe, expect, it} from 'vitest'
 import type {NodeIdAndFilePath} from '@vt/graph-model/graph'
-import {applyPromptFileToTmuxSpawn} from '@vt/vt-daemon/agent-runtime/headless/tmuxPromptFile.ts'
+import {applyPromptFileToInteractiveSpawn} from '@vt/vt-daemon/agent-runtime/headless/tmuxPromptFile.ts'
 import {spawnTmuxBackedTerminal} from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts'
 import {clearTerminalRecords} from '../../terminal-registry'
 import {hasSession, killSession, resolveTmuxSessionName} from '../../tmux/tmux-session-manager'
@@ -122,11 +122,11 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
             AGENT_PROMPT_CORE: 'core template body',
             AGENT_PROMPT_LIGHTWEIGHT: 'lightweight template body',
         }
-        const initialCommand: string = 'claude --dangerously-skip-permissions "$AGENT_PROMPT"'
+        const initialCommand: string = 'claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion'
 
         // Mirror what `TerminalManager.spawnTmuxBacked` does in
         // packages/systems/agent-runtime/src/application/terminals/terminal-manager.ts:
-        const plan = applyPromptFileToTmuxSpawn({
+        const plan = applyPromptFileToInteractiveSpawn({
             projectRoot: projectPath,
             terminalId,
             command: initialCommand,
@@ -137,7 +137,7 @@ describe('interactive tmux spawn with a giant AGENT_PROMPT (prompt-file primitiv
         // Sanity on the plan: prompt file path is set, command is CLI-rewritten,
         // big AGENT_PROMPT is gone from the env vector that tmux -e will receive.
         expect(plan.promptFilePath).toBe(join(projectPath, '.voicetree', 'terminals', `${terminalId}-prompt.txt`))
-        expect(plan.command).toBe(`claude --dangerously-skip-permissions < '${plan.promptFilePath}'`)
+        expect(plan.command).toBe(`claude --dangerously-skip-permissions "$(cat '${plan.promptFilePath}')" --disallowedTools AskUserQuestion`)
         expect(tmuxEnv.AGENT_PROMPT).toBe('')
         expect(tmuxEnv.AGENT_PROMPT_FILE).toBe(plan.promptFilePath)
         const envBytes: number = JSON.stringify(tmuxEnv).length

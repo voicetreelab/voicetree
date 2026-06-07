@@ -36,6 +36,49 @@ import {delimiter, isAbsolute, join} from 'node:path'
 import os from 'node:os'
 import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts'
 
+function uniquePathEntries(entries: readonly string[]): string {
+    const seen: Set<string> = new Set()
+    const result: string[] = []
+    for (const entry of entries) {
+        if (entry.length === 0 || seen.has(entry)) continue
+        seen.add(entry)
+        result.push(entry)
+    }
+    return result.join(delimiter)
+}
+
+export function defaultExecutablePath(platform: string = process.platform): string {
+    if (platform === 'win32') return ''
+    return [
+        '/opt/homebrew/bin',
+        '/usr/local/bin',
+        '/usr/bin',
+        '/bin',
+        '/usr/sbin',
+        '/sbin',
+    ].join(delimiter)
+}
+
+/**
+ * Preserve a usable executable PATH when the user settings do not explicitly
+ * inject one. Without this, the later ~/bin prepend creates PATH from scratch
+ * and generated launch scripts using `#!/usr/bin/env bash` cannot even resolve
+ * bash in packaged macOS app launches.
+ */
+export function inheritExecutablePathIfMissing(
+    envVars: Record<string, string>,
+    inheritedPath: string | undefined,
+    platform: string = process.platform,
+): Record<string, string> {
+    if (envVars.PATH !== undefined && envVars.PATH.length > 0) return envVars
+    const baseline: string = defaultExecutablePath(platform)
+    const pathValue: string = uniquePathEntries([
+        ...((inheritedPath ?? '').split(delimiter)),
+        ...(baseline ? baseline.split(delimiter) : []),
+    ])
+    return pathValue.length > 0 ? {...envVars, PATH: pathValue} : envVars
+}
+
 /**
  * Pure: returns a new env-var map with `vtBinDir` prepended to `PATH`.
  * - If `vtBinDir` is null or empty, returns `envVars` unchanged.
