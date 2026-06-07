@@ -100,9 +100,21 @@
 
 /* Hover overlay — floats over cards below, no layout displacement.
    Always in the DOM (zero cost when hidden); shown purely via :hover — no JS
-   state or re-renders needed. */
+   state or re-renders needed.
+
+   pointer-events: none is load-bearing, not cosmetic. The overlay grows
+   downward (text wraps) so it visually covers the next tab(s) below. Were it
+   hittable, two things would break: (1) the pointer would land on the overlay
+   instead of the tab beneath it, and (2) because the overlay is a DESCENDANT of
+   the hovered node, the pointer staying over it keeps that node :hover'd — so
+   the overlay never hides and you can never reach the next tab (a sticky,
+   oversized hitbox). Making it non-interactive lets hit-testing pass straight
+   through: the overlay's top region overlaps the node's own real row (identical
+   handlers/buttons, pixel-aligned), and its expanded region falls through to the
+   tab below — so no interactivity is lost. */
 .terminal-tree-hover-overlay {
     display: none;
+    pointer-events: none;
     position: absolute;
     top: -1px;
     left: -1px;
