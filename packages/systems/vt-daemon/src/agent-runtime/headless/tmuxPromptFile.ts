@@ -7,7 +7,9 @@
  *   1. Writes the prompt to `{project}/.voicetree/terminals/{name}-prompt.txt`
  *      (mode 0600). The big string never crosses tmux's argv.
  *   2. Rewrites the agent invocation to consume the file:
- *        - claude / gemini → stdin redirection (`< {file}`)
+ *        - headless claude / gemini → stdin redirection (`< {file}`)
+ *        - interactive claude / gemini / codex → argv via `"$(cat {file})"`
+ *          so the agent keeps its TTY for further interaction
  *        - codex          → argv via `"$(cat {file})"` (positional)
  *        - other (fake)   → no argv rewrite; the agent reads
  *                           `AGENT_PROMPT_FILE` from env (see fake-agent).
@@ -88,6 +90,19 @@ function stripPositionalPromptArg(command: string): string {
     return stripped.replace(/\s+/g, ' ').trim()
 }
 
+function replacePositionalPromptArg(command: string, replacement: string): string {
+    let rewritten: string = command
+    let changed: boolean = false
+    for (const pattern of positionalPromptPatterns()) {
+        rewritten = rewritten.replace(pattern, (): string => {
+            changed = true
+            return ` ${replacement}`
+        })
+    }
+    if (!changed) return `${stripPositionalPromptArg(command)} ${replacement}`.replace(/\s+/g, ' ').trim()
+    return rewritten.replace(/\s+/g, ' ').trim()
+}
+
 /**
  * Rewrite the agent invocation to consume the prompt from `promptFile`.
  * CLI-aware: stdin for claude/gemini, `$(cat ...)` argv for codex, env-only for the rest.
@@ -105,6 +120,26 @@ export function rewriteCommandForPromptFile(command: string, promptFile: string)
     }
     // Unknown CLI (e.g. fake-agent): the agent must read AGENT_PROMPT_FILE
     // from env. Return the stripped command so argv stays short.
+    return stripped
+}
+
+function promptFileArg(promptFile: string): string {
+    return `"$(cat ${shellSingleQuote(promptFile)})"`
+}
+
+/**
+ * Rewrite a command for an interactive/headful terminal. Unlike the headless
+ * path, do not redirect stdin for Claude/Gemini: that makes the agent process
+ * consume a file instead of the terminal and can cause immediate exit. The
+ * shell reads the prompt file at launch time, while the CLI keeps its TTY.
+ */
+export function rewriteInteractiveCommandForPromptFile(command: string, promptFile: string): string {
+    const stripped: string = stripPositionalPromptArg(command)
+    const cli: SupportedHeadlessCli | null = detectCliType(stripped)
+
+    if (cli === 'claude' || cli === 'gemini' || cli === 'codex') {
+        return replacePositionalPromptArg(command, promptFileArg(promptFile))
+    }
     return stripped
 }
 
@@ -162,6 +197,26 @@ export function applyPromptFileToTmuxSpawn(args: {
     }
     const filePath: string = writePromptFile(args.projectRoot, args.terminalId, prompt)
     const rewritten: string = rewriteCommandForPromptFile(args.command, filePath)
+    const {AGENT_PROMPT: _drop, ...rest} = args.env
+    return {
+        command: rewritten,
+        env: {...rest, AGENT_PROMPT: '', AGENT_PROMPT_FILE: filePath},
+        promptFilePath: filePath,
+    }
+}
+
+export function applyPromptFileToInteractiveSpawn(args: {
+    readonly projectRoot: string
+    readonly terminalId: TerminalId
+    readonly command: string
+    readonly env: Record<string, string>
+}): PromptFileSpawnPlan {
+    const prompt: string | undefined = args.env.AGENT_PROMPT
+    if (!prompt) {
+        return {command: args.command, env: args.env, promptFilePath: null}
+    }
+    const filePath: string = writePromptFile(args.projectRoot, args.terminalId, prompt)
+    const rewritten: string = rewriteInteractiveCommandForPromptFile(args.command, filePath)
     const {AGENT_PROMPT: _drop, ...rest} = args.env
     return {
         command: rewritten,

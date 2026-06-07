@@ -10,7 +10,11 @@ import {
   type HeadlessAgentCleanupPolicy,
   spawnTmuxBackedTerminal,
 } from '@vt/vt-daemon/agent-runtime/headless/headlessAgentManager.ts';
-import {injectAgentCommandHeadful, writePromptFile} from '@vt/vt-daemon/agent-runtime/headless/tmuxPromptFile.ts';
+import {
+  applyPromptFileToInteractiveSpawn,
+  injectAgentCommandHeadful,
+  type PromptFileSpawnPlan,
+} from '@vt/vt-daemon/agent-runtime/headless/tmuxPromptFile.ts';
 import {
   getWindowsShell,
   resolveTerminalCwd,
@@ -18,13 +22,11 @@ import {
   type TerminalManagerDeps,
 } from './terminal-manager-spawn';
 import {
-  buildTmuxEnv,
   resolveHeadfulPromptInjection,
-  resolvePromptFileWrite,
   resolveTmuxProjectPath,
   withResolvedTmuxProjectPath,
+  withVoicetreeProjectPath,
   type HeadfulPromptInjectionRequest,
-  type PromptFileWriteRequest,
 } from '../tmux/tmuxSpawnPlanning';
 import {getRuntimeEnv} from '@vt/vt-daemon/agent-runtime/runtime/runtime-config.ts';
 import type {TerminalSpawnResult} from '@vt/vt-daemon-protocol'
@@ -46,11 +48,6 @@ export interface TerminalSpawnOpts {
 }
 
 export type TerminalCleanupPolicy = HeadlessAgentCleanupPolicy;
-
-function writeResolvedPromptFile(request: PromptFileWriteRequest | null): string | null {
-  if (!request) return null;
-  return writePromptFile(request.projectRoot, request.terminalId, request.prompt);
-}
 
 async function resolveRuntimeProjectRoot(): Promise<string | null> {
   try {
@@ -91,12 +88,9 @@ export class TerminalManager {
   // directly — no PTY is owned by this process.
   //
   // Phase 6 prompt delivery: the agent prompt is written to a disk file
-  // ({project}/.voicetree/terminals/{name}-prompt.txt, mode 0600) at spawn
-  // time as an auxiliary delivery path. After the shell is ready, the agent
-  // command is injected via `tmux send-keys` exactly as configured. The
-  // original AGENT_PROMPT env var is kept so existing
-  // agent commands like `claude "$AGENT_PROMPT"` and custom agents continue to
-  // receive the prompt through their configured interface.
+  // ({project}/.voicetree/terminals/{name}-prompt.txt, mode 0600) and the
+  // injected command is rewritten to consume that file. This keeps large
+  // prompts out of both the tmux command protocol and the shell argv plane.
   // tmux server inherits PATH/HOME/SHELL/USER from the Electron main spawn
   // context; panes inherit from the server.
   async spawnTmuxBacked(opts: TerminalSpawnOpts): Promise<TerminalSpawnResult> {
@@ -108,18 +102,25 @@ export class TerminalManager {
       const cwd: string = await resolveTerminalCwd(terminalData, getToolsDirectory, deps);
       const initial: Record<string, string> = terminalData.initialEnvVars ?? {};
       const projectRoot: string | undefined = resolveTmuxProjectPath(deps.env, initial, await resolveRuntimeProjectRoot());
-      const promptFile: string | null = writeResolvedPromptFile(
-        resolvePromptFileWrite(projectRoot, terminalId, initial.AGENT_PROMPT),
-      );
-      const tmuxEnv: Record<string, string> = buildTmuxEnv(initial, projectRoot, promptFile);
+      const command: string | undefined = terminalData.initialCommand;
+      const promptPlan: PromptFileSpawnPlan = projectRoot && command
+        ? applyPromptFileToInteractiveSpawn({
+            projectRoot,
+            terminalId,
+            command,
+            env: initial,
+          })
+        : {command: command ?? '', env: initial, promptFilePath: null};
+      const tmuxEnv: Record<string, string> = withVoicetreeProjectPath(promptPlan.env, projectRoot);
       const terminalDataWithProjectPath: TerminalData = {
         ...terminalData,
-        initialEnvVars: withResolvedTmuxProjectPath(initial, projectRoot),
+        initialEnvVars: withResolvedTmuxProjectPath(promptPlan.env, projectRoot),
+        initialCommand: command ? promptPlan.command : command,
       };
-      await spawnTmuxBackedTerminal(terminalId, terminalDataWithProjectPath, shell, cwd, tmuxEnv, undefined, promptFile);
+      await spawnTmuxBackedTerminal(terminalId, terminalDataWithProjectPath, shell, cwd, tmuxEnv, undefined, promptPlan.promptFilePath);
       const promptInjection: HeadfulPromptInjectionRequest | null = resolveHeadfulPromptInjection(
         terminalId,
-        terminalData.initialCommand,
+        command ? promptPlan.command : command,
         projectRoot,
       );
       if (promptInjection) {

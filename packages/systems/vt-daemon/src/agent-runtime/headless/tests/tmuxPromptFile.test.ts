@@ -10,12 +10,14 @@ import {join} from 'node:path'
 import {describe, expect, it, beforeEach, afterEach} from 'vitest'
 import type {TerminalId} from '@vt/vt-daemon/agent-runtime/terminals/terminal-registry/types.ts'
 import {
+    applyPromptFileToInteractiveSpawn,
     applyPromptFileToHeadlessSpawn,
     applyPromptFileToTmuxSpawn,
     deletePromptFile,
     deletePromptFileByPath,
     formatLaunchScript,
     promptFilePath,
+    rewriteInteractiveCommandForPromptFile,
     rewriteCommandForPromptFile,
     wrapForHeadlessTmux,
     writePromptFile,
@@ -136,6 +138,26 @@ describe('rewriteCommandForPromptFile (CLI-aware)', () => {
     })
 })
 
+describe('rewriteInteractiveCommandForPromptFile (TTY-preserving)', () => {
+    it('claude: strips $AGENT_PROMPT positional and uses cat substitution without redirecting stdin', () => {
+        const out: string = rewriteInteractiveCommandForPromptFile(
+            'claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion',
+            '/v/.voicetree/terminals/Aki-prompt.txt',
+        )
+        expect(out).toBe(
+            `claude --dangerously-skip-permissions "$(cat '/v/.voicetree/terminals/Aki-prompt.txt')" --disallowedTools AskUserQuestion`,
+        )
+    })
+
+    it('gemini: uses cat substitution so the process keeps terminal stdin', () => {
+        const out: string = rewriteInteractiveCommandForPromptFile(
+            'gemini --yolo "$AGENT_PROMPT"',
+            '/v/x.txt',
+        )
+        expect(out).toBe(`gemini --yolo "$(cat '/v/x.txt')"`)
+    })
+})
+
 describe('wrapForHeadlessTmux', () => {
     it("wraps in bash -c '...' to unset AGENT_PROMPT and run the command", () => {
         const out: string = wrapForHeadlessTmux(`claude --print < '/v/p.txt'`)
@@ -209,6 +231,47 @@ describe('applyPromptFileToTmuxSpawn (mode-agnostic primitive)', () => {
         // to disk rather than staying in env.
         const envBytes: number = JSON.stringify(plan.env).length
         expect(envBytes).toBeLessThan(2_000)
+    })
+})
+
+describe('applyPromptFileToInteractiveSpawn', () => {
+    it('writes the prompt and rewrites Claude to read it through argv substitution while keeping stdin as the TTY', () => {
+        const plan = applyPromptFileToInteractiveSpawn({
+            projectRoot: project,
+            terminalId: tid('Aki'),
+            command: 'claude "$AGENT_PROMPT"',
+            env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
+        })
+        expect(plan.promptFilePath).toBe(promptFilePath(project, tid('Aki')))
+        expect(readFileSync(plan.promptFilePath!, 'utf8')).toBe('task body')
+        expect(plan.command).toBe(`claude "$(cat '${plan.promptFilePath}')"`)
+        expect(plan.env.AGENT_PROMPT).toBe('')
+        expect(plan.env.AGENT_PROMPT_FILE).toBe(plan.promptFilePath)
+        expect(plan.env.VOICETREE_TERMINAL_ID).toBe('Aki')
+    })
+
+    it('preserves argument order around options that follow the prompt', () => {
+        const plan = applyPromptFileToInteractiveSpawn({
+            projectRoot: project,
+            terminalId: tid('Aki'),
+            command: 'claude --dangerously-skip-permissions "$AGENT_PROMPT" --disallowedTools AskUserQuestion',
+            env: {AGENT_PROMPT: 'task body', VOICETREE_TERMINAL_ID: 'Aki'},
+        })
+        expect(plan.command).toBe(
+            `claude --dangerously-skip-permissions "$(cat '${plan.promptFilePath}')" --disallowedTools AskUserQuestion`,
+        )
+    })
+
+    it('is a no-op when env has no AGENT_PROMPT', () => {
+        const plan = applyPromptFileToInteractiveSpawn({
+            projectRoot: project,
+            terminalId: tid('Aki'),
+            command: 'bash',
+            env: {VOICETREE_TERMINAL_ID: 'Aki'},
+        })
+        expect(plan.promptFilePath).toBeNull()
+        expect(plan.command).toBe('bash')
+        expect(plan.env).toEqual({VOICETREE_TERMINAL_ID: 'Aki'})
     })
 })
 
