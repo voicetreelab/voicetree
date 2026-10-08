@@ -37,9 +37,35 @@ jobs:
             head -n 1 "$f" | grep -q '^HTTP/1\.1 ' || { echo "::error file=$f::first line is not HTTP/1.1: $(head -n 1 "$f")"; exit 1; }
           done
 
+      # Workaround: action.yml at v0.1.0-beta.2 is invalid YAML (two unquoted
+      # descriptions contain ": "), so GitHub cannot load it via `uses:`.
+      # Check out the same pinned commit and quote those descriptions only.
+      # Revert to `uses: Symbolia-Assurance/assure-action@<sha>` once fixed upstream.
+      - name: Check out the Assure Action at its pin
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Symbolia-Assurance/assure-action
+          ref: 3c722a24a03e5e8554b0e416ddb55be8e39def50 # v0.1.0-beta.2
+          path: .assure-action
+          persist-credentials: false
+
+      - name: Quote the unparseable descriptions in action.yml
+        run: |
+          python3 - <<'PY'
+          import re
+          p = ".assure-action/action.yml"
+          lines = open(p).read().split("\n")
+          for i, l in enumerate(lines):
+              m = re.match(r"^(\s*description: )(.*)$", l)
+              if m and ": " in m.group(2) and not m.group(2).startswith(("'", '"')):
+                  lines[i] = m.group(1) + "'" + m.group(2).replace("'", "''") + "'"
+          open(p, "w").write("\n".join(lines))
+          PY
+          git -C .assure-action diff --stat
+
       - name: Assure check
         id: assure
-        uses: Symbolia-Assurance/assure-action@3c722a24a03e5e8554b0e416ddb55be8e39def50 # v0.1.0-beta.2
+        uses: ./.assure-action
         with:
           api-key: ${{ secrets.ASSURE_API_KEY }}
           profile: http-observed-baseline
