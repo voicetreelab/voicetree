@@ -1,0 +1,17 @@
+{
+  "schema_version": "http-fixture-001",
+  "mode": "offline_fixture",
+  "endpoints": [
+    {"id": "endpoint-001", "scope_token": "site", "scheme": "https", "host": "voicetree.io", "port": 443,
+     "path": "/", "response_file": "head-001.txt", "complete": true},
+    {"id": "endpoint-002", "scope_token": "www", "scheme": "https", "host": "www.voicetree.io", "port": 443,
+     "path": "/", "response_file": "head-002.txt", "complete": true}
+  ],
+  "execution_authorized": false,
+  "hardware_authorized": false,
+  "industrial_release_authorized": false,
+  "release_allowed": false,
+  "physical_validation": false,
+  "simulation": true,
+  "self_approved": false
+}
