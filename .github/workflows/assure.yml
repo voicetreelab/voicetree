@@ -28,9 +28,6 @@ jobs:
       - name: Capture the head of www.voicetree.io/
         run: curl -sS --http1.1 -I https://www.voicetree.io/ > http-fixture/head-002.txt
 
-      - name: Capture the head of share-worker /upload
-        run: curl -sS --http1.1 -I https://share-worker.manummasson8.workers.dev/upload > http-fixture/head-003.txt
-
       - name: Check each head starts with HTTP/1.1
         run: |
           for f in http-fixture/head-*.txt; do

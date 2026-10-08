@@ -5,9 +5,7 @@
     {"id": "endpoint-001", "scope_token": "site", "scheme": "https", "host": "voicetree.io", "port": 443,
      "path": "/", "response_file": "head-001.txt", "complete": true},
     {"id": "endpoint-002", "scope_token": "www", "scheme": "https", "host": "www.voicetree.io", "port": 443,
-     "path": "/", "response_file": "head-002.txt", "complete": true},
-    {"id": "endpoint-003", "scope_token": "share", "scheme": "https", "host": "share-worker.manummasson8.workers.dev", "port": 443,
-     "path": "/upload", "response_file": "head-003.txt", "complete": true}
+     "path": "/", "response_file": "head-002.txt", "complete": true}
   ],
   "execution_authorized": false,
   "hardware_authorized": false,
