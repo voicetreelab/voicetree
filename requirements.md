@@ -1,8 +1,7 @@
 # Requirements
 
-These are the public HTTP endpoints VoiceTree runs, checked by the Assure workflow (`.github/workflows/assure.yml`).
-
-- https://voicetree.io/ serves the VoiceTree website over HTTPS and tells browsers to use HTTPS only (Strict-Transport-Security).
-- https://www.voicetree.io/ permanently redirects to https://voicetree.io/.
-- The share worker at https://share-worker.manummasson8.workers.dev accepts uploads only through POST /upload; any other request to /upload returns no shared content.
-- None of these endpoints sets a cookie.
+- R1 [http HEAD /]: No response carries both Content-Length and Transfer-Encoding.
+- R2 [http HEAD /]: The voicetree.io site tells browsers to use HTTPS only, with a Strict-Transport-Security header.
+- R3 [http HEAD /]: The www.voicetree.io host permanently redirects to the voicetree.io site.
+- R4 [http HEAD /upload]: The share worker returns no shared content to a HEAD request on its upload path.
+- R5: None of these endpoints sets a cookie.
